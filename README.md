@@ -1,37 +1,64 @@
 # PokerTracker
 
-A simple private web app for recording the result of a complete poker night.
+PokerTracker is a small private web app for recording the result of an entire poker evening.
 
-## What it tracks
+It is deliberately **not** a hand tracker. Nothing needs to be entered while playing.
 
-For each poker night:
+For every poker night, the group records:
 
-- date / title of the session
+- date / session name
 - participating players
-- each player's total stake for the evening
-- each player's final cash-out
-- automatic profit / loss per player
-- automatic session balance check
+- each player's **total stake** for the complete evening
+- each player's **final cash-out**
 
-PokerTracker is intentionally **not** a hand tracker and is not meant to stay open during play.
+PokerTracker then calculates profit/loss, checks the table balance and builds lifetime player statistics.
 
-## Foundation
+## MVP
 
-- React + TypeScript + Vite
-- mobile-first browser UI
-- local browser persistence for the first version
-- password gate prepared for Cloudflare Pages
-- deployment secrets are kept outside this public repository
+- shared password-protected access
+- shared Cloudflare D1 database
+- add, edit and delete poker nights
+- automatic profit/loss per player
+- automatic session balance warning
+- session history
+- lifetime player standings
+- mobile-first interface
 
-## Local development
+## Stack
+
+- React
+- TypeScript
+- Vite
+- Cloudflare Pages
+- Cloudflare Pages Functions
+- Cloudflare D1
+
+The GitHub repository can remain public. The shared password and session-signing secret are deployment secrets and are never committed to the repository.
+
+## Local frontend
 
 ```bash
 npm install
 npm run dev
 ```
 
-For the password-protected Cloudflare Pages version, copy `.dev.vars.example` to `.dev.vars` and set private values.
+This starts Vite only. The shared API requires Pages Functions + D1.
 
-## Current scope
+## Full-stack / deployment
 
-This is the initial foundation. Visual design, shared cloud storage, statistics and additional poker-night features will be added next.
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+Database schema:
+
+```
+migrations/0001_initial.sql
+```
+
+Product scope and roadmap:
+
+- [docs/PRODUCT.md](docs/PRODUCT.md)
+- [docs/ROADMAP.md](docs/ROADMAP.md)
+
+## Core rule
+
+One evening is one record. PokerTracker does not record hands, actions, cards, blinds or live chip counts.
