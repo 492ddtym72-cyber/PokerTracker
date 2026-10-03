@@ -10,6 +10,7 @@ interface AuthConfig {
 
 const COOKIE_NAME = "pokertracker_session";
 const SESSION_PAYLOAD = "pokertracker-authenticated-v2";
+const PASSWORD_ITERATIONS = 210_000;
 
 function bytesToHex(bytes: Uint8Array) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -24,6 +25,12 @@ function hexToBytes(hex: string) {
   }
 
   return bytes;
+}
+
+function randomHex(byteLength: number) {
+  const bytes = new Uint8Array(byteLength);
+  crypto.getRandomValues(bytes);
+  return bytesToHex(bytes);
 }
 
 function constantTimeEqual(left: string, right: string) {
@@ -95,6 +102,21 @@ export async function verifyPassword(password: string, env: Env) {
   );
 
   return constantTimeEqual(candidate, config.password_hash);
+}
+
+export async function changePassword(newPassword: string, env: Env) {
+  if (newPassword.length < 12 || newPassword.length > 128) {
+    throw new Error("Das neue Passwort muss zwischen 12 und 128 Zeichen lang sein.");
+  }
+
+  const salt = randomHex(16);
+  const hash = await derivePasswordHash(newPassword, salt, PASSWORD_ITERATIONS);
+
+  await env.DB.prepare(
+    `UPDATE app_auth
+     SET password_salt = ?, password_hash = ?, iterations = ?, updated_at = ?
+     WHERE id = 1`,
+  ).bind(salt, hash, PASSWORD_ITERATIONS, new Date().toISOString()).run();
 }
 
 export function readCookie(request: Request, name: string) {
