@@ -44,11 +44,11 @@
           <input name="password" type="password" autocomplete="current-password" required autofocus />
         </label>
         <button type="submit">Einloggen</button>
-        <p class="error">Passwort stimmt nicht.</p>
+        <p class="error">Passwort stimmt nicht.</p>\n        <p class="system-error">Login ist gerade nicht verfügbar. Bitte Seite neu laden.</p>
       </form>
     </main>
     <script>
-      document.body.dataset.error = String(new URLSearchParams(location.search).has("error"));
+      const params = new URLSearchParams(location.search);\n      document.body.dataset.error = String(params.has("error"));\n      document.body.dataset.system = String(params.has("system"));
     </script>
   </body>
 </html>
