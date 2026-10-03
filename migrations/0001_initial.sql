@@ -1,5 +1,13 @@
 PRAGMA foreign_keys = ON;
 
+CREATE TABLE IF NOT EXISTS app_auth (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  password_salt TEXT NOT NULL,
+  password_hash TEXT NOT NULL,
+  iterations INTEGER NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS players (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
