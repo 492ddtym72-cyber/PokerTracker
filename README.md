@@ -1,6 +1,6 @@
 # PokerTracker
 
-PokerTracker is a small private web app for recording the result of an entire poker evening.
+PokerTracker is a private web app for recording the result of an entire poker evening.
 
 It is deliberately **not** a hand tracker. Nothing needs to be entered while playing.
 
@@ -11,7 +11,7 @@ For every poker night, the group records:
 - each player's **total stake** for the complete evening
 - each player's **final cash-out**
 
-PokerTracker then calculates profit/loss, checks the table balance and builds lifetime player statistics.
+PokerTracker calculates profit/loss, checks the table balance and builds lifetime player statistics.
 
 ## MVP
 
@@ -33,31 +33,22 @@ PokerTracker then calculates profit/loss, checks the table balance and builds li
 - Cloudflare Pages Functions
 - Cloudflare D1
 
-The GitHub repository can remain public. The shared password and session-signing secret are deployment secrets and are never committed to the repository.
+The GitHub repository can remain public. The shared password is never stored in plaintext in the repository or Cloudflare Pages configuration. Authentication uses a salted PBKDF2-SHA256 hash stored in the private D1 database and an HttpOnly signed session cookie.
 
-## Local frontend
+## Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-This starts Vite only. The shared API requires Pages Functions + D1.
+This starts the Vite frontend only. The shared API requires Pages Functions + D1.
 
-## Full-stack / deployment
+See:
 
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
-
-Database schema:
-
-```
-migrations/0001_initial.sql
-```
-
-Product scope and roadmap:
-
-- [docs/PRODUCT.md](docs/PRODUCT.md)
-- [docs/ROADMAP.md](docs/ROADMAP.md)
+- [Deployment](docs/DEPLOYMENT.md)
+- [Product scope](docs/PRODUCT.md)
+- [Roadmap](docs/ROADMAP.md)
 
 ## Core rule
 
