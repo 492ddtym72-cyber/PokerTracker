@@ -5,7 +5,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const password = String(form.get("password") ?? "");
 
   if (!(await verifyPassword(password, context.env))) {
-    return Response.redirect(new URL("/login.html?error=1", context.request.url), 303);
+    return Response.redirect(new URL("/login?error=1", context.request.url), 303);
   }
 
   return new Response(null, {
