@@ -10,7 +10,7 @@ interface AuthConfig {
 
 const COOKIE_NAME = "pokertracker_session";
 const SESSION_PAYLOAD = "pokertracker-authenticated-v2";
-const PASSWORD_ITERATIONS = 210_000;
+const PASSWORD_ITERATIONS = 100_000;
 
 function bytesToHex(bytes: Uint8Array) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
