@@ -9,6 +9,11 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
 
+  if (response.status === 401) {
+    window.location.assign("/login");
+    throw new Error("Nicht angemeldet.");
+  }
+
   if (!response.ok) {
     let message = "Etwas ist schiefgelaufen.";
 
