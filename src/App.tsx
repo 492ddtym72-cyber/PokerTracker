@@ -1,7 +1,15 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { createNight, deleteNight, loadNights, updateNight } from "./lib/api";
+import {
+  changeSharedPassword,
+  createNight,
+  deleteNight,
+  loadNights,
+  updateNight,
+} from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
 import type { NightInput, PokerNight } from "./types";
+
+type View = "home" | "editor" | "detail" | "stats" | "players" | "more";
 
 type DraftPlayer = {
   key: string;
@@ -37,14 +45,38 @@ function emptyPlayer(name = ""): DraftPlayer {
   };
 }
 
-function nightDifference(night: PokerNight) {
-  const stake = night.players.reduce((sum, player) => sum + player.stakeCents, 0);
-  const cashOut = night.players.reduce((sum, player) => sum + player.cashOutCents, 0);
-  return cashOut - stake;
+function formatDate(value: string) {
+  return new Date(value + "T12:00:00").toLocaleDateString("de-DE", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return (parts[0]?.[0] ?? "?") + (parts[1]?.[0] ?? "");
+}
+
+function playerResult(stakeCents: number, cashOutCents: number) {
+  return cashOutCents - stakeCents;
+}
+
+function nightTotals(night: PokerNight) {
+  const stakeCents = night.players.reduce((sum, player) => sum + player.stakeCents, 0);
+  const cashOutCents = night.players.reduce((sum, player) => sum + player.cashOutCents, 0);
+
+  return {
+    stakeCents,
+    cashOutCents,
+    differenceCents: cashOutCents - stakeCents,
+  };
 }
 
 export default function App() {
+  const [view, setView] = useState<View>("home");
   const [nights, setNights] = useState<PokerNight[]>([]);
+  const [selectedNightId, setSelectedNightId] = useState<string | null>(null);
   const [title, setTitle] = useState("Pokerabend");
   const [playedAt, setPlayedAt] = useState(today);
   const [players, setPlayers] = useState<DraftPlayer[]>([emptyPlayer(), emptyPlayer()]);
@@ -52,10 +84,15 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   async function refresh() {
     const data = await loadNights();
     setNights(data);
+    return data;
   }
 
   useEffect(() => {
@@ -81,7 +118,7 @@ export default function App() {
           wins: 0,
         };
 
-        const profit = player.cashOutCents - player.stakeCents;
+        const profit = playerResult(player.stakeCents, player.cashOutCents);
         existing.name = player.name;
         existing.nights += 1;
         existing.stakeCents += player.stakeCents;
@@ -94,7 +131,10 @@ export default function App() {
     }
 
     return Array.from(byPlayer.values()).sort(
-      (a, b) => b.profitCents - a.profitCents || b.nights - a.nights || a.name.localeCompare(b.name),
+      (a, b) =>
+        b.profitCents - a.profitCents ||
+        b.nights - a.nights ||
+        a.name.localeCompare(b.name),
     );
   }, [nights]);
 
@@ -107,10 +147,15 @@ export default function App() {
     () =>
       nights.reduce(
         (nightSum, night) =>
-          nightSum + night.players.reduce((playerSum, player) => playerSum + player.stakeCents, 0),
+          nightSum + night.players.reduce((sum, player) => sum + player.stakeCents, 0),
         0,
       ),
     [nights],
+  );
+
+  const selectedNight = useMemo(
+    () => nights.find((night) => night.id === selectedNightId) ?? null,
+    [nights, selectedNightId],
   );
 
   const draftTotals = useMemo(() => {
@@ -129,12 +174,44 @@ export default function App() {
     };
   }, [players]);
 
-  function resetForm() {
+  function navigate(next: View) {
+    setError("");
+    setPasswordMessage("");
+    setView(next);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function resetEditor() {
     setTitle("Pokerabend");
     setPlayedAt(today());
     setPlayers([emptyPlayer(), emptyPlayer()]);
     setEditingId(null);
     setError("");
+  }
+
+  function startNewNight() {
+    resetEditor();
+    navigate("editor");
+  }
+
+  function openDetail(id: string) {
+    setSelectedNightId(id);
+    navigate("detail");
+  }
+
+  function editNight(night: PokerNight) {
+    setEditingId(night.id);
+    setTitle(night.title);
+    setPlayedAt(night.playedAt);
+    setPlayers(
+      night.players.map((player) => ({
+        key: crypto.randomUUID(),
+        name: player.name,
+        stake: moneyInput(player.stakeCents),
+        cashOut: moneyInput(player.cashOutCents),
+      })),
+    );
+    navigate("editor");
   }
 
   function updatePlayer(key: string, patch: Partial<DraftPlayer>) {
@@ -173,7 +250,7 @@ export default function App() {
     };
   }
 
-  async function save(event: FormEvent) {
+  async function saveNight(event: FormEvent) {
     event.preventDefault();
     setError("");
 
@@ -183,14 +260,14 @@ export default function App() {
     setSaving(true);
 
     try {
-      if (editingId) {
-        await updateNight(editingId, input);
-      } else {
-        await createNight(input);
-      }
+      const result = editingId
+        ? await updateNight(editingId, input)
+        : await createNight(input);
 
       await refresh();
-      resetForm();
+      setSelectedNightId(result.id);
+      resetEditor();
+      navigate("detail");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Pokerabend konnte nicht gespeichert werden.");
     } finally {
@@ -198,355 +275,568 @@ export default function App() {
     }
   }
 
-  function edit(night: PokerNight) {
-    setEditingId(night.id);
-    setTitle(night.title);
-    setPlayedAt(night.playedAt);
-    setPlayers(
-      night.players.map((player) => ({
-        key: crypto.randomUUID(),
-        name: player.name,
-        stake: moneyInput(player.stakeCents),
-        cashOut: moneyInput(player.cashOutCents),
-      })),
-    );
-    setError("");
-    document.getElementById("night-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  async function remove(night: PokerNight) {
-    if (!window.confirm(`„${night.title}“ wirklich löschen?`)) return;
+  async function removeNight(night: PokerNight) {
+    if (!window.confirm("„" + night.title + "“ wirklich löschen?")) return;
 
     try {
       await deleteNight(night.id);
-      if (editingId === night.id) resetForm();
       await refresh();
+      setSelectedNightId(null);
+      resetEditor();
+      navigate("home");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Pokerabend konnte nicht gelöscht werden.");
     }
   }
 
-  return (
-    <main className="shell">
-      <header className="topbar">
-        <div className="brand">
-          <div className="brand-mark" aria-hidden="true">
-            <span>♠</span>
-          </div>
-          <div>
+  async function submitPassword(event: FormEvent) {
+    event.preventDefault();
+    setError("");
+    setPasswordMessage("");
+
+    if (newPassword !== confirmPassword) {
+      setError("Die neuen Passwörter stimmen nicht überein.");
+      return;
+    }
+
+    try {
+      await changeSharedPassword(currentPassword, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordMessage("Gemeinsames Passwort wurde geändert.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Passwort konnte nicht geändert werden.");
+    }
+  }
+
+  function BottomNav() {
+    return (
+      <nav className="bottom-nav" aria-label="Hauptnavigation">
+        <button className={view === "home" ? "active" : ""} onClick={() => navigate("home")}>
+          <span className="nav-icon">⌂</span>
+          <small>Home</small>
+        </button>
+        <button className={view === "stats" ? "active" : ""} onClick={() => navigate("stats")}>
+          <span className="nav-icon">▥</span>
+          <small>Stats</small>
+        </button>
+        <button className="nav-create" onClick={startNewNight} aria-label="Neuen Pokerabend anlegen">
+          <span>+</span>
+        </button>
+        <button className={view === "players" ? "active" : ""} onClick={() => navigate("players")}>
+          <span className="nav-icon">♣</span>
+          <small>Spieler</small>
+        </button>
+        <button className={view === "more" ? "active" : ""} onClick={() => navigate("more")}>
+          <span className="nav-icon">•••</span>
+          <small>Mehr</small>
+        </button>
+      </nav>
+    );
+  }
+
+  function BrandHeader() {
+    return (
+      <header className="app-header">
+        <button className="brand-button" type="button" onClick={() => navigate("home")}>
+          <span className="brand-suit">♠</span>
+          <span>
             <strong>PokerTracker</strong>
-            <small>Private table ledger</small>
-          </div>
-        </div>
-
-        <form action="/api/logout" method="post">
-          <button className="text-button" type="submit">Abmelden</button>
-        </form>
+            <small>Good games. Better friends.</small>
+          </span>
+        </button>
+        <button className="round-button" type="button" onClick={() => navigate("more")} aria-label="Einstellungen">
+          ⚙
+        </button>
       </header>
+    );
+  }
 
-      <section className="hero">
-        <p className="eyebrow">Nach dem letzten Blatt</p>
-        <h1>Der Abend zählt.</h1>
-        <p className="subtitle">
-          Gesamteinsatz und Endbetrag eintragen. PokerTracker speichert die Abende eurer Runde
-          und berechnet automatisch Gewinn, Verlust und Gesamtstand.
-        </p>
+  function PageHeader({ title: pageTitle, eyebrow }: { title: string; eyebrow?: string }) {
+    return (
+      <header className="page-header">
+        <button className="back-button" type="button" onClick={() => navigate("home")} aria-label="Zurück">
+          ←
+        </button>
+        <div>
+          {eyebrow && <p className="eyebrow">{eyebrow}</p>}
+          <h1>{pageTitle}</h1>
+        </div>
+      </header>
+    );
+  }
 
-        <div className="summary-strip">
-          <div>
-            <span>Abende</span>
-            <strong>{nights.length}</strong>
-          </div>
-          <div>
-            <span>Spieler</span>
-            <strong>{stats.length}</strong>
-          </div>
-          <div>
-            <span>Gesamte Einsätze</span>
+  function HomeView() {
+    const leader = stats[0];
+
+    return (
+      <>
+        <BrandHeader />
+
+        <section className="hero-ledger">
+          <div className="hero-ledger-copy">
+            <span>Getrackte Einsätze</span>
             <strong>{formatMoney(totalStakeAllTime)}</strong>
+            <small>über alle gespeicherten Pokerabende</small>
           </div>
-        </div>
-      </section>
+          <div className="suit-watermark" aria-hidden="true">♠</div>
+        </section>
 
-      <section className="panel entry-panel" id="night-form">
-        <div className="section-heading">
+        <section className="quick-stats">
           <div>
-            <p className="eyebrow">{editingId ? "Korrektur" : "Neuer Eintrag"}</p>
-            <h2>{editingId ? "Pokerabend bearbeiten" : "Pokerabend eintragen"}</h2>
+            <strong>{nights.length}</strong>
+            <span>Abende</span>
           </div>
-          {editingId && (
-            <button className="text-button" type="button" onClick={resetForm}>
-              Abbrechen
-            </button>
-          )}
-        </div>
+          <div>
+            <strong>{stats.length}</strong>
+            <span>Spieler</span>
+          </div>
+          <div>
+            <strong>{leader ? leader.name : "—"}</strong>
+            <span>Gesamtführung</span>
+          </div>
+        </section>
 
-        <form onSubmit={save}>
-          <div className="session-grid">
+        <button className="gold-cta" type="button" onClick={startNewNight}>
+          <span className="cta-plus">+</span>
+          Neuer Pokerabend
+        </button>
+
+        <section className="screen-section">
+          <div className="section-title-row">
+            <h2>Letzte Abende</h2>
+            {nights.length > 4 && (
+              <button className="link-button" type="button" onClick={() => navigate("stats")}>
+                Alle ansehen
+              </button>
+            )}
+          </div>
+
+          {loading ? (
+            <div className="empty-card">Lädt …</div>
+          ) : nights.length === 0 ? (
+            <div className="empty-card">
+              <span className="empty-suit">♣</span>
+              <strong>Noch kein Pokerabend</strong>
+              <p>Nach eurem nächsten Abend dauert der Eintrag nur ein bis zwei Minuten.</p>
+            </div>
+          ) : (
+            <div className="session-stack">
+              {nights.slice(0, 4).map((night) => {
+                const totals = nightTotals(night);
+                const sorted = [...night.players].sort(
+                  (a, b) =>
+                    playerResult(b.stakeCents, b.cashOutCents) -
+                    playerResult(a.stakeCents, a.cashOutCents),
+                );
+                const topResult = sorted[0]
+                  ? playerResult(sorted[0].stakeCents, sorted[0].cashOutCents)
+                  : 0;
+
+                return (
+                  <button className="session-card" type="button" key={night.id} onClick={() => openDetail(night.id)}>
+                    <div className="date-tile">
+                      <span>{new Date(night.playedAt + "T12:00:00").toLocaleDateString("de-DE", { month: "short" })}</span>
+                      <strong>{new Date(night.playedAt + "T12:00:00").getDate()}</strong>
+                    </div>
+                    <div className="session-copy">
+                      <strong>{night.title}</strong>
+                      <span>{night.players.length} Spieler · {formatMoney(totals.stakeCents)} Einsatz</span>
+                    </div>
+                    <div className="session-result">
+                      <strong className={topResult >= 0 ? "positive" : "negative"}>
+                        {topResult > 0 ? "+" : ""}{formatMoney(topResult)}
+                      </strong>
+                      <span>Top-Ergebnis</span>
+                    </div>
+                    <span className="chevron">›</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {stats.length > 0 && (
+          <section className="screen-section">
+            <div className="section-title-row">
+              <h2>Gesamtstand</h2>
+              <button className="link-button" type="button" onClick={() => navigate("stats")}>
+                Details
+              </button>
+            </div>
+            <div className="podium-preview">
+              {stats.slice(0, 3).map((player, index) => (
+                <div className="podium-row" key={player.id}>
+                  <span className={"rank-badge rank-" + (index + 1)}>{index + 1}</span>
+                  <span className="avatar">{initials(player.name)}</span>
+                  <strong>{player.name}</strong>
+                  <b className={player.profitCents >= 0 ? "positive" : "negative"}>
+                    {player.profitCents > 0 ? "+" : ""}{formatMoney(player.profitCents)}
+                  </b>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </>
+    );
+  }
+
+  function EditorView() {
+    return (
+      <>
+        <PageHeader title={editingId ? "Pokerabend bearbeiten" : "Neuer Pokerabend"} eyebrow={editingId ? "Korrektur" : "Session"} />
+
+        <form className="editor-form" onSubmit={saveNight}>
+          <section className="form-card">
+            <div className="form-card-title">
+              <span className="gold-icon">♠</span>
+              <h2>Basisdaten</h2>
+            </div>
             <label>
-              Bezeichnung
-              <input
-                maxLength={80}
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-              />
+              Name des Abends
+              <input maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
             </label>
             <label>
               Datum
-              <input
-                type="date"
-                value={playedAt}
-                onChange={(event) => setPlayedAt(event.target.value)}
-                required
-              />
+              <input type="date" value={playedAt} onChange={(event) => setPlayedAt(event.target.value)} required />
             </label>
-          </div>
+          </section>
 
-          <div className="player-table-head" aria-hidden="true">
-            <span>Spieler</span>
-            <span>Gesamteinsatz</span>
-            <span>Endbetrag</span>
-            <span>Ergebnis</span>
-            <span />
-          </div>
+          <section className="form-card">
+            <div className="form-card-title split-title">
+              <div>
+                <span className="gold-icon">♣</span>
+                <h2>Spieler</h2>
+              </div>
+              <button className="small-gold-button" type="button" onClick={() => setPlayers((current) => [...current, emptyPlayer()])}>
+                + Spieler
+              </button>
+            </div>
 
-          <div className="player-list">
-            {players.map((player) => {
-              const stake = parseMoney(player.stake);
-              const cashOut = parseMoney(player.cashOut);
-              const result = stake !== null && cashOut !== null ? cashOut - stake : null;
+            <datalist id="known-players">
+              {knownNames.map((name) => <option value={name} key={name} />)}
+            </datalist>
 
-              return (
-                <div className="player-card" key={player.key}>
-                  <label className="player-name">
-                    <span className="mobile-label">Spieler</span>
-                    <input
-                      list="known-players"
-                      maxLength={50}
-                      placeholder="Name"
-                      value={player.name}
-                      onChange={(event) => updatePlayer(player.key, { name: event.target.value })}
-                    />
-                  </label>
+            <div className="editor-player-list">
+              {players.map((player) => {
+                const stake = parseMoney(player.stake);
+                const cashOut = parseMoney(player.cashOut);
+                const result = stake !== null && cashOut !== null ? cashOut - stake : null;
 
-                  <label>
-                    <span className="mobile-label">Gesamteinsatz</span>
-                    <div className="money-input">
+                return (
+                  <div className="editor-player" key={player.key}>
+                    <div className="player-identity">
+                      <span className="avatar">{initials(player.name || "?")}</span>
                       <input
-                        inputMode="decimal"
-                        placeholder="0,00"
-                        value={player.stake}
-                        onChange={(event) => updatePlayer(player.key, { stake: event.target.value })}
+                        list="known-players"
+                        maxLength={50}
+                        placeholder="Spielername"
+                        value={player.name}
+                        onChange={(event) => updatePlayer(player.key, { name: event.target.value })}
                       />
-                      <span>€</span>
+                      <button
+                        className="remove-button"
+                        type="button"
+                        disabled={players.length <= 2}
+                        onClick={() => setPlayers((current) => current.filter((item) => item.key !== player.key))}
+                        aria-label="Spieler entfernen"
+                      >
+                        ×
+                      </button>
                     </div>
-                  </label>
 
-                  <label>
-                    <span className="mobile-label">Endbetrag</span>
-                    <div className="money-input">
-                      <input
-                        inputMode="decimal"
-                        placeholder="0,00"
-                        value={player.cashOut}
-                        onChange={(event) => updatePlayer(player.key, { cashOut: event.target.value })}
-                      />
-                      <span>€</span>
+                    <div className="money-row">
+                      <label>
+                        Gesamteinsatz
+                        <div className="money-input">
+                          <input
+                            inputMode="decimal"
+                            placeholder="0,00"
+                            value={player.stake}
+                            onChange={(event) => updatePlayer(player.key, { stake: event.target.value })}
+                          />
+                          <span>€</span>
+                        </div>
+                      </label>
+                      <label>
+                        Endbetrag
+                        <div className="money-input">
+                          <input
+                            inputMode="decimal"
+                            placeholder="0,00"
+                            value={player.cashOut}
+                            onChange={(event) => updatePlayer(player.key, { cashOut: event.target.value })}
+                          />
+                          <span>€</span>
+                        </div>
+                      </label>
                     </div>
-                  </label>
 
-                  <div
-                    className={
-                      "live-result " +
-                      (result === null ? "" : result >= 0 ? "positive" : "negative")
-                    }
-                  >
-                    {result === null ? "—" : (result > 0 ? "+" : "") + formatMoney(result)}
+                    <div className="inline-result">
+                      <span>Ergebnis</span>
+                      <strong className={result === null ? "" : result >= 0 ? "positive" : "negative"}>
+                        {result === null ? "—" : (result > 0 ? "+" : "") + formatMoney(result)}
+                      </strong>
+                    </div>
                   </div>
+                );
+              })}
+            </div>
+          </section>
 
-                  <button
-                    className="icon-button"
-                    type="button"
-                    aria-label="Spieler entfernen"
-                    disabled={players.length <= 2}
-                    onClick={() =>
-                      setPlayers((current) => current.filter((item) => item.key !== player.key))
-                    }
-                  >
-                    ×
-                  </button>
+          <section className={"reconcile-card " + (draftTotals.differenceCents === 0 ? "balanced-card" : "warning-card")}>
+            <div>
+              <span>Gesamteinsatz</span>
+              <strong>{formatMoney(draftTotals.stakeCents)}</strong>
+            </div>
+            <div>
+              <span>Endbeträge</span>
+              <strong>{formatMoney(draftTotals.cashOutCents)}</strong>
+            </div>
+            <div className="reconcile-status">
+              {draftTotals.differenceCents === 0
+                ? "✓ Bilanz stimmt"
+                : "Differenz " + formatMoney(draftTotals.differenceCents)}
+            </div>
+          </section>
+
+          {error && <p className="error-banner">{error}</p>}
+
+          <button className="gold-cta editor-submit" type="submit" disabled={saving}>
+            {saving ? "Speichert …" : editingId ? "Änderungen speichern" : "Pokerabend speichern"}
+          </button>
+        </form>
+      </>
+    );
+  }
+
+  function DetailView() {
+    if (!selectedNight) {
+      return (
+        <>
+          <PageHeader title="Pokerabend" />
+          <div className="empty-card">Dieser Pokerabend ist nicht verfügbar.</div>
+        </>
+      );
+    }
+
+    const totals = nightTotals(selectedNight);
+    const ranking = [...selectedNight.players].sort(
+      (a, b) =>
+        playerResult(b.stakeCents, b.cashOutCents) -
+        playerResult(a.stakeCents, a.cashOutCents),
+    );
+    const winner = ranking[0];
+    const winnerResult = winner ? playerResult(winner.stakeCents, winner.cashOutCents) : 0;
+
+    return (
+      <>
+        <PageHeader title={selectedNight.title} eyebrow={formatDate(selectedNight.playedAt)} />
+
+        <section className="winner-card">
+          <div className="winner-decoration" aria-hidden="true">♠</div>
+          <span className="trophy">♛</span>
+          <small>Bestes Ergebnis des Abends</small>
+          <strong>{winner?.name ?? "—"}</strong>
+          <b className={winnerResult >= 0 ? "positive" : "negative"}>
+            {winnerResult > 0 ? "+" : ""}{formatMoney(winnerResult)}
+          </b>
+        </section>
+
+        <section className="screen-section">
+          <div className="section-title-row">
+            <h2>Ergebnisse</h2>
+            <span className={totals.differenceCents === 0 ? "balance-pill good" : "balance-pill bad"}>
+              {totals.differenceCents === 0 ? "Bilanz stimmt" : "Differenz " + formatMoney(totals.differenceCents)}
+            </span>
+          </div>
+
+          <div className="results-card">
+            <div className="results-head">
+              <span>#</span>
+              <span>Spieler</span>
+              <span>Einsatz</span>
+              <span>Ende</span>
+              <span>+/−</span>
+            </div>
+            {ranking.map((player, index) => {
+              const result = playerResult(player.stakeCents, player.cashOutCents);
+              return (
+                <div className="results-line" key={player.id}>
+                  <span className={"rank-badge rank-" + (index + 1)}>{index + 1}</span>
+                  <span className="result-player"><span className="avatar">{initials(player.name)}</span>{player.name}</span>
+                  <span>{formatMoney(player.stakeCents)}</span>
+                  <span>{formatMoney(player.cashOutCents)}</span>
+                  <strong className={result >= 0 ? "positive" : "negative"}>
+                    {result > 0 ? "+" : ""}{formatMoney(result)}
+                  </strong>
                 </div>
               );
             })}
           </div>
+        </section>
 
-          <datalist id="known-players">
-            {knownNames.map((name) => (
-              <option value={name} key={name} />
-            ))}
-          </datalist>
-
-          <div className="form-footer">
-            <button
-              className="secondary"
-              type="button"
-              onClick={() => setPlayers((current) => [...current, emptyPlayer()])}
-            >
-              + Spieler
-            </button>
-
-            <div
-              className={
-                "balance-box " +
-                (draftTotals.differenceCents === 0 ? "balance-ok" : "balance-warning")
-              }
-            >
-              <span>
-                Einsatz <b>{formatMoney(draftTotals.stakeCents)}</b>
-              </span>
-              <span>
-                Endbetrag <b>{formatMoney(draftTotals.cashOutCents)}</b>
-              </span>
-              <strong>
-                {draftTotals.differenceCents === 0
-                  ? "Bilanz stimmt"
-                  : "Differenz " + formatMoney(draftTotals.differenceCents)}
-              </strong>
-            </div>
-
-            <button className="primary" type="submit" disabled={saving}>
-              {saving ? "Speichert …" : editingId ? "Änderungen speichern" : "Abend speichern"}
-            </button>
-          </div>
-
-          {error && <p className="error">{error}</p>}
-        </form>
-      </section>
-
-      <section className="content-section">
-        <div className="section-heading">
+        <section className="total-cards">
           <div>
-            <p className="eyebrow">Gesamtstand</p>
-            <h2>Spielerstatistik</h2>
+            <span className="coin-icon">◉</span>
+            <small>Gesamteinsätze</small>
+            <strong>{formatMoney(totals.stakeCents)}</strong>
           </div>
-          <span className="section-note">Aus allen gespeicherten Abenden</span>
+          <div>
+            <span className="coin-icon silver">◉</span>
+            <small>Endbeträge</small>
+            <strong>{formatMoney(totals.cashOutCents)}</strong>
+          </div>
+        </section>
+
+        <div className="detail-actions">
+          <button className="secondary-button" type="button" onClick={() => editNight(selectedNight)}>Bearbeiten</button>
+          <button className="danger-outline" type="button" onClick={() => removeNight(selectedNight)}>Löschen</button>
         </div>
 
-        {loading ? (
-          <div className="empty-state">Lädt …</div>
-        ) : stats.length === 0 ? (
-          <div className="empty-state">Nach dem ersten Abend erscheint hier euer Gesamtstand.</div>
-        ) : (
-          <div className="stats-table">
-            <div className="stats-head">
-              <span>Spieler</span>
-              <span>Abende</span>
-              <span>Einsatz</span>
-              <span>Ausgezahlt</span>
-              <span>Bilanz</span>
-            </div>
+        {error && <p className="error-banner">{error}</p>}
+      </>
+    );
+  }
 
+  function StatsView() {
+    return (
+      <>
+        <BrandHeader />
+        <div className="screen-heading">
+          <p className="eyebrow">Gesamtstand</p>
+          <h1>Statistik</h1>
+          <p>Alle Ergebnisse werden direkt aus euren gespeicherten Pokerabenden berechnet.</p>
+        </div>
+
+        {stats.length === 0 ? (
+          <div className="empty-card">Noch keine Statistik vorhanden.</div>
+        ) : (
+          <div className="leaderboard-card">
+            <div className="leaderboard-head">
+              <span>Spieler</span><span>Abende</span><span>Einsatz</span><span>Bilanz</span>
+            </div>
             {stats.map((player, index) => (
-              <div className="stats-row" key={player.id}>
-                <div className="rank-name">
-                  <span className="rank">{index + 1}</span>
+              <div className="leaderboard-row" key={player.id}>
+                <div className="leader-player">
+                  <span className={"rank-badge rank-" + (index + 1)}>{index + 1}</span>
+                  <span className="avatar">{initials(player.name)}</span>
                   <strong>{player.name}</strong>
                 </div>
                 <span>{player.nights}</span>
                 <span>{formatMoney(player.stakeCents)}</span>
-                <span>{formatMoney(player.cashOutCents)}</span>
                 <b className={player.profitCents >= 0 ? "positive" : "negative"}>
-                  {player.profitCents > 0 ? "+" : ""}
-                  {formatMoney(player.profitCents)}
+                  {player.profitCents > 0 ? "+" : ""}{formatMoney(player.profitCents)}
                 </b>
               </div>
             ))}
           </div>
         )}
-      </section>
 
-      <section className="content-section">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Archiv</p>
-            <h2>Pokerabende</h2>
+        <section className="screen-section">
+          <div className="section-title-row"><h2>Alle Pokerabende</h2><span>{nights.length}</span></div>
+          <div className="session-stack">
+            {nights.map((night) => (
+              <button className="session-card compact" type="button" key={night.id} onClick={() => openDetail(night.id)}>
+                <div className="date-tile">
+                  <span>{new Date(night.playedAt + "T12:00:00").toLocaleDateString("de-DE", { month: "short" })}</span>
+                  <strong>{new Date(night.playedAt + "T12:00:00").getDate()}</strong>
+                </div>
+                <div className="session-copy"><strong>{night.title}</strong><span>{night.players.length} Spieler</span></div>
+                <span className="chevron">›</span>
+              </button>
+            ))}
           </div>
-          <span className="section-note">{nights.length} gespeichert</span>
+        </section>
+      </>
+    );
+  }
+
+  function PlayersView() {
+    return (
+      <>
+        <BrandHeader />
+        <div className="screen-heading">
+          <p className="eyebrow">Eure Runde</p>
+          <h1>Spieler</h1>
+          <p>Spieler entstehen automatisch, sobald sie an einem gespeicherten Abend teilnehmen.</p>
         </div>
 
-        {loading ? (
-          <div className="empty-state">Lädt …</div>
-        ) : nights.length === 0 ? (
-          <div className="empty-state">Noch kein Pokerabend gespeichert.</div>
+        {stats.length === 0 ? (
+          <div className="empty-card">Noch keine Spieler gespeichert.</div>
         ) : (
-          <div className="night-list">
-            {nights.map((night) => {
-              const difference = nightDifference(night);
-              const totalStake = night.players.reduce(
-                (sum, player) => sum + player.stakeCents,
-                0,
-              );
-
-              return (
-                <article className="night-card" key={night.id}>
-                  <div className="night-header">
-                    <div>
-                      <h3>{night.title}</h3>
-                      <p>
-                        {new Date(night.playedAt + "T12:00:00").toLocaleDateString("de-DE", {
-                          day: "2-digit",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                        {" · "}
-                        {night.players.length} Spieler
-                        {" · "}
-                        {formatMoney(totalStake)} Einsatz
-                      </p>
-                    </div>
-
-                    <div className="night-actions">
-                      <span className={difference === 0 ? "balanced" : "unbalanced"}>
-                        {difference === 0 ? "Bilanz stimmt" : "Differenz " + formatMoney(difference)}
-                      </span>
-                      <button className="text-button" type="button" onClick={() => edit(night)}>
-                        Bearbeiten
-                      </button>
-                      <button className="danger-button" type="button" onClick={() => remove(night)}>
-                        Löschen
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="results">
-                    {night.players.map((player) => {
-                      const result = player.cashOutCents - player.stakeCents;
-
-                      return (
-                        <div className="result-row" key={player.id}>
-                          <strong>{player.name}</strong>
-                          <span>{formatMoney(player.stakeCents)} Einsatz</span>
-                          <span>{formatMoney(player.cashOutCents)} Ende</span>
-                          <b className={result >= 0 ? "positive" : "negative"}>
-                            {result > 0 ? "+" : ""}
-                            {formatMoney(result)}
-                          </b>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </article>
-              );
-            })}
+          <div className="player-profile-grid">
+            {stats.map((player) => (
+              <article className="player-profile" key={player.id}>
+                <span className="avatar large">{initials(player.name)}</span>
+                <div className="player-profile-main">
+                  <strong>{player.name}</strong>
+                  <span>{player.nights} Abende · {player.wins} positive Abende</span>
+                </div>
+                <b className={player.profitCents >= 0 ? "positive" : "negative"}>
+                  {player.profitCents > 0 ? "+" : ""}{formatMoney(player.profitCents)}
+                </b>
+                <div className="player-mini-stats">
+                  <span>Einsatz <strong>{formatMoney(player.stakeCents)}</strong></span>
+                  <span>Ausgezahlt <strong>{formatMoney(player.cashOutCents)}</strong></span>
+                </div>
+              </article>
+            ))}
           </div>
         )}
-      </section>
+      </>
+    );
+  }
 
-      <footer>
-        <span>♣</span>
-        <p>Nur der Abend. Keine Hände, keine Ablenkung.</p>
-        <span>♦</span>
-      </footer>
+  function MoreView() {
+    return (
+      <>
+        <BrandHeader />
+        <div className="screen-heading">
+          <p className="eyebrow">Private Table</p>
+          <h1>Mehr</h1>
+          <p>Zugang und Einstellungen für eure gemeinsame Pokerrunde.</p>
+        </div>
+
+        <section className="settings-card">
+          <div className="form-card-title"><span className="gold-icon">♠</span><h2>Gemeinsames Passwort</h2></div>
+          <p>Ein Passwort für alle. Nach einer Änderung bleiben nur neue Sessions gültig.</p>
+          <form onSubmit={submitPassword}>
+            <label>Aktuelles Passwort<input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required /></label>
+            <label>Neues Passwort<input type="password" autoComplete="new-password" minLength={12} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required /></label>
+            <label>Neues Passwort wiederholen<input type="password" autoComplete="new-password" minLength={12} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required /></label>
+            {error && <p className="error-banner">{error}</p>}
+            {passwordMessage && <p className="success-banner">{passwordMessage}</p>}
+            <button className="secondary-button wide" type="submit">Passwort ändern</button>
+          </form>
+        </section>
+
+        <section className="settings-card">
+          <div className="form-card-title"><span className="gold-icon">♦</span><h2>Session</h2></div>
+          <p>Du kannst dich auf diesem Gerät abmelden. Die gespeicherten Pokerabende bleiben in der gemeinsamen Datenbank.</p>
+          <form action="/api/logout" method="post">
+            <button className="danger-outline wide" type="submit">Abmelden</button>
+          </form>
+        </section>
+      </>
+    );
+  }
+
+  return (
+    <main className="app-shell">
+      <div className="app-frame">
+        {view === "home" && <HomeView />}
+        {view === "editor" && <EditorView />}
+        {view === "detail" && <DetailView />}
+        {view === "stats" && <StatsView />}
+        {view === "players" && <PlayersView />}
+        {view === "more" && <MoreView />}
+      </div>
+
+      {view !== "editor" && <BottomNav />}
     </main>
   );
 }
