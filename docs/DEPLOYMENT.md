@@ -1,67 +1,43 @@
 # Deployment
 
-PokerTracker is designed for Cloudflare Pages + Pages Functions + D1.
+PokerTracker runs on Cloudflare Pages + Pages Functions + D1.
 
-## 1. Create the Pages project
+## Cloudflare Pages
 
-Connect this GitHub repository to Cloudflare Pages.
+Connect the GitHub repository to Pages.
 
 Build settings:
 
 - Build command: `npm run build`
 - Output directory: `dist`
+- Production branch: `main`
 
 The root-level `functions/` directory is deployed as Pages Functions.
 
-## 2. Create a D1 database
+## D1
 
-Create a D1 database, for example `pokertracker`.
+Create a D1 database and bind it to the Pages project as:
 
-Apply:
+- Binding name: `DB`
 
-```bash
-npx wrangler d1 migrations apply pokertracker --remote
-```
+Apply `migrations/0001_initial.sql` to the database.
 
-The SQL migration is in `migrations/0001_initial.sql`.
+## Authentication
 
-## 3. Bind D1 to the Pages project
+PokerTracker does not keep a plaintext password in GitHub or Pages environment variables.
 
-In Cloudflare Pages settings add a D1 binding:
+The shared password is stored only as a PBKDF2-SHA256 derived hash plus a random salt in the private D1 database. The same derived key signs the HttpOnly session cookie.
 
-- Variable name: `DB`
-- Database: your PokerTracker D1 database
+Changing the stored password hash automatically invalidates existing sessions.
 
-Use the same binding name for preview if you want preview deployments to have database access.
+## Local development
 
-## 4. Set secrets
-
-Add these as encrypted environment variables / secrets in the Pages project:
-
-- `APP_PASSWORD`: the shared password for your poker group
-- `SESSION_SECRET`: a long random secret used to sign the authentication cookie
-
-Never commit either value.
-
-## 5. Redeploy
-
-Bindings and secret changes require a new deployment.
-
-## Local full-stack development
-
-Copy:
+The Vite-only command:
 
 ```bash
-cp .dev.vars.example .dev.vars
+npm run dev
 ```
 
-Set real local values in `.dev.vars`.
+runs only the frontend.
 
-For local D1 development, configure a local Pages D1 binding with Wrangler and then run:
-
-```bash
-npm run build
-npx wrangler pages dev dist
-```
-
-The Vite-only `npm run dev` command runs the frontend but does not provide Pages Functions or D1.
+A complete local stack requires a Wrangler Pages development environment with a D1 binding named `DB`.
