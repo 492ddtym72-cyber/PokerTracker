@@ -27,7 +27,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
         name: "PBKDF2",
         hash: "SHA-256",
         salt: new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]),
-        iterations: 2,
+        iterations: 210000,
       },
       key,
       256,
