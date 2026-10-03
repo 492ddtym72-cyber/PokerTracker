@@ -11,13 +11,13 @@
 - [x] Lifetime statistics derived from history
 
 ## Phase 2 — Deployment
-- [ ] Create Cloudflare Pages project
-- [ ] Create D1 database
-- [ ] Apply migration
-- [ ] Bind D1 as `DB`
-- [ ] Set `APP_PASSWORD`
-- [ ] Set `SESSION_SECRET`
-- [ ] Deploy and smoke-test on phones
+- [x] Create Cloudflare Pages project
+- [x] Create D1 database
+- [x] Apply migration
+- [x] Bind D1 as `DB`
+- [x] Configure D1-backed shared-password authentication
+- [x] Deploy production build
+- [ ] Smoke-test on physical phones
 
 ## Phase 3 — Visual system
 - [ ] Final logo / mark
