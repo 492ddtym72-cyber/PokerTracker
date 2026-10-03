@@ -1,6 +1,7 @@
 export interface Env {
   APP_PASSWORD: string;
   SESSION_SECRET: string;
+  DB: D1Database;
 }
 
 const COOKIE_NAME = "pokertracker_session";
@@ -40,14 +41,17 @@ export function readCookie(request: Request, name: string) {
 
 export async function isAuthenticated(request: Request, env: Env) {
   if (!env.SESSION_SECRET) return false;
+
   const actual = readCookie(request, COOKIE_NAME);
   if (!actual) return false;
+
   const expected = await sessionToken(env.SESSION_SECRET);
   return actual === expected;
 }
 
 export async function createSessionCookie(env: Env) {
   const token = await sessionToken(env.SESSION_SECRET);
+
   return `${COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=2592000`;
 }
 
