@@ -4,7 +4,7 @@ export const onRequestPost: PagesFunction<Env> = async () => {
   return new Response(null, {
     status: 303,
     headers: {
-      Location: "/login.html",
+      Location: "/login",
       "Set-Cookie": clearSessionCookie(),
       "Cache-Control": "no-store",
     },
