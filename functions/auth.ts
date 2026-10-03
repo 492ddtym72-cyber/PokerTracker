@@ -12,6 +12,12 @@ const COOKIE_NAME = "pokertracker_session";
 const SESSION_PAYLOAD = "pokertracker-authenticated-v2";
 const PASSWORD_ITERATIONS = 100_000;
 
+// One-time migration verifier for the initial random bootstrap password.
+// It is only consulted while the database still contains an unsupported
+// PBKDF2 iteration count (> Cloudflare Workers' production cap).
+const LEGACY_BOOTSTRAP_SHA256 =
+  "93b07449635d734818f7267cdd6bd945df4ec331536b7ac0a7ac132777f94fc1";
+
 function bytesToHex(bytes: Uint8Array) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -48,6 +54,15 @@ async function authConfig(env: Env) {
   return env.DB.prepare(
     "SELECT password_salt, password_hash, iterations FROM app_auth WHERE id = 1 LIMIT 1",
   ).first<AuthConfig>();
+}
+
+async function sha256Hex(value: string) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+
+  return bytesToHex(new Uint8Array(digest));
 }
 
 async function derivePasswordHash(password: string, saltHex: string, iterations: number) {
@@ -91,19 +106,6 @@ async function sessionToken(passwordHash: string) {
   return bytesToHex(new Uint8Array(signature));
 }
 
-export async function verifyPassword(password: string, env: Env) {
-  const config = await authConfig(env);
-  if (!config) return false;
-
-  const candidate = await derivePasswordHash(
-    password,
-    config.password_salt,
-    Number(config.iterations),
-  );
-
-  return constantTimeEqual(candidate, config.password_hash);
-}
-
 export async function changePassword(newPassword: string, env: Env) {
   if (newPassword.length < 12 || newPassword.length > 128) {
     throw new Error("Das neue Passwort muss zwischen 12 und 128 Zeichen lang sein.");
@@ -117,6 +119,32 @@ export async function changePassword(newPassword: string, env: Env) {
      SET password_salt = ?, password_hash = ?, iterations = ?, updated_at = ?
      WHERE id = 1`,
   ).bind(salt, hash, PASSWORD_ITERATIONS, new Date().toISOString()).run();
+}
+
+export async function verifyPassword(password: string, env: Env) {
+  const config = await authConfig(env);
+  if (!config) return false;
+
+  const iterations = Number(config.iterations);
+
+  if (iterations > PASSWORD_ITERATIONS) {
+    const bootstrapCandidate = await sha256Hex(password);
+
+    if (!constantTimeEqual(bootstrapCandidate, LEGACY_BOOTSTRAP_SHA256)) {
+      return false;
+    }
+
+    await changePassword(password, env);
+    return true;
+  }
+
+  const candidate = await derivePasswordHash(
+    password,
+    config.password_salt,
+    iterations,
+  );
+
+  return constantTimeEqual(candidate, config.password_hash);
 }
 
 export function readCookie(request: Request, name: string) {
