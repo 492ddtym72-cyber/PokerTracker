@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07100d" />
+    <title>PokerTracker · Zugang</title>
+    <style>
+      :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #f4f1e8; background: #07100d; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 20px;
+        background: radial-gradient(circle at top, rgba(33,91,67,.28), transparent 34rem), #07100d;
+      }
+      main {
+        width: min(100%, 390px); border: 1px solid rgba(255,255,255,.09); border-radius: 24px;
+        padding: 30px; background: rgba(13,29,23,.92); box-shadow: 0 30px 90px rgba(0,0,0,.26);
+      }
+      .mark { color: #b79b63; font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+      h1 { margin: 8px 0 10px; font-family: Georgia, serif; font-size: 40px; }
+      p { color: #9baba3; line-height: 1.55; }
+      label { display: grid; gap: 8px; margin-top: 24px; color: #aebbb4; font-size: 13px; font-weight: 700; }
+      input {
+        width: 100%; padding: 14px; border: 1px solid rgba(255,255,255,.11); border-radius: 12px;
+        outline: none; background: #0b1713; color: #f4f1e8; font: inherit;
+      }
+      input:focus { border-color: #b79b63; }
+      button {
+        width: 100%; min-height: 48px; margin-top: 14px; border: 1px solid #b79b63; border-radius: 13px;
+        background: #b79b63; color: #0b110f; font: inherit; font-weight: 800; cursor: pointer;
+      }
+      .error { display: none; margin: 14px 0 0; color: #e7a096; font-size: 13px; }
+      body[data-error="true"] .error { display: block; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark">Private table</div>
+      <h1>PokerTracker</h1>
+      <p>Zugang nur für eure Pokerrunde.</p>
+      <form action="/api/login" method="post">
+        <label>
+          Passwort
+          <input name="password" type="password" autocomplete="current-password" required autofocus />
+        </label>
+        <button type="submit">Einloggen</button>
+        <p class="error">Passwort stimmt nicht.</p>
+      </form>
+    </main>
+    <script>
+      document.body.dataset.error = String(new URLSearchParams(location.search).has("error"));
+    </script>
+  </body>
+</html>
