@@ -53,3 +53,10 @@ export function deleteNight(id: string) {
     method: "DELETE",
   });
 }
+
+export function changeSharedPassword(currentPassword: string, newPassword: string) {
+  return api<{ ok: true }>("/api/password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
