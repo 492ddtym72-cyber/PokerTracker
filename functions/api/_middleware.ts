@@ -4,7 +4,8 @@ import { json } from "../lib/http";
 export const onRequest: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
 
-  if (url.pathname === "/api/login" || url.pathname === "/api/logout") {
+  if (url.pathname === "/api/login" || url.pathname === "/api/logout" ||
+    url.pathname === "/api/health") {
     return context.next();
   }
 
