@@ -1,6 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
-  changeSharedPassword,
   createNight,
   deleteNight,
   loadHistory,
@@ -163,10 +162,6 @@ export default function App() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [passwordMessage, setPasswordMessage] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
 
   async function refreshNights() {
     const data = await loadNights();
@@ -287,7 +282,6 @@ export default function App() {
     setEditorOpen(false);
     setDetailNightId(null);
     setError("");
-    setPasswordMessage("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -425,27 +419,6 @@ export default function App() {
       setScreen("home");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Pokerabend konnte nicht gelöscht werden.");
-    }
-  }
-
-  async function submitPassword(event: FormEvent) {
-    event.preventDefault();
-    setError("");
-    setPasswordMessage("");
-
-    if (newPassword !== confirmPassword) {
-      setError("Die neuen Passwörter stimmen nicht überein.");
-      return;
-    }
-
-    try {
-      await changeSharedPassword(currentPassword, newPassword);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setPasswordMessage("Passwort geändert.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Passwort konnte nicht geändert werden.");
     }
   }
 
@@ -926,28 +899,6 @@ export default function App() {
               <h1>Mehr</h1>
               <p>Einstellungen für eure Runde.</p>
             </div>
-
-            <section className="settings-card">
-              <div className="form-card-title"><span>♠</span><h2>Passwort ändern</h2></div>
-              <p>Mindestens 12 Zeichen.</p>
-              <form onSubmit={submitPassword}>
-                <label>
-                  Aktuelles Passwort
-                  <input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
-                </label>
-                <label>
-                  Neues Passwort
-                  <input type="password" minLength={12} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required />
-                </label>
-                <label>
-                  Wiederholen
-                  <input type="password" minLength={12} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required />
-                </label>
-                {error && <p className="error-banner">{error}</p>}
-                {passwordMessage && <p className="success-banner">{passwordMessage}</p>}
-                <button className="secondary-button" type="submit">Passwort ändern</button>
-              </form>
-            </section>
 
             <section className="settings-card">
               <div className="form-card-title"><span>♦</span><h2>Abmelden</h2></div>
