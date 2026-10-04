@@ -132,9 +132,19 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   padding: 21px;
   border: 1px solid rgba(79, 210, 126, .21);
   border-radius: 19px;
-  background:
-    linear-gradient(135deg, rgba(22, 88, 57, .62), rgba(7, 40, 28, .91)),
-    var(--panel);
+  background-color: var(--panel);
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(3, 24, 17, .97) 0%,
+      rgba(3, 24, 17, .86) 32%,
+      rgba(3, 24, 17, .48) 58%,
+      rgba(3, 24, 17, .12) 100%
+    ),
+    url("/assets/poker-money-rain.webp");
+  background-position: center, center right;
+  background-size: cover, cover;
+  background-repeat: no-repeat, no-repeat;
   box-shadow: inset 0 1px rgba(255,255,255,.03), 0 22px 55px rgba(0,0,0,.17);
 }
 
@@ -161,16 +171,6 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .hero-ledger > small {
   color: #789087;
   font-size: 10px;
-}
-
-.hero-ledger > i {
-  position: absolute;
-  right: 3px;
-  bottom: -57px;
-  color: rgba(231, 198, 117, .07);
-  font-style: normal;
-  font-size: 180px;
-  transform: rotate(13deg);
 }
 
 .quick-stats {

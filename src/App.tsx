@@ -718,7 +718,6 @@ export default function App() {
               <span>Einsätze gesamt</span>
               <strong>{formatMoney(totalStakeAllTime)}</strong>
               <small>{nights.length} Pokerabende</small>
-              <i>♠</i>
             </section>
 
             <section className="quick-stats">
