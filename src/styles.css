@@ -907,14 +907,8 @@ input:focus {
   user-select: none;
 }
 
-.frame-rank-1 img {
-  filter: sepia(.28) saturate(1.22) hue-rotate(348deg) brightness(1.16);
-}
-
-.frame-rank-2 img {
-  filter: grayscale(.92) brightness(1.2) contrast(.92);
-}
-
+.frame-rank-1 img,
+.frame-rank-2 img,
 .frame-rank-3 img,
 .frame-neutral img {
   filter: none;
