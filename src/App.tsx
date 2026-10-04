@@ -503,7 +503,25 @@ export default function App() {
               </label>
               <label>
                 Datum
-                <input type="date" value={playedAt} onChange={(event) => setPlayedAt(event.target.value)} required />
+                <div className="date-input-shell">
+                  <span aria-hidden="true">
+                    {playedAt
+                      ? new Date(playedAt + "T12:00:00").toLocaleDateString(undefined, {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "Datum wählen"}
+                  </span>
+                  <input
+                    className="date-input-native"
+                    type="date"
+                    aria-label="Datum"
+                    value={playedAt}
+                    onChange={(event) => setPlayedAt(event.target.value)}
+                    required
+                  />
+                </div>
               </label>
             </section>
 
