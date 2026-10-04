@@ -171,10 +171,13 @@ export default function App() {
   }
 
   async function refreshAfterMutation() {
-    await Promise.all([
-      refreshNights(),
-      refreshHistory(true),
-    ]);
+    await refreshNights();
+
+    try {
+      await refreshHistory(true);
+    } catch (historyError) {
+      console.error("History refresh failed", historyError);
+    }
   }
 
   useEffect(() => {
@@ -419,7 +422,7 @@ export default function App() {
     return (
       <nav className="bottom-nav" aria-label="Navigation">
         <button className={screen === "home" ? "active" : ""} onClick={() => navigate("home")}>
-          <span>⌂</span><small>Home</small>
+          <span>⌂</span><small>Start</small>
         </button>
         <button className={screen === "history" ? "active" : ""} onClick={() => navigate("history")}>
           <span>↺</span><small>Verlauf</small>
@@ -764,7 +767,7 @@ export default function App() {
                     <span className="avatar large">{initials(player.name)}</span>
                     <div className="player-main">
                       <strong>{player.name}</strong>
-                      <span>{player.nights} Abende · {player.wins} positiv</span>
+                      <span>{player.nights} Abende · {player.wins} Gewinnabende</span>
                     </div>
                     <b className={player.profitCents >= 0 ? "positive" : "negative"}>
                       {player.profitCents > 0 ? "+" : ""}{formatMoney(player.profitCents)}
