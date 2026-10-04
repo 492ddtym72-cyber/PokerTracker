@@ -58,7 +58,6 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 }
 
 .brand-button,
-.round-button,
 .back-button {
   border: 0;
   background: transparent;
@@ -84,7 +83,6 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   font-size: 30px;
 }
 
-.round-button,
 .back-button {
   width: 38px;
   height: 38px;
