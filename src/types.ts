@@ -15,6 +15,7 @@ export interface PokerNight {
 }
 
 export interface NightPlayerInput {
+  playerId?: string;
   name: string;
   stakeCents: number;
   cashOutCents: number;
