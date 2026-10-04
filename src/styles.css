@@ -907,6 +907,19 @@ input:focus {
   user-select: none;
 }
 
+.frame-rank-1 img {
+  filter: sepia(.28) saturate(1.22) hue-rotate(348deg) brightness(1.16);
+}
+
+.frame-rank-2 img {
+  filter: grayscale(.92) brightness(1.2) contrast(.92);
+}
+
+.frame-rank-3 img,
+.frame-neutral img {
+  filter: none;
+}
+
 .frame-rank-1 .framed-avatar-core {
   width: 38%;
   height: 38%;
@@ -1036,14 +1049,15 @@ input:focus {
 
 .leaderboard-rank {
   color: #73867c;
+  background: transparent !important;
   font-size: 9px;
   font-weight: 900;
   text-align: center;
 }
 
-.leaderboard-rank.rank-1 { color: #ddc16e; }
-.leaderboard-rank.rank-2 { color: #b9c3c3; }
-.leaderboard-rank.rank-3 { color: #c4875e; }
+.leaderboard-rank.leaderboard-place-1 { color: #ddc16e; }
+.leaderboard-rank.leaderboard-place-2 { color: #b9c3c3; }
+.leaderboard-rank.leaderboard-place-3 { color: #c4875e; }
 
 .leaderboard-mini-avatar {
   width: 46px;
