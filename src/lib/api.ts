@@ -1,4 +1,8 @@
-import type { NightInput, PokerNight } from "../types";
+import type {
+  HistoryResponse,
+  NightInput,
+  PokerNight,
+} from "../types";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -57,6 +61,15 @@ export function deleteNight(id: string) {
   return api<void>("/api/nights/" + encodeURIComponent(id), {
     method: "DELETE",
   });
+}
+
+export function loadHistory(offset = 0, limit = 40) {
+  const params = new URLSearchParams({
+    offset: String(offset),
+    limit: String(limit),
+  });
+
+  return api<HistoryResponse>("/api/history?" + params.toString());
 }
 
 export function changeSharedPassword(currentPassword: string, newPassword: string) {
