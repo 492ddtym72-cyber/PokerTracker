@@ -456,9 +456,6 @@ export default function App() {
           <span className="brand-suit">♠</span>
           <strong>PokerTracker</strong>
         </button>
-        <button className="round-button" type="button" onClick={() => navigate("more")} aria-label="Einstellungen">
-          ⚙
-        </button>
       </header>
     );
   }
