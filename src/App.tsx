@@ -3,13 +3,20 @@ import {
   changeSharedPassword,
   createNight,
   deleteNight,
+  loadHistory,
   loadNights,
   updateNight,
 } from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
-import type { NightInput, PokerNight } from "./types";
+import type {
+  AuditChange,
+  AuditEvent,
+  HistoryResponse,
+  NightInput,
+  PokerNight,
+} from "./types";
 
-type Screen = "home" | "stats" | "players" | "more";
+type Screen = "home" | "history" | "players" | "more";
 
 type DraftPlayer = {
   key: string;
@@ -53,21 +60,90 @@ function formatDate(value: string) {
   });
 }
 
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("de-DE", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function nightTotals(night: PokerNight) {
   const stakeCents = night.players.reduce((sum, player) => sum + player.stakeCents, 0);
   const cashOutCents = night.players.reduce((sum, player) => sum + player.cashOutCents, 0);
-  return { stakeCents, cashOutCents, differenceCents: cashOutCents - stakeCents };
+
+  return {
+    stakeCents,
+    cashOutCents,
+    differenceCents: cashOutCents - stakeCents,
+  };
+}
+
+function eventLabel(event: AuditEvent) {
+  switch (event.eventType) {
+    case "night.created":
+      return "Pokerabend erstellt";
+    case "night.updated":
+      return "Pokerabend geändert";
+    case "night.deleted":
+      return "Pokerabend gelöscht";
+    case "night.baseline":
+      return "Ausgangsstand erfasst";
+  }
+}
+
+function eventIcon(event: AuditEvent) {
+  switch (event.eventType) {
+    case "night.created":
+      return "+";
+    case "night.updated":
+      return "✎";
+    case "night.deleted":
+      return "×";
+    case "night.baseline":
+      return "•";
+  }
+}
+
+function changeText(change: AuditChange) {
+  if (change.type === "field") {
+    const label = change.field === "title" ? "Name" : "Datum";
+    const before = change.field === "date" ? formatDate(change.before) : change.before;
+    const after = change.field === "date" ? formatDate(change.after) : change.after;
+    return `${label}: ${before} → ${after}`;
+  }
+
+  if (change.type === "player_added") {
+    return `${change.player} hinzugefügt`;
+  }
+
+  if (change.type === "player_removed") {
+    return `${change.player} entfernt`;
+  }
+
+  const field = change.field === "stake" ? "Einsatz" : "Endbetrag";
+  return `${change.player} · ${field} ${formatMoney(change.beforeCents)} → ${formatMoney(change.afterCents)}`;
 }
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [editorOpen, setEditorOpen] = useState(false);
+  const [detailNightId, setDetailNightId] = useState<string | null>(null);
   const [nights, setNights] = useState<PokerNight[]>([]);
+  const [history, setHistory] = useState<AuditEvent[]>([]);
+  const [historyMeta, setHistoryMeta] = useState<HistoryResponse["pagination"]>({
+    offset: 0,
+    limit: 40,
+    total: 0,
+    hasMore: false,
+  });
   const [title, setTitle] = useState("Pokerabend");
   const [playedAt, setPlayedAt] = useState(today);
   const [players, setPlayers] = useState<DraftPlayer[]>([emptyPlayer(), emptyPlayer()]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [passwordMessage, setPasswordMessage] = useState("");
@@ -75,13 +151,37 @@ export default function App() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  async function refresh() {
+  async function refreshNights() {
     const data = await loadNights();
     setNights(data);
+    return data;
+  }
+
+  async function refreshHistory(reset = true) {
+    setHistoryLoading(true);
+
+    try {
+      const offset = reset ? 0 : history.length;
+      const data = await loadHistory(offset, 40);
+      setHistory((current) => reset ? data.events : [...current, ...data.events]);
+      setHistoryMeta(data.pagination);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  async function refreshAfterMutation() {
+    await Promise.all([
+      refreshNights(),
+      refreshHistory(true),
+    ]);
   }
 
   useEffect(() => {
-    refresh()
+    Promise.all([
+      refreshNights(),
+      refreshHistory(true),
+    ])
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : "Daten konnten nicht geladen werden.");
       })
@@ -115,7 +215,10 @@ export default function App() {
     }
 
     return Array.from(byPlayer.values()).sort(
-      (a, b) => b.profitCents - a.profitCents || b.nights - a.nights || a.name.localeCompare(b.name),
+      (a, b) =>
+        b.profitCents - a.profitCents ||
+        b.nights - a.nights ||
+        a.name.localeCompare(b.name),
     );
   }, [nights]);
 
@@ -133,6 +236,11 @@ export default function App() {
     [nights],
   );
 
+  const detailNight = useMemo(
+    () => nights.find((night) => night.id === detailNightId) ?? null,
+    [nights, detailNightId],
+  );
+
   const draftTotals = useMemo(() => {
     let stakeCents = 0;
     let cashOutCents = 0;
@@ -142,12 +250,17 @@ export default function App() {
       cashOutCents += parseMoney(player.cashOut) ?? 0;
     }
 
-    return { stakeCents, cashOutCents, differenceCents: cashOutCents - stakeCents };
+    return {
+      stakeCents,
+      cashOutCents,
+      differenceCents: cashOutCents - stakeCents,
+    };
   }, [players]);
 
   function navigate(next: Screen) {
     setScreen(next);
     setEditorOpen(false);
+    setDetailNightId(null);
     setError("");
     setPasswordMessage("");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -163,7 +276,15 @@ export default function App() {
 
   function startNew() {
     resetEditor();
+    setDetailNightId(null);
     setEditorOpen(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function openNight(night: PokerNight) {
+    setDetailNightId(night.id);
+    setEditorOpen(false);
+    setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -177,6 +298,7 @@ export default function App() {
       stake: moneyInput(player.stakeCents),
       cashOut: moneyInput(player.cashOutCents),
     })));
+    setDetailNightId(null);
     setEditorOpen(true);
     setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -211,7 +333,11 @@ export default function App() {
       return null;
     }
 
-    return { title: title.trim() || "Pokerabend", playedAt, players: cleanPlayers };
+    return {
+      title: title.trim() || "Pokerabend",
+      playedAt,
+      players: cleanPlayers,
+    };
   }
 
   async function saveNight(event: FormEvent) {
@@ -222,6 +348,7 @@ export default function App() {
     if (!input) return;
 
     setSaving(true);
+
     try {
       if (editingId) {
         await updateNight(editingId, input);
@@ -229,7 +356,7 @@ export default function App() {
         await createNight(input);
       }
 
-      await refresh();
+      await refreshAfterMutation();
       resetEditor();
       setEditorOpen(false);
       setScreen("home");
@@ -241,11 +368,13 @@ export default function App() {
   }
 
   async function removeNight(night: PokerNight) {
-    if (!window.confirm("„" + night.title + "“ wirklich löschen?")) return;
+    if (!window.confirm(`„${night.title}“ wirklich löschen?`)) return;
 
     try {
       await deleteNight(night.id);
-      await refresh();
+      await refreshAfterMutation();
+      setDetailNightId(null);
+      setScreen("home");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Pokerabend konnte nicht gelöscht werden.");
     }
@@ -266,7 +395,7 @@ export default function App() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setPasswordMessage("Gemeinsames Passwort wurde geändert.");
+      setPasswordMessage("Passwort geändert.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Passwort konnte nicht geändert werden.");
     }
@@ -277,10 +406,7 @@ export default function App() {
       <header className="app-header">
         <button className="brand-button" type="button" onClick={() => navigate("home")}>
           <span className="brand-suit">♠</span>
-          <span>
-            <strong>PokerTracker</strong>
-            <small>Good games. Better friends.</small>
-          </span>
+          <strong>PokerTracker</strong>
         </button>
         <button className="round-button" type="button" onClick={() => navigate("more")} aria-label="Einstellungen">
           ⚙
@@ -291,12 +417,12 @@ export default function App() {
 
   function BottomNav() {
     return (
-      <nav className="bottom-nav">
+      <nav className="bottom-nav" aria-label="Navigation">
         <button className={screen === "home" ? "active" : ""} onClick={() => navigate("home")}>
           <span>⌂</span><small>Home</small>
         </button>
-        <button className={screen === "stats" ? "active" : ""} onClick={() => navigate("stats")}>
-          <span>▥</span><small>Stats</small>
+        <button className={screen === "history" ? "active" : ""} onClick={() => navigate("history")}>
+          <span>↺</span><small>Verlauf</small>
         </button>
         <button className="nav-create" type="button" onClick={startNew} aria-label="Neuer Pokerabend">
           <span>+</span>
@@ -317,17 +443,14 @@ export default function App() {
         <div className="app-frame">
           <header className="page-header">
             <button className="back-button" type="button" onClick={() => setEditorOpen(false)}>←</button>
-            <div>
-              <p className="eyebrow">{editingId ? "Korrektur" : "Neue Session"}</p>
-              <h1>{editingId ? "Pokerabend bearbeiten" : "Pokerabend anlegen"}</h1>
-            </div>
+            <h1>{editingId ? "Pokerabend bearbeiten" : "Pokerabend anlegen"}</h1>
           </header>
 
           <form className="editor-form" onSubmit={saveNight}>
             <section className="form-card">
-              <div className="form-card-title"><span>♠</span><h2>Basisdaten</h2></div>
+              <div className="form-card-title"><span>♠</span><h2>Abend</h2></div>
               <label>
-                Name des Abends
+                Name
                 <input maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
               </label>
               <label>
@@ -370,13 +493,15 @@ export default function App() {
                           type="button"
                           disabled={players.length <= 2}
                           onClick={() => setPlayers((current) => current.filter((item) => item.key !== player.key))}
+                          aria-label="Spieler entfernen"
                         >
                           ×
                         </button>
                       </div>
+
                       <div className="money-row">
                         <label>
-                          Gesamteinsatz
+                          Einsatz
                           <div className="money-input">
                             <input inputMode="decimal" placeholder="0,00" value={player.stake} onChange={(event) => updatePlayer(player.key, { stake: event.target.value })} />
                             <span>€</span>
@@ -390,6 +515,7 @@ export default function App() {
                           </div>
                         </label>
                       </div>
+
                       <div className="inline-result">
                         <span>Ergebnis</span>
                         <strong className={result === null ? "" : result >= 0 ? "positive" : "negative"}>
@@ -423,6 +549,79 @@ export default function App() {
     );
   }
 
+  if (detailNight) {
+    const totals = nightTotals(detailNight);
+    const ranking = [...detailNight.players].sort(
+      (a, b) => (b.cashOutCents - b.stakeCents) - (a.cashOutCents - a.stakeCents),
+    );
+
+    return (
+      <main className="app-shell">
+        <div className="app-frame">
+          <header className="page-header">
+            <button className="back-button" type="button" onClick={() => setDetailNightId(null)}>←</button>
+            <div>
+              <h1>{detailNight.title}</h1>
+              <p>{formatDate(detailNight.playedAt)}</p>
+            </div>
+          </header>
+
+          <section className="detail-summary">
+            <div>
+              <span>Spieler</span>
+              <strong>{detailNight.players.length}</strong>
+            </div>
+            <div>
+              <span>Einsatz</span>
+              <strong>{formatMoney(totals.stakeCents)}</strong>
+            </div>
+            <div>
+              <span>Endbeträge</span>
+              <strong>{formatMoney(totals.cashOutCents)}</strong>
+            </div>
+          </section>
+
+          <div className={totals.differenceCents === 0 ? "detail-balance good" : "detail-balance bad"}>
+            {totals.differenceCents === 0
+              ? "✓ Bilanz stimmt"
+              : "Differenz " + formatMoney(totals.differenceCents)}
+          </div>
+
+          <section className="results-card">
+            {ranking.map((player, index) => {
+              const result = player.cashOutCents - player.stakeCents;
+
+              return (
+                <div className="result-row" key={player.id}>
+                  <span className={"rank-badge rank-" + (index + 1)}>{index + 1}</span>
+                  <span className="avatar">{initials(player.name)}</span>
+                  <div className="result-name">
+                    <strong>{player.name}</strong>
+                    <span>{formatMoney(player.stakeCents)} → {formatMoney(player.cashOutCents)}</span>
+                  </div>
+                  <b className={result >= 0 ? "positive" : "negative"}>
+                    {result > 0 ? "+" : ""}{formatMoney(result)}
+                  </b>
+                </div>
+              );
+            })}
+          </section>
+
+          <div className="detail-actions">
+            <button className="secondary-button" type="button" onClick={() => editNight(detailNight)}>
+              Bearbeiten
+            </button>
+            <button className="danger-outline" type="button" onClick={() => removeNight(detailNight)}>
+              Löschen
+            </button>
+          </div>
+
+          {error && <p className="error-banner">{error}</p>}
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell">
       <div className="app-frame">
@@ -431,16 +630,16 @@ export default function App() {
         {screen === "home" && (
           <>
             <section className="hero-ledger">
-              <span>Getrackte Einsätze</span>
+              <span>Einsätze gesamt</span>
               <strong>{formatMoney(totalStakeAllTime)}</strong>
-              <small>über alle gespeicherten Pokerabende</small>
+              <small>{nights.length} Pokerabende</small>
               <i>♠</i>
             </section>
 
             <section className="quick-stats">
               <div><strong>{nights.length}</strong><span>Abende</span></div>
               <div><strong>{stats.length}</strong><span>Spieler</span></div>
-              <div><strong>{stats[0]?.name ?? "—"}</strong><span>Gesamtführung</span></div>
+              <div><strong>{stats[0]?.name ?? "—"}</strong><span>Führung</span></div>
             </section>
 
             <button className="gold-cta" type="button" onClick={startNew}>
@@ -448,48 +647,45 @@ export default function App() {
             </button>
 
             <section className="screen-section">
-              <div className="section-title-row"><h2>Letzte Abende</h2><span>{nights.length} gesamt</span></div>
+              <div className="section-title-row">
+                <h2>Letzte Abende</h2>
+                <span>{nights.length} gesamt</span>
+              </div>
 
               {loading ? (
                 <div className="empty-card">Lädt …</div>
               ) : nights.length === 0 ? (
-                <div className="empty-card"><b>♣</b><strong>Noch kein Pokerabend</strong><p>Nach dem ersten Abend erscheint hier eure Historie.</p></div>
+                <div className="empty-card">
+                  <strong>Noch kein Pokerabend</strong>
+                  <p>Nach dem ersten Abend erscheint hier die Übersicht.</p>
+                </div>
               ) : (
-                <div className="night-list">
-                  {nights.slice(0, 5).map((night) => {
+                <div className="compact-night-list">
+                  {nights.slice(0, 6).map((night) => {
                     const totals = nightTotals(night);
-                    const ranking = [...night.players].sort(
+                    const leader = [...night.players].sort(
                       (a, b) => (b.cashOutCents - b.stakeCents) - (a.cashOutCents - a.stakeCents),
-                    );
+                    )[0];
+                    const leaderResult = leader ? leader.cashOutCents - leader.stakeCents : 0;
 
                     return (
-                      <article className="night-card" key={night.id}>
-                        <div className="night-heading">
-                          <div className="date-tile"><span>{new Date(night.playedAt + "T12:00:00").toLocaleDateString("de-DE", { month: "short" })}</span><strong>{new Date(night.playedAt + "T12:00:00").getDate()}</strong></div>
-                          <div><h3>{night.title}</h3><p>{night.players.length} Spieler · {formatMoney(totals.stakeCents)} Einsatz</p></div>
-                          <span className={totals.differenceCents === 0 ? "balance-pill good" : "balance-pill bad"}>
-                            {totals.differenceCents === 0 ? "✓" : formatMoney(totals.differenceCents)}
-                          </span>
+                      <button className="compact-night-card" type="button" key={night.id} onClick={() => openNight(night)}>
+                        <div className="date-tile">
+                          <span>{new Date(night.playedAt + "T12:00:00").toLocaleDateString("de-DE", { month: "short" })}</span>
+                          <strong>{new Date(night.playedAt + "T12:00:00").getDate()}</strong>
                         </div>
-                        <div className="night-results">
-                          {ranking.map((player, index) => {
-                            const result = player.cashOutCents - player.stakeCents;
-                            return (
-                              <div className="night-result-row" key={player.id}>
-                                <span className={"rank-badge rank-" + (index + 1)}>{index + 1}</span>
-                                <span className="avatar">{initials(player.name)}</span>
-                                <strong>{player.name}</strong>
-                                <span>{formatMoney(player.stakeCents)} → {formatMoney(player.cashOutCents)}</span>
-                                <b className={result >= 0 ? "positive" : "negative"}>{result > 0 ? "+" : ""}{formatMoney(result)}</b>
-                              </div>
-                            );
-                          })}
+                        <div className="compact-night-copy">
+                          <strong>{night.title}</strong>
+                          <span>{night.players.length} Spieler · {formatMoney(totals.stakeCents)}</span>
                         </div>
-                        <div className="night-actions">
-                          <button type="button" onClick={() => editNight(night)}>Bearbeiten</button>
-                          <button className="danger-link" type="button" onClick={() => removeNight(night)}>Löschen</button>
+                        <div className="compact-night-result">
+                          {leader && <strong className={leaderResult >= 0 ? "positive" : "negative"}>
+                            {leaderResult > 0 ? "+" : ""}{formatMoney(leaderResult)}
+                          </strong>}
+                          <span>{leader?.name ?? ""}</span>
                         </div>
-                      </article>
+                        <span className="chevron">›</span>
+                      </button>
                     );
                   })}
                 </div>
@@ -498,54 +694,115 @@ export default function App() {
           </>
         )}
 
-        {screen === "stats" && (
+        {screen === "history" && (
           <>
-            <div className="screen-heading"><p className="eyebrow">Gesamtstand</p><h1>Statistik</h1><p>Direkt aus allen gespeicherten Pokerabenden berechnet.</p></div>
-            {stats.length === 0 ? (
-              <div className="empty-card">Noch keine Statistik vorhanden.</div>
+            <div className="screen-heading">
+              <h1>Verlauf</h1>
+              <p>Änderungen an gespeicherten Pokerabenden.</p>
+            </div>
+
+            {history.length === 0 && !historyLoading ? (
+              <div className="empty-card">
+                <strong>Noch keine Änderungen</strong>
+                <p>Neue und bearbeitete Pokerabende erscheinen hier.</p>
+              </div>
             ) : (
-              <div className="stats-card">
-                <div className="stats-head"><span>Spieler</span><span>Abende</span><span>Einsatz</span><span>Bilanz</span></div>
-                {stats.map((player, index) => (
-                  <div className="stats-row" key={player.id}>
-                    <div><span className={"rank-badge rank-" + (index + 1)}>{index + 1}</span><span className="avatar">{initials(player.name)}</span><strong>{player.name}</strong></div>
-                    <span>{player.nights}</span>
-                    <span>{formatMoney(player.stakeCents)}</span>
-                    <b className={player.profitCents >= 0 ? "positive" : "negative"}>{player.profitCents > 0 ? "+" : ""}{formatMoney(player.profitCents)}</b>
-                  </div>
+              <div className="history-list">
+                {history.map((event) => (
+                  <article className="history-item" key={event.id}>
+                    <span className={"history-icon " + event.eventType.replace(".", "-")}>
+                      {eventIcon(event)}
+                    </span>
+                    <div className="history-content">
+                      <div className="history-topline">
+                        <strong>{eventLabel(event)}</strong>
+                        <time>{formatDateTime(event.createdAt)}</time>
+                      </div>
+                      <h2>{event.title}</h2>
+                      <p>{event.playerCount} Spieler · {formatMoney(event.totalStakeCents)} Einsatz</p>
+
+                      {event.changes.length > 0 && (
+                        <div className="history-changes">
+                          {event.changes.slice(0, 5).map((change, index) => (
+                            <span key={index}>{changeText(change)}</span>
+                          ))}
+                          {event.changes.length > 5 && (
+                            <span>+ {event.changes.length - 5} weitere Änderungen</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </article>
                 ))}
               </div>
+            )}
+
+            {historyLoading && <div className="loading-line">Lädt …</div>}
+
+            {historyMeta.hasMore && !historyLoading && (
+              <button className="secondary-button history-more" type="button" onClick={() => refreshHistory(false)}>
+                Weitere laden
+              </button>
             )}
           </>
         )}
 
         {screen === "players" && (
           <>
-            <div className="screen-heading"><p className="eyebrow">Eure Runde</p><h1>Spieler</h1><p>Spieler werden automatisch aus euren Pokerabenden aufgebaut.</p></div>
-            <div className="player-grid">
-              {stats.map((player) => (
-                <article className="player-profile" key={player.id}>
-                  <span className="avatar large">{initials(player.name)}</span>
-                  <div><strong>{player.name}</strong><span>{player.nights} Abende · {player.wins} positiv</span></div>
-                  <b className={player.profitCents >= 0 ? "positive" : "negative"}>{player.profitCents > 0 ? "+" : ""}{formatMoney(player.profitCents)}</b>
-                  <footer><span>Einsatz <strong>{formatMoney(player.stakeCents)}</strong></span><span>Ausgezahlt <strong>{formatMoney(player.cashOutCents)}</strong></span></footer>
-                </article>
-              ))}
+            <div className="screen-heading">
+              <h1>Spieler</h1>
+              <p>Gesamtstand aus allen gespeicherten Abenden.</p>
             </div>
+
+            {stats.length === 0 ? (
+              <div className="empty-card">Noch keine Spieler gespeichert.</div>
+            ) : (
+              <div className="player-grid">
+                {stats.map((player, index) => (
+                  <article className="player-profile" key={player.id}>
+                    <span className={"rank-badge rank-" + (index + 1)}>{index + 1}</span>
+                    <span className="avatar large">{initials(player.name)}</span>
+                    <div className="player-main">
+                      <strong>{player.name}</strong>
+                      <span>{player.nights} Abende · {player.wins} positiv</span>
+                    </div>
+                    <b className={player.profitCents >= 0 ? "positive" : "negative"}>
+                      {player.profitCents > 0 ? "+" : ""}{formatMoney(player.profitCents)}
+                    </b>
+                    <footer>
+                      <span>Einsatz <strong>{formatMoney(player.stakeCents)}</strong></span>
+                      <span>Endbeträge <strong>{formatMoney(player.cashOutCents)}</strong></span>
+                    </footer>
+                  </article>
+                ))}
+              </div>
+            )}
           </>
         )}
 
         {screen === "more" && (
           <>
-            <div className="screen-heading"><p className="eyebrow">Private Table</p><h1>Mehr</h1><p>Zugang und Einstellungen für eure Pokerrunde.</p></div>
+            <div className="screen-heading">
+              <h1>Mehr</h1>
+              <p>Einstellungen für eure Runde.</p>
+            </div>
 
             <section className="settings-card">
-              <div className="form-card-title"><span>♠</span><h2>Gemeinsames Passwort</h2></div>
-              <p>Das Passwort wird nur als gesalzener Hash in der privaten Datenbank gespeichert.</p>
+              <div className="form-card-title"><span>♠</span><h2>Passwort ändern</h2></div>
+              <p>Mindestens 12 Zeichen.</p>
               <form onSubmit={submitPassword}>
-                <label>Aktuelles Passwort<input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required /></label>
-                <label>Neues Passwort<input type="password" minLength={12} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required /></label>
-                <label>Neues Passwort wiederholen<input type="password" minLength={12} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required /></label>
+                <label>
+                  Aktuelles Passwort
+                  <input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required />
+                </label>
+                <label>
+                  Neues Passwort
+                  <input type="password" minLength={12} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required />
+                </label>
+                <label>
+                  Wiederholen
+                  <input type="password" minLength={12} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required />
+                </label>
                 {error && <p className="error-banner">{error}</p>}
                 {passwordMessage && <p className="success-banner">{passwordMessage}</p>}
                 <button className="secondary-button" type="submit">Passwort ändern</button>
@@ -553,9 +810,10 @@ export default function App() {
             </section>
 
             <section className="settings-card">
-              <div className="form-card-title"><span>♦</span><h2>Session</h2></div>
-              <p>Die gemeinsamen Pokerabende bleiben beim Abmelden gespeichert.</p>
-              <form action="/api/logout" method="post"><button className="danger-outline" type="submit">Abmelden</button></form>
+              <div className="form-card-title"><span>♦</span><h2>Abmelden</h2></div>
+              <form action="/api/logout" method="post">
+                <button className="danger-outline" type="submit">Abmelden</button>
+              </form>
             </section>
           </>
         )}
