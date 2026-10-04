@@ -12,6 +12,22 @@ export interface NightInput {
   players: NightPlayerInput[];
 }
 
+export interface NightSnapshot {
+  id: string;
+  title: string;
+  playedAt: string;
+  players: NightPlayerInput[];
+}
+
+interface SnapshotRow {
+  night_id: string;
+  title: string;
+  played_at: string;
+  player_name: string | null;
+  stake_cents: number | null;
+  cash_out_cents: number | null;
+}
+
 function normalizeName(name: string) {
   return name.trim().replace(/\s+/g, " ").toLocaleLowerCase("de-DE");
 }
@@ -26,9 +42,40 @@ async function playerIdFor(normalizedName: string) {
   return "player_" + hex.slice(0, 24);
 }
 
+function snapshotFromInput(id: string, input: NightInput): NightSnapshot {
+  return {
+    id,
+    title: input.title,
+    playedAt: input.playedAt,
+    players: input.players.map((player) => ({ ...player })),
+  };
+}
+
+function auditStatement(
+  env: Env,
+  eventType: "night.created" | "night.updated" | "night.deleted" | "night.baseline",
+  entityId: string,
+  createdAt: string,
+  before: NightSnapshot | null,
+  after: NightSnapshot | null,
+) {
+  return env.DB.prepare(
+    `INSERT INTO audit_events
+     (id, event_type, entity_type, entity_id, created_at, before_json, after_json)
+     VALUES (?, ?, 'poker_night', ?, ?, ?, ?)`,
+  ).bind(
+    crypto.randomUUID(),
+    eventType,
+    entityId,
+    createdAt,
+    before ? JSON.stringify(before) : null,
+    after ? JSON.stringify(after) : null,
+  );
+}
+
 export function validateNightInput(value: unknown): NightInput {
   if (!value || typeof value !== "object") {
-    throw new Error("Ungültige Session.");
+    throw new Error("Ungültiger Pokerabend.");
   }
 
   const raw = value as Record<string, unknown>;
@@ -90,6 +137,45 @@ export function validateNightInput(value: unknown): NightInput {
   return { title, playedAt, players: cleanPlayers };
 }
 
+export async function loadNightSnapshot(env: Env, nightId: string) {
+  const query = await env.DB.prepare(
+    `SELECT
+       n.id AS night_id,
+       n.title,
+       n.played_at,
+       p.name AS player_name,
+       r.stake_cents,
+       r.cash_out_cents
+     FROM poker_nights n
+     LEFT JOIN night_results r ON r.night_id = n.id
+     LEFT JOIN players p ON p.id = r.player_id
+     WHERE n.id = ?
+     ORDER BY p.name COLLATE NOCASE ASC`,
+  ).bind(nightId).all<SnapshotRow>();
+
+  if (query.results.length === 0) return null;
+
+  const first = query.results[0];
+  const snapshot: NightSnapshot = {
+    id: first.night_id,
+    title: first.title,
+    playedAt: first.played_at,
+    players: [],
+  };
+
+  for (const row of query.results) {
+    if (row.player_name === null) continue;
+
+    snapshot.players.push({
+      name: row.player_name,
+      stakeCents: row.stake_cents ?? 0,
+      cashOutCents: row.cash_out_cents ?? 0,
+    });
+  }
+
+  return snapshot;
+}
+
 export async function writeNight(
   env: Env,
   input: NightInput,
@@ -97,6 +183,13 @@ export async function writeNight(
   mode: "create" | "update",
 ) {
   const now = new Date().toISOString();
+  const before = mode === "update" ? await loadNightSnapshot(env, nightId) : null;
+
+  if (mode === "update" && !before) {
+    throw new Error("Pokerabend nicht gefunden.");
+  }
+
+  const after = snapshotFromInput(nightId, input);
   const playerRows = await Promise.all(
     input.players.map(async (player) => {
       const normalizedName = normalizeName(player.name);
@@ -152,7 +245,32 @@ export async function writeNight(
     );
   }
 
+  statements.push(
+    auditStatement(
+      env,
+      mode === "create" ? "night.created" : "night.updated",
+      nightId,
+      now,
+      before,
+      after,
+    ),
+  );
+
   await env.DB.batch(statements);
+}
+
+export async function deleteNightWithAudit(env: Env, nightId: string) {
+  const before = await loadNightSnapshot(env, nightId);
+  if (!before) return false;
+
+  const now = new Date().toISOString();
+
+  await env.DB.batch([
+    auditStatement(env, "night.deleted", nightId, now, before, null),
+    env.DB.prepare("DELETE FROM poker_nights WHERE id = ?").bind(nightId),
+  ]);
+
+  return true;
 }
 
 export async function nightExists(env: Env, nightId: string) {
