@@ -52,6 +52,13 @@ function initials(name: string) {
   return ((parts[0]?.[0] ?? "?") + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
+function leaderboardFrame(rank: number) {
+  if (rank === 1) return "/assets/leaderboard-frame-gold.webp";
+  if (rank === 2) return "/assets/leaderboard-frame-silver.webp";
+  if (rank === 3) return "/assets/leaderboard-frame-bronze.webp";
+  return "/assets/leaderboard-frame-neutral.webp";
+}
+
 function formatDate(value: string) {
   return new Date(value + "T12:00:00").toLocaleDateString("de-DE", {
     day: "2-digit",
@@ -224,6 +231,11 @@ export default function App() {
         a.name.localeCompare(b.name),
     );
   }, [nights]);
+
+  const maxAbsProfit = useMemo(
+    () => Math.max(1, ...stats.map((player) => Math.abs(player.profitCents))),
+    [stats],
+  );
 
   const knownNames = useMemo(
     () => Array.from(new Set(stats.map((player) => player.name))).sort((a, b) => a.localeCompare(b)),
@@ -752,7 +764,7 @@ export default function App() {
 
         {screen === "players" && (
           <>
-            <div className="screen-heading">
+            <div className="screen-heading leaderboard-heading">
               <h1>Spieler</h1>
               <p>Gesamtstand aus allen gespeicherten Abenden.</p>
             </div>
@@ -760,25 +772,71 @@ export default function App() {
             {stats.length === 0 ? (
               <div className="empty-card">Noch keine Spieler gespeichert.</div>
             ) : (
-              <div className="player-grid">
-                {stats.map((player, index) => (
-                  <article className="player-profile" key={player.id}>
-                    <span className={"rank-badge rank-" + (index + 1)}>{index + 1}</span>
-                    <span className="avatar large">{initials(player.name)}</span>
-                    <div className="player-main">
-                      <strong>{player.name}</strong>
-                      <span>{player.nights} Abende · {player.wins} Gewinnabende</span>
+              <>
+                <section className="leaderboard-podium" aria-label="Top 3">
+                  {[
+                    { rank: 2, player: stats[1] },
+                    { rank: 1, player: stats[0] },
+                    { rank: 3, player: stats[2] },
+                  ].map(({ rank, player }) => (
+                    <div className={"podium-slot podium-rank-" + rank} key={rank}>
+                      {player ? (
+                        <>
+                          <div className={"framed-avatar podium-avatar frame-rank-" + rank}>
+                            <span className="framed-avatar-core">{initials(player.name)}</span>
+                            <img src={leaderboardFrame(rank)} alt="" aria-hidden="true" />
+                          </div>
+                          <strong className="podium-player-name">{player.name}</strong>
+                          <b className={"podium-profit " + (player.profitCents >= 0 ? "positive" : "negative")}>
+                            {player.profitCents > 0 ? "+" : ""}{formatMoney(player.profitCents)}
+                          </b>
+                          <span className="podium-meta">{player.nights} {player.nights === 1 ? "Abend" : "Abende"}</span>
+                          <div className="podium-base" aria-hidden="true">
+                            <span>{rank}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="podium-empty" aria-hidden="true" />
+                      )}
                     </div>
-                    <b className={player.profitCents >= 0 ? "positive" : "negative"}>
-                      {player.profitCents > 0 ? "+" : ""}{formatMoney(player.profitCents)}
-                    </b>
-                    <footer>
-                      <span>Einsatz <strong>{formatMoney(player.stakeCents)}</strong></span>
-                      <span>Endbeträge <strong>{formatMoney(player.cashOutCents)}</strong></span>
-                    </footer>
-                  </article>
-                ))}
-              </div>
+                  ))}
+                </section>
+
+                <div className="section-title-row leaderboard-list-title">
+                  <h2>Rangliste</h2>
+                  <span>Gesamtbilanz</span>
+                </div>
+
+                <section className="leaderboard-list">
+                  {stats.map((player, index) => {
+                    const rank = index + 1;
+                    const width = Math.max(3, Math.round((Math.abs(player.profitCents) / maxAbsProfit) * 100));
+
+                    return (
+                      <article className="leaderboard-row" key={player.id}>
+                        <span className={"leaderboard-rank rank-" + rank}>{rank}</span>
+                        <div className={"framed-avatar leaderboard-mini-avatar " + (rank <= 3 ? "frame-rank-" + rank : "frame-neutral")}>
+                          <span className="framed-avatar-core">{initials(player.name)}</span>
+                          <img src={leaderboardFrame(rank)} alt="" aria-hidden="true" />
+                        </div>
+                        <div className="leaderboard-copy">
+                          <strong>{player.name}</strong>
+                          <span>{player.nights} {player.nights === 1 ? "Abend" : "Abende"} · {formatMoney(player.stakeCents)} Einsatz</span>
+                          <span className="leaderboard-bar" aria-hidden="true">
+                            <span
+                              className={"leaderboard-bar-fill " + (player.profitCents >= 0 ? "is-positive" : "is-negative")}
+                              style={{ width: width + "%" }}
+                            />
+                          </span>
+                        </div>
+                        <b className={"leaderboard-balance " + (player.profitCents >= 0 ? "positive" : "negative")}>
+                          {player.profitCents > 0 ? "+" : ""}{formatMoney(player.profitCents)}
+                        </b>
+                      </article>
+                    );
+                  })}
+                </section>
+              </>
             )}
           </>
         )}
