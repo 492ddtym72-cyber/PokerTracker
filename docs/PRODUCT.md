@@ -20,21 +20,30 @@ For each player:
 
 `profit/loss = cash-out - total stake`
 
-For each night, PokerTracker also compares total stakes with total cash-outs. A difference is shown as a warning rather than blocking the save.
+For each night, PokerTracker compares total stakes with total cash-outs. A difference is shown as a warning rather than blocking the save.
 
-## MVP
+## Current product structure
 
-1. Shared password-protected access
-2. Shared persistent database
-3. Create a poker night
-4. Edit a poker night
-5. Delete a poker night
-6. Session history
-7. Lifetime player statistics
-8. Mobile-first UI
-9. Clear balance warning
+- **Home** — overview and recent poker nights
+- **History** — append-only audit trail for created, changed and deleted poker nights
+- **New poker night** — fast end-of-evening entry
+- **Players** — lifetime standings derived from saved nights
+- **More** — password and session settings
 
-## Explicitly out of scope for MVP
+## History rules
+
+History records user-meaningful actions, not raw SQL operations.
+
+Each create, update or delete stores a before/after snapshot so the UI can show concise changes such as:
+
+- player added or removed
+- stake changed
+- cash-out changed
+- title or date changed
+
+Deleted poker nights remain visible in history but are excluded from active statistics.
+
+## Explicitly out of scope
 
 - hand histories
 - per-hand actions
