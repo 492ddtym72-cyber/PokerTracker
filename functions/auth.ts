@@ -12,12 +12,6 @@ const COOKIE_NAME = "pokertracker_session";
 const SESSION_PAYLOAD = "pokertracker-authenticated-v2";
 const PASSWORD_ITERATIONS = 100_000;
 
-// One-time migration verifier for the initial random bootstrap password.
-// It is only consulted while the database still contains an unsupported
-// PBKDF2 iteration count (> Cloudflare Workers' production cap).
-const LEGACY_BOOTSTRAP_SHA256 =
-  "93b07449635d734818f7267cdd6bd945df4ec331536b7ac0a7ac132777f94fc1";
-
 function bytesToHex(bytes: Uint8Array) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -54,15 +48,6 @@ async function authConfig(env: Env) {
   return env.DB.prepare(
     "SELECT password_salt, password_hash, iterations FROM app_auth WHERE id = 1 LIMIT 1",
   ).first<AuthConfig>();
-}
-
-async function sha256Hex(value: string) {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value),
-  );
-
-  return bytesToHex(new Uint8Array(digest));
 }
 
 async function derivePasswordHash(password: string, saltHex: string, iterations: number) {
@@ -126,16 +111,8 @@ export async function verifyPassword(password: string, env: Env) {
   if (!config) return false;
 
   const iterations = Number(config.iterations);
-
-  if (iterations > PASSWORD_ITERATIONS) {
-    const bootstrapCandidate = await sha256Hex(password);
-
-    if (!constantTimeEqual(bootstrapCandidate, LEGACY_BOOTSTRAP_SHA256)) {
-      return false;
-    }
-
-    await changePassword(password, env);
-    return true;
+  if (!Number.isInteger(iterations) || iterations <= 0 || iterations > PASSWORD_ITERATIONS) {
+    throw new Error("Authentication configuration is invalid.");
   }
 
   const candidate = await derivePasswordHash(
