@@ -1,6 +1,7 @@
 import type { Env } from "../auth";
 
 export interface NightPlayerInput {
+  playerId?: string;
   name: string;
   stakeCents: number;
   cashOutCents: number;
@@ -96,7 +97,7 @@ export function validateNightInput(value: unknown): NightInput {
   }
 
   const cleanPlayers: NightPlayerInput[] = [];
-  const names = new Set<string>();
+  const identities = new Set<string>();
 
   for (const rawPlayer of players) {
     if (!rawPlayer || typeof rawPlayer !== "object") {
@@ -104,6 +105,9 @@ export function validateNightInput(value: unknown): NightInput {
     }
 
     const player = rawPlayer as Record<string, unknown>;
+    const playerId = typeof player.playerId === "string" && player.playerId.trim()
+      ? player.playerId.trim()
+      : undefined;
     const name = typeof player.name === "string"
       ? player.name.trim().replace(/\s+/g, " ")
       : "";
@@ -111,14 +115,19 @@ export function validateNightInput(value: unknown): NightInput {
     const cashOutCents = Number(player.cashOutCents);
     const normalizedName = normalizeName(name);
 
+    if (playerId && !/^player_[a-f0-9]{24}$/.test(playerId)) {
+      throw new Error("Ungültige Spieler-ID.");
+    }
+
     if (!name || name.length > 50) {
       throw new Error("Jeder Spieler braucht einen gültigen Namen.");
     }
 
-    if (names.has(normalizedName)) {
+    const identity = playerId ? `id:${playerId}` : `name:${normalizedName}`;
+    if (identities.has(identity)) {
       throw new Error("Ein Spieler kann pro Abend nur einmal vorkommen.");
     }
-    names.add(normalizedName);
+    identities.add(identity);
 
     if (
       !Number.isSafeInteger(stakeCents) ||
@@ -131,7 +140,7 @@ export function validateNightInput(value: unknown): NightInput {
       throw new Error("Bitte gültige Geldbeträge angeben.");
     }
 
-    cleanPlayers.push({ name, stakeCents, cashOutCents });
+    cleanPlayers.push({ playerId, name, stakeCents, cashOutCents });
   }
 
   return { title, playedAt, players: cleanPlayers };
@@ -189,17 +198,57 @@ export async function writeNight(
     throw new Error("Pokerabend nicht gefunden.");
   }
 
-  const after = snapshotFromInput(nightId, input);
   const playerRows = await Promise.all(
     input.players.map(async (player) => {
+      if (player.playerId) {
+        const existing = await env.DB.prepare(
+          "SELECT id, name, normalized_name FROM players WHERE id = ? LIMIT 1",
+        ).bind(player.playerId).first<{
+          id: string;
+          name: string;
+          normalized_name: string;
+        }>();
+
+        if (!existing) {
+          throw new Error("Der ausgewählte Spieler existiert nicht mehr.");
+        }
+
+        return {
+          ...player,
+          name: existing.name,
+          normalizedName: existing.normalized_name,
+          playerId: existing.id,
+          isExisting: true,
+        };
+      }
+
       const normalizedName = normalizeName(player.name);
       return {
         ...player,
         normalizedName,
         playerId: await playerIdFor(normalizedName),
+        isExisting: false,
       };
     }),
   );
+
+  const seenPlayerIds = new Set<string>();
+  for (const player of playerRows) {
+    if (seenPlayerIds.has(player.playerId)) {
+      throw new Error("Ein Spieler kann pro Abend nur einmal vorkommen.");
+    }
+    seenPlayerIds.add(player.playerId);
+  }
+
+  const after = snapshotFromInput(nightId, {
+    ...input,
+    players: playerRows.map(({ playerId, name, stakeCents, cashOutCents }) => ({
+      playerId,
+      name,
+      stakeCents,
+      cashOutCents,
+    })),
+  });
 
   const statements: D1PreparedStatement[] = [];
 
@@ -221,13 +270,15 @@ export async function writeNight(
   }
 
   for (const player of playerRows) {
-    statements.push(
-      env.DB.prepare(
-        `INSERT INTO players (id, name, normalized_name, created_at)
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT(normalized_name) DO UPDATE SET name = excluded.name`,
-      ).bind(player.playerId, player.name, player.normalizedName, now),
-    );
+    if (!player.isExisting) {
+      statements.push(
+        env.DB.prepare(
+          `INSERT INTO players (id, name, normalized_name, created_at)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(normalized_name) DO UPDATE SET name = excluded.name`,
+        ).bind(player.playerId, player.name, player.normalizedName, now),
+      );
+    }
 
     statements.push(
       env.DB.prepare(
