@@ -235,6 +235,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   background: #173127;
   color: var(--gold);
   font-size: 19px;
+  transform: translateY(-1px);
 }
 
 .screen-section { margin-top: 27px; }
