@@ -32,7 +32,7 @@ body::before {
     radial-gradient(circle at 100% 30%, rgba(185, 137, 45, .04), transparent 22rem);
 }
 
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .45; }
 
@@ -427,7 +427,8 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   font-weight: 800;
 }
 
-input {
+input,
+select {
   width: 100%;
   min-width: 0;
   min-height: 41px;
@@ -439,7 +440,21 @@ input {
   padding: 10px 11px;
 }
 
-input:focus {
+select {
+  appearance: none;
+  padding-right: 30px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #7d9186 50%),
+    linear-gradient(135deg, #7d9186 50%, transparent 50%);
+  background-position:
+    calc(100% - 15px) 50%,
+    calc(100% - 10px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+input:focus,
+select:focus {
   border-color: rgba(231,198,117,.62);
 }
 
@@ -473,7 +488,12 @@ input:focus {
   gap: 8px;
 }
 
-.player-identity input { min-height: 37px; }
+.player-identity select { min-height: 37px; }
+
+.new-player-name {
+  min-height: 37px;
+  margin-top: 8px;
+}
 
 .remove-button {
   width: 28px;
