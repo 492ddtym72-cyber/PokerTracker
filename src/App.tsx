@@ -8,6 +8,7 @@ import {
   updateNight,
 } from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
+import { GOLD_WREATH, SILVER_WREATH } from "./leaderboardFrames";
 import type {
   AuditChange,
   AuditEvent,
@@ -62,8 +63,8 @@ function initials(name: string) {
 }
 
 function leaderboardFrame(rank: number) {
-  if (rank === 1) return "/assets/leaderboard-frame-gold.webp";
-  if (rank === 2) return "/assets/leaderboard-frame-silver.webp";
+  if (rank === 1) return GOLD_WREATH;
+  if (rank === 2) return SILVER_WREATH;
   if (rank === 3) return "/assets/leaderboard-frame-bronze.webp";
   return "/assets/leaderboard-frame-neutral.webp";
 }
