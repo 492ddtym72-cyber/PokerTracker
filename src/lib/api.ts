@@ -71,10 +71,3 @@ export function loadHistory(offset = 0, limit = 40) {
 
   return api<HistoryResponse>("/api/history?" + params.toString());
 }
-
-export function changeSharedPassword(currentPassword: string, newPassword: string) {
-  return api<{ ok: true }>("/api/password", {
-    method: "POST",
-    body: JSON.stringify({ currentPassword, newPassword }),
-  });
-}
