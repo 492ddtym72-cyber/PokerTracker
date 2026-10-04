@@ -1,6 +1,11 @@
 import type { Env } from "../../auth";
 import { apiError, json } from "../../lib/http";
-import { nightExists, validateNightInput, writeNight } from "../../lib/night";
+import {
+  deleteNightWithAudit,
+  nightExists,
+  validateNightInput,
+  writeNight,
+} from "../../lib/night";
 
 export const onRequestPut: PagesFunction<Env> = async ({ request, env, params }) => {
   const id = String(params.id ?? "");
@@ -15,17 +20,24 @@ export const onRequestPut: PagesFunction<Env> = async ({ request, env, params })
     return json({ id });
   } catch (error) {
     console.error(error);
-    return apiError(error instanceof Error ? error.message : "Pokerabend konnte nicht aktualisiert werden.");
+    return apiError(
+      error instanceof Error ? error.message : "Pokerabend konnte nicht aktualisiert werden.",
+    );
   }
 };
 
 export const onRequestDelete: PagesFunction<Env> = async ({ env, params }) => {
   const id = String(params.id ?? "");
 
-  if (!id || !(await nightExists(env, id))) {
+  if (!id) {
     return apiError("Pokerabend nicht gefunden.", 404);
   }
 
-  await env.DB.prepare("DELETE FROM poker_nights WHERE id = ?").bind(id).run();
+  const deleted = await deleteNightWithAudit(env, id);
+
+  if (!deleted) {
+    return apiError("Pokerabend nicht gefunden.", 404);
+  }
+
   return new Response(null, { status: 204 });
 };
