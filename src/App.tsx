@@ -20,6 +20,8 @@ type Screen = "home" | "history" | "players" | "more";
 
 type DraftPlayer = {
   key: string;
+  playerId: string;
+  isNew: boolean;
   name: string;
   stake: string;
   cashOut: string;
@@ -43,8 +45,15 @@ function moneyInput(cents: number) {
   return (cents / 100).toFixed(2).replace(".", ",");
 }
 
-function emptyPlayer(name = ""): DraftPlayer {
-  return { key: crypto.randomUUID(), name, stake: "", cashOut: "" };
+function emptyPlayer(): DraftPlayer {
+  return {
+    key: crypto.randomUUID(),
+    playerId: "",
+    isNew: false,
+    name: "",
+    stake: "",
+    cashOut: "",
+  };
 }
 
 function initials(name: string) {
@@ -237,8 +246,8 @@ export default function App() {
     [stats],
   );
 
-  const knownNames = useMemo(
-    () => Array.from(new Set(stats.map((player) => player.name))).sort((a, b) => a.localeCompare(b)),
+  const knownPlayers = useMemo(
+    () => [...stats].sort((a, b) => a.name.localeCompare(b.name)),
     [stats],
   );
 
@@ -309,6 +318,8 @@ export default function App() {
     setPlayedAt(night.playedAt);
     setPlayers(night.players.map((player) => ({
       key: crypto.randomUUID(),
+      playerId: player.id,
+      isNew: false,
       name: player.name,
       stake: moneyInput(player.stakeCents),
       cashOut: moneyInput(player.cashOutCents),
@@ -326,11 +337,27 @@ export default function App() {
   }
 
   function buildInput(): NightInput | null {
-    const cleanPlayers = [];
+    const cleanPlayers: NightInput["players"] = [];
+    const selectedPlayerIds = new Set<string>();
 
     for (const player of players) {
+      if (!player.playerId && !player.isNew) continue;
+
       const name = player.name.trim();
-      if (!name) continue;
+      if (!name) {
+        setError(player.isNew
+          ? "Bitte den Namen des neuen Spielers eintragen."
+          : "Bitte einen Spieler auswählen.");
+        return null;
+      }
+
+      if (player.playerId) {
+        if (selectedPlayerIds.has(player.playerId)) {
+          setError("Ein Spieler kann pro Abend nur einmal vorkommen.");
+          return null;
+        }
+        selectedPlayerIds.add(player.playerId);
+      }
 
       const stakeCents = parseMoney(player.stake);
       const cashOutCents = parseMoney(player.cashOut);
@@ -340,7 +367,12 @@ export default function App() {
         return null;
       }
 
-      cleanPlayers.push({ name, stakeCents, cashOutCents });
+      cleanPlayers.push({
+        ...(player.playerId ? { playerId: player.playerId } : {}),
+        name,
+        stakeCents,
+        cashOutCents,
+      });
     }
 
     if (cleanPlayers.length < 2) {
@@ -482,10 +514,6 @@ export default function App() {
                 </button>
               </div>
 
-              <datalist id="known-players">
-                {knownNames.map((name) => <option value={name} key={name} />)}
-              </datalist>
-
               <div className="editor-player-list">
                 {players.map((player) => {
                   const stake = parseMoney(player.stake);
@@ -496,13 +524,43 @@ export default function App() {
                     <div className="editor-player" key={player.key}>
                       <div className="player-identity">
                         <span className="avatar">{initials(player.name || "?")}</span>
-                        <input
-                          list="known-players"
-                          maxLength={50}
-                          placeholder="Spielername"
-                          value={player.name}
-                          onChange={(event) => updatePlayer(player.key, { name: event.target.value })}
-                        />
+                        <select
+                          aria-label="Spieler auswählen"
+                          value={player.isNew ? "__new__" : player.playerId}
+                          onChange={(event) => {
+                            const value = event.target.value;
+
+                            if (value === "__new__") {
+                              updatePlayer(player.key, {
+                                playerId: "",
+                                isNew: true,
+                                name: "",
+                              });
+                              return;
+                            }
+
+                            const selected = knownPlayers.find((known) => known.id === value);
+                            updatePlayer(player.key, {
+                              playerId: value,
+                              isNew: false,
+                              name: selected?.name ?? "",
+                            });
+                          }}
+                        >
+                          <option value="">Spieler wählen</option>
+                          {knownPlayers.map((known) => (
+                            <option
+                              value={known.id}
+                              key={known.id}
+                              disabled={players.some(
+                                (other) => other.key !== player.key && other.playerId === known.id,
+                              )}
+                            >
+                              {known.name}
+                            </option>
+                          ))}
+                          <option value="__new__">+ Neuer Spieler</option>
+                        </select>
                         <button
                           className="remove-button"
                           type="button"
@@ -513,6 +571,17 @@ export default function App() {
                           ×
                         </button>
                       </div>
+
+                      {player.isNew && (
+                        <input
+                          className="new-player-name"
+                          maxLength={50}
+                          placeholder="Name des neuen Spielers"
+                          value={player.name}
+                          onChange={(event) => updatePlayer(player.key, { name: event.target.value })}
+                          autoFocus
+                        />
+                      )}
 
                       <div className="money-row">
                         <label>
