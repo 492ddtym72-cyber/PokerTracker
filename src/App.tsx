@@ -53,7 +53,9 @@ function initials(name: string) {
 }
 
 function leaderboardFrame(rank: number) {
-  if (rank <= 3) return "/assets/leaderboard-frame-bronze.webp";
+  if (rank === 1) return "/assets/leaderboard-frame-gold.webp";
+  if (rank === 2) return "/assets/leaderboard-frame-silver.webp";
+  if (rank === 3) return "/assets/leaderboard-frame-bronze.webp";
   return "/assets/leaderboard-frame-neutral.webp";
 }
 
