@@ -53,9 +53,7 @@ function initials(name: string) {
 }
 
 function leaderboardFrame(rank: number) {
-  if (rank === 1) return "/assets/leaderboard-frame-gold.webp";
-  if (rank === 2) return "/assets/leaderboard-frame-silver.webp";
-  if (rank === 3) return "/assets/leaderboard-frame-bronze.webp";
+  if (rank <= 3) return "/assets/leaderboard-frame-bronze.webp";
   return "/assets/leaderboard-frame-neutral.webp";
 }
 
@@ -764,11 +762,6 @@ export default function App() {
 
         {screen === "players" && (
           <>
-            <div className="screen-heading leaderboard-heading">
-              <h1>Spieler</h1>
-              <p>Gesamtstand aus allen gespeicherten Abenden.</p>
-            </div>
-
             {stats.length === 0 ? (
               <div className="empty-card">Noch keine Spieler gespeichert.</div>
             ) : (
@@ -814,7 +807,7 @@ export default function App() {
 
                     return (
                       <article className="leaderboard-row" key={player.id}>
-                        <span className={"leaderboard-rank rank-" + rank}>{rank}</span>
+                        <span className={"leaderboard-rank leaderboard-place-" + rank}>{rank}</span>
                         <div className={"framed-avatar leaderboard-mini-avatar " + (rank <= 3 ? "frame-rank-" + rank : "frame-neutral")}>
                           <span className="framed-avatar-core">{initials(player.name)}</span>
                           <img src={leaderboardFrame(rank)} alt="" aria-hidden="true" />
