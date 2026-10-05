@@ -733,7 +733,7 @@ export default function App() {
                 </div>
               ) : (
                 <div className="compact-night-list">
-                  {nights.slice(0, 6).map((night) => {
+                  {nights.map((night) => {
                     const totals = nightTotals(night);
                     const leader = [...night.players].sort(
                       (a, b) => (b.cashOutCents - b.stakeCents) - (a.cashOutCents - a.stakeCents),
