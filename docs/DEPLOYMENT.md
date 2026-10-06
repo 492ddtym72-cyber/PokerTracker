@@ -20,7 +20,7 @@ Create a D1 database and bind it to the Pages project as:
 
 - Binding name: `DB`
 
-Apply `migrations/0001_initial.sql` to the database.
+Apply all SQL files in `migrations/` to the database in numeric order. Existing installations should apply only migrations that have not yet been run.
 
 ## Authentication
 
