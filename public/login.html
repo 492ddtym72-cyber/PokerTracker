@@ -72,16 +72,16 @@
         <span class="suit">♠</span>
         <h1>PokerTracker</h1>
       </div>
-      <p class="intro">Gemeinsamer Zugang.</p>
+      <p class="intro" id="login-intro">Gemeinsamer Zugang.</p>
 
       <form action="/api/login" method="post">
         <label>
-          Passwort
+          <span id="password-label">Passwort</span>
           <input name="password" type="password" autocomplete="current-password" required autofocus />
         </label>
-        <button type="submit">Einloggen</button>
-        <p class="error">Passwort stimmt nicht.</p>
-        <p class="system-error">Login ist gerade nicht verfügbar.</p>
+        <button id="login-button" type="submit">Einloggen</button>
+        <p class="error" id="password-error">Passwort stimmt nicht.</p>
+        <p class="system-error" id="system-error">Login ist gerade nicht verfügbar.</p>
       </form>
     </main>
 
@@ -89,6 +89,17 @@
       const params = new URLSearchParams(location.search);
       document.body.dataset.error = String(params.has("error"));
       document.body.dataset.system = String(params.has("system"));
+
+      const language = localStorage.getItem("pokertracker-language") === "en" ? "en" : "de";
+      document.documentElement.lang = language;
+
+      if (language === "en") {
+        document.getElementById("login-intro").textContent = "Shared access.";
+        document.getElementById("password-label").textContent = "Password";
+        document.getElementById("login-button").textContent = "Log in";
+        document.getElementById("password-error").textContent = "Incorrect password.";
+        document.getElementById("system-error").textContent = "Login is currently unavailable.";
+      }
     </script>
   </body>
 </html>

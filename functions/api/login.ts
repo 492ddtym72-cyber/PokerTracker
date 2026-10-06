@@ -25,7 +25,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           <meta http-equiv="refresh" content="0;url=/">
         </head>
         <body style="margin:0;background:#07100d;color:#f4f1e8;font-family:system-ui;display:grid;place-items:center;min-height:100vh">
-          <p>Login erfolgreich …</p>
+          <p aria-label="Loading">…</p>
           <script>window.location.replace("/");</script>
         </body>
       </html>`,

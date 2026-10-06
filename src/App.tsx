@@ -8,6 +8,13 @@ import {
   updateNightAdjustments,
 } from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
+import {
+  getLanguage,
+  getLocale,
+  setLanguagePreference,
+  t,
+  type Language,
+} from "./i18n";
 import { GOLD_WREATH, SILVER_WREATH } from "./leaderboardFrames";
 import type {
   AuditChange,
@@ -71,7 +78,7 @@ function leaderboardFrame(rank: number) {
 }
 
 function formatDate(value: string) {
-  return new Date(value + "T12:00:00").toLocaleDateString("de-DE", {
+  return new Date(value + "T12:00:00").toLocaleDateString(getLocale(), {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -79,7 +86,7 @@ function formatDate(value: string) {
 }
 
 function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("de-DE", {
+  return new Date(value).toLocaleString(getLocale(), {
     day: "2-digit",
     month: "short",
     hour: "2-digit",
@@ -128,13 +135,13 @@ function nightTotals(night: PokerNight) {
 function eventLabel(event: AuditEvent) {
   switch (event.eventType) {
     case "night.created":
-      return "Pokerabend erstellt";
+      return t("Pokerabend erstellt");
     case "night.updated":
-      return "Pokerabend geändert";
+      return t("Pokerabend geändert");
     case "night.deleted":
-      return "Pokerabend gelöscht";
+      return t("Pokerabend gelöscht");
     case "night.baseline":
-      return "Ausgangsstand erfasst";
+      return t("Ausgangsstand erfasst");
   }
 }
 
@@ -153,25 +160,26 @@ function eventIcon(event: AuditEvent) {
 
 function changeText(change: AuditChange) {
   if (change.type === "field") {
-    const label = change.field === "title" ? "Name" : "Datum";
+    const label = change.field === "title" ? t("Name") : t("Datum");
     const before = change.field === "date" ? formatDate(change.before) : change.before;
     const after = change.field === "date" ? formatDate(change.after) : change.after;
     return `${label}: ${before} → ${after}`;
   }
 
   if (change.type === "player_added") {
-    return `${change.player} hinzugefügt`;
+    return `${change.player} ${t("hinzugefügt")}`;
   }
 
   if (change.type === "player_removed") {
-    return `${change.player} entfernt`;
+    return `${change.player} ${t("entfernt")}`;
   }
 
-  const field = change.field === "stake" ? "Einsatz" : "Endbetrag";
+  const field = change.field === "stake" ? t("Einsatz") : t("Endbetrag");
   return `${change.player} · ${field} ${formatMoney(change.beforeCents)} → ${formatMoney(change.afterCents)}`;
 }
 
 export default function App() {
+  const [language, setLanguage] = useState<Language>(() => getLanguage());
   const [screen, setScreen] = useState<Screen>("home");
   const [editorOpen, setEditorOpen] = useState(false);
   const [detailNightId, setDetailNightId] = useState<string | null>(null);
@@ -183,7 +191,7 @@ export default function App() {
     total: 0,
     hasMore: false,
   });
-  const [title, setTitle] = useState("Pokerabend");
+  const [title, setTitle] = useState(() => t("Pokerabend"));
   const [playedAt, setPlayedAt] = useState(today);
   const [players, setPlayers] = useState<DraftPlayer[]>([emptyPlayer(), emptyPlayer()]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -227,12 +235,16 @@ export default function App() {
   }
 
   useEffect(() => {
+    setLanguagePreference(language);
+  }, [language]);
+
+  useEffect(() => {
     Promise.all([
       refreshNights(),
       refreshHistory(true),
     ])
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Daten konnten nicht geladen werden.");
+        setError(err instanceof Error ? err.message : t("Daten konnten nicht geladen werden."));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -311,6 +323,12 @@ export default function App() {
     };
   }, [players]);
 
+  function changeLanguage(next: Language) {
+    setLanguagePreference(next);
+    setLanguage(next);
+    setError("");
+  }
+
   function navigate(next: Screen) {
     setScreen(next);
     setEditorOpen(false);
@@ -321,7 +339,7 @@ export default function App() {
   }
 
   function resetEditor() {
-    setTitle("Pokerabend");
+    setTitle(t("Pokerabend"));
     setPlayedAt(today());
     setPlayers([emptyPlayer(), emptyPlayer()]);
     setEditingId(null);
@@ -384,7 +402,7 @@ export default function App() {
     const playersByOriginalProfit = [...night.players].sort(
       (a, b) =>
         (b.cashOutCents - b.stakeCents) - (a.cashOutCents - a.stakeCents) ||
-        a.name.localeCompare(b.name, "de"),
+        a.name.localeCompare(b.name, getLanguage()),
     );
 
     if (reconcileMode === "all") {
@@ -426,14 +444,14 @@ export default function App() {
     }
 
     if (reconcileMode === "selected" && reconcileSelected.length === 0) {
-      setError("Bitte mindestens eine Person für den Ausgleich auswählen.");
+      setError(t("Bitte mindestens eine Person für den Ausgleich auswählen."));
       return;
     }
 
     if (reconcileMode === "custom") {
       for (const value of Object.values(reconcileCustom)) {
         if (value.trim() && parseMoney(value) === null) {
-          setError("Bitte gültige Beträge für den Ausgleich eintragen.");
+          setError(t("Bitte gültige Beträge für den Ausgleich eintragen."));
           return;
         }
       }
@@ -447,7 +465,7 @@ export default function App() {
       (totals.differenceCents > 0 && remaining < 0) ||
       (totals.differenceCents < 0 && remaining > 0)
     ) {
-      setError("Der Ausgleich ist größer als die ursprüngliche Differenz.");
+      setError(t("Der Ausgleich ist größer als die ursprüngliche Differenz."));
       return;
     }
 
@@ -458,14 +476,14 @@ export default function App() {
       await refreshNights();
       setReconcileOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Differenzausgleich konnte nicht gespeichert werden.");
+      setError(err instanceof Error ? err.message : t("Differenzausgleich konnte nicht gespeichert werden."));
     } finally {
       setReconcileSaving(false);
     }
   }
 
   async function resetReconciliation(night: PokerNight) {
-    if (!window.confirm("Gespeicherten Differenzausgleich wirklich zurücksetzen?")) return;
+    if (!window.confirm(t("Gespeicherten Differenzausgleich wirklich zurücksetzen?"))) return;
 
     setReconcileSaving(true);
     setError("");
@@ -475,7 +493,7 @@ export default function App() {
       await refreshNights();
       setReconcileOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Differenzausgleich konnte nicht zurückgesetzt werden.");
+      setError(err instanceof Error ? err.message : t("Differenzausgleich konnte nicht zurückgesetzt werden."));
     } finally {
       setReconcileSaving(false);
     }
@@ -497,14 +515,14 @@ export default function App() {
       const name = player.name.trim();
       if (!name) {
         setError(player.isNew
-          ? "Bitte den Namen des neuen Spielers eintragen."
-          : "Bitte einen Spieler auswählen.");
+          ? t("Bitte den Namen des neuen Spielers eintragen.")
+          : t("Bitte einen Spieler auswählen."));
         return null;
       }
 
       if (player.playerId) {
         if (selectedPlayerIds.has(player.playerId)) {
-          setError("Ein Spieler kann pro Abend nur einmal vorkommen.");
+          setError(t("Ein Spieler kann pro Abend nur einmal vorkommen."));
           return null;
         }
         selectedPlayerIds.add(player.playerId);
@@ -514,7 +532,7 @@ export default function App() {
       const cashOutCents = parseMoney(player.cashOut);
 
       if (stakeCents === null || cashOutCents === null) {
-        setError("Bitte für jeden Spieler gültige Beträge eintragen.");
+        setError(t("Bitte für jeden Spieler gültige Beträge eintragen."));
         return null;
       }
 
@@ -527,12 +545,12 @@ export default function App() {
     }
 
     if (cleanPlayers.length < 2) {
-      setError("Ein Pokerabend braucht mindestens zwei Spieler.");
+      setError(t("Ein Pokerabend braucht mindestens zwei Spieler."));
       return null;
     }
 
     return {
-      title: title.trim() || "Pokerabend",
+      title: title.trim() || t("Pokerabend"),
       playedAt,
       players: cleanPlayers,
     };
@@ -559,14 +577,14 @@ export default function App() {
       setEditorOpen(false);
       setScreen("home");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Pokerabend konnte nicht gespeichert werden.");
+      setError(err instanceof Error ? err.message : t("Pokerabend konnte nicht gespeichert werden."));
     } finally {
       setSaving(false);
     }
   }
 
   async function removeNight(night: PokerNight) {
-    if (!window.confirm(`„${night.title}“ wirklich löschen?`)) return;
+    if (!window.confirm(t("„{title}“ wirklich löschen?").replace("{title}", night.title))) return;
 
     try {
       await deleteNight(night.id);
@@ -574,7 +592,7 @@ export default function App() {
       setDetailNightId(null);
       setScreen("home");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Pokerabend konnte nicht gelöscht werden.");
+      setError(err instanceof Error ? err.message : t("Pokerabend konnte nicht gelöscht werden."));
     }
   }
 
@@ -591,21 +609,21 @@ export default function App() {
 
   function BottomNav() {
     return (
-      <nav className="bottom-nav" aria-label="Navigation">
+      <nav className="bottom-nav" aria-label={t("Navigation")}>
         <button className={screen === "home" ? "active" : ""} onClick={() => navigate("home")}>
-          <span>⌂</span><small>Start</small>
+          <span>⌂</span><small>{t("Start")}</small>
         </button>
         <button className={screen === "history" ? "active" : ""} onClick={() => navigate("history")}>
-          <span>↺</span><small>Verlauf</small>
+          <span>↺</span><small>{t("Verlauf")}</small>
         </button>
-        <button className="nav-create" type="button" onClick={startNew} aria-label="Neuer Pokerabend">
+        <button className="nav-create" type="button" onClick={startNew} aria-label={t("Neuer Pokerabend")}>
           <span>+</span>
         </button>
         <button className={screen === "players" ? "active" : ""} onClick={() => navigate("players")}>
-          <span>♣</span><small>Spieler</small>
+          <span>♣</span><small>{t("Spieler")}</small>
         </button>
         <button className={screen === "more" ? "active" : ""} onClick={() => navigate("more")}>
-          <span>•••</span><small>Mehr</small>
+          <span>•••</span><small>{t("Mehr")}</small>
         </button>
       </nav>
     );
@@ -617,32 +635,32 @@ export default function App() {
         <div className="app-frame">
           <header className="page-header">
             <button className="back-button" type="button" onClick={() => setEditorOpen(false)}>←</button>
-            <h1>{editingId ? "Pokerabend bearbeiten" : "Pokerabend anlegen"}</h1>
+            <h1>{editingId ? t("Pokerabend bearbeiten") : t("Pokerabend anlegen")}</h1>
           </header>
 
           <form className="editor-form" onSubmit={saveNight}>
             <section className="form-card">
-              <div className="form-card-title"><span>♠</span><h2>Abend</h2></div>
+              <div className="form-card-title"><span>♠</span><h2>{t("Abend")}</h2></div>
               <label>
-                Name
+                {t("Name")}
                 <input maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
               </label>
               <label>
-                Datum
+                {t("Datum")}
                 <div className="date-input-shell">
                   <span aria-hidden="true">
                     {playedAt
-                      ? new Date(playedAt + "T12:00:00").toLocaleDateString(undefined, {
+                      ? new Date(playedAt + "T12:00:00").toLocaleDateString(getLocale(), {
                           day: "numeric",
                           month: "short",
                           year: "numeric",
                         })
-                      : "Datum wählen"}
+                      : t("Datum wählen")}
                   </span>
                   <input
                     className="date-input-native"
                     type="date"
-                    aria-label="Datum"
+                    aria-label={t("Datum")}
                     value={playedAt}
                     onChange={(event) => setPlayedAt(event.target.value)}
                     required
@@ -653,9 +671,9 @@ export default function App() {
 
             <section className="form-card">
               <div className="form-card-title split-title">
-                <div><span>♣</span><h2>Spieler</h2></div>
+                <div><span>♣</span><h2>{t("Spieler")}</h2></div>
                 <button className="small-gold-button" type="button" onClick={() => setPlayers((current) => [...current, emptyPlayer()])}>
-                  + Spieler
+                  {t("+ Spieler")}
                 </button>
               </div>
 
@@ -670,7 +688,7 @@ export default function App() {
                       <div className="player-identity">
                         <span className="avatar">{initials(player.name || "?")}</span>
                         <select
-                          aria-label="Spieler auswählen"
+                          aria-label={t("Spieler auswählen")}
                           value={player.isNew ? "__new__" : player.playerId}
                           onChange={(event) => {
                             const value = event.target.value;
@@ -692,7 +710,7 @@ export default function App() {
                             });
                           }}
                         >
-                          <option value="">Spieler wählen</option>
+                          <option value="">{t("Spieler wählen")}</option>
                           {knownPlayers.map((known) => (
                             <option
                               value={known.id}
@@ -704,14 +722,14 @@ export default function App() {
                               {known.name}
                             </option>
                           ))}
-                          <option value="__new__">+ Neuer Spieler</option>
+                          <option value="__new__">{t("+ Neuer Spieler")}</option>
                         </select>
                         <button
                           className="remove-button"
                           type="button"
                           disabled={players.length <= 2}
                           onClick={() => setPlayers((current) => current.filter((item) => item.key !== player.key))}
-                          aria-label="Spieler entfernen"
+                          aria-label={t("Spieler entfernen")}
                         >
                           ×
                         </button>
@@ -721,7 +739,7 @@ export default function App() {
                         <input
                           className="new-player-name"
                           maxLength={50}
-                          placeholder="Name des neuen Spielers"
+                          placeholder={t("Name des neuen Spielers")}
                           value={player.name}
                           onChange={(event) => updatePlayer(player.key, { name: event.target.value })}
                           autoFocus
@@ -730,23 +748,23 @@ export default function App() {
 
                       <div className="money-row">
                         <label>
-                          Einsatz
+                          {t("Einsatz")}
                           <div className="money-input">
-                            <input inputMode="decimal" placeholder="0,00" value={player.stake} onChange={(event) => updatePlayer(player.key, { stake: event.target.value })} />
+                            <input inputMode="decimal" placeholder={language === "en" ? "0.00" : "0,00"} value={player.stake} onChange={(event) => updatePlayer(player.key, { stake: event.target.value })} />
                             <span>€</span>
                           </div>
                         </label>
                         <label>
-                          Endbetrag
+                          {t("Endbetrag")}
                           <div className="money-input">
-                            <input inputMode="decimal" placeholder="0,00" value={player.cashOut} onChange={(event) => updatePlayer(player.key, { cashOut: event.target.value })} />
+                            <input inputMode="decimal" placeholder={language === "en" ? "0.00" : "0,00"} value={player.cashOut} onChange={(event) => updatePlayer(player.key, { cashOut: event.target.value })} />
                             <span>€</span>
                           </div>
                         </label>
                       </div>
 
                       <div className="inline-result">
-                        <span>Ergebnis</span>
+                        <span>{t("Ergebnis")}</span>
                         <strong className={result === null ? "" : result >= 0 ? "positive" : "negative"}>
                           {result === null ? "—" : (result > 0 ? "+" : "") + formatMoney(result)}
                         </strong>
@@ -758,19 +776,19 @@ export default function App() {
             </section>
 
             <section className={"reconcile-card " + (draftTotals.differenceCents === 0 ? "balanced-card" : "warning-card")}>
-              <div><span>Einsatz</span><strong>{formatMoney(draftTotals.stakeCents)}</strong></div>
-              <div><span>Endbeträge</span><strong>{formatMoney(draftTotals.cashOutCents)}</strong></div>
+              <div><span>{t("Einsatz")}</span><strong>{formatMoney(draftTotals.stakeCents)}</strong></div>
+              <div><span>{t("Endbeträge")}</span><strong>{formatMoney(draftTotals.cashOutCents)}</strong></div>
               <b>
                 {draftTotals.differenceCents === 0
-                  ? "✓ Bilanz stimmt"
-                  : "Differenz " + formatMoney(draftTotals.differenceCents)}
+                  ? t("✓ Bilanz stimmt")
+                  : t("Differenz") + " " + formatMoney(draftTotals.differenceCents)}
               </b>
             </section>
 
             {error && <p className="error-banner">{error}</p>}
 
             <button className="gold-cta" type="submit" disabled={saving}>
-              {saving ? "Speichert …" : editingId ? "Änderungen speichern" : "Pokerabend speichern"}
+              {saving ? t("Speichert …") : editingId ? t("Änderungen speichern") : t("Pokerabend speichern")}
             </button>
           </form>
         </div>
@@ -803,15 +821,15 @@ export default function App() {
 
           <section className="detail-summary">
             <div>
-              <span>Spieler</span>
+              <span>{t("Spieler")}</span>
               <strong>{detailNight.players.length}</strong>
             </div>
             <div>
-              <span>Einsatz</span>
+              <span>{t("Einsatz")}</span>
               <strong>{formatMoney(totals.stakeCents)}</strong>
             </div>
             <div>
-              <span>Endbeträge</span>
+              <span>{t("Endbeträge")}</span>
               <strong>{formatMoney(totals.cashOutCents)}</strong>
             </div>
           </section>
@@ -823,16 +841,16 @@ export default function App() {
             <div className="detail-balance-copy">
               <strong>
                 {totals.differenceCents === 0
-                  ? "✓ Bilanz stimmt"
+                  ? t("✓ Bilanz stimmt")
                   : totals.remainingDifferenceCents === 0
-                    ? "✓ Differenz ausgeglichen"
-                    : "Offene Differenz " + formatMoney(totals.remainingDifferenceCents)}
+                    ? t("✓ Differenz ausgeglichen")
+                    : t("Offene Differenz") + " " + formatMoney(totals.remainingDifferenceCents)}
               </strong>
               {totals.differenceCents !== 0 && (
                 <span>
-                  Ursprünglich {formatMoney(totals.differenceCents)}
+                  {t("Ursprünglich")} {formatMoney(totals.differenceCents)}
                   {totals.adjustmentCents !== 0
-                    ? " · Ausgleich " + formatMoney(totals.adjustmentCents)
+                    ? " · " + t("Ausgleich") + " " + formatMoney(totals.adjustmentCents)
                     : ""}
                 </span>
               )}
@@ -845,10 +863,10 @@ export default function App() {
                 onClick={() => reconcileOpen ? setReconcileOpen(false) : openReconciliation(detailNight)}
               >
                 {reconcileOpen
-                  ? "Schließen"
+                  ? t("Schließen")
                   : totals.adjustmentCents !== 0
-                    ? "Ausgleich bearbeiten"
-                    : "Differenz klären"}
+                    ? t("Ausgleich bearbeiten")
+                    : t("Differenz klären")}
               </button>
             )}
           </section>
@@ -857,36 +875,36 @@ export default function App() {
             <section className="reconcile-editor">
               <div className="reconcile-editor-heading">
                 <div>
-                  <span>Differenzausgleich</span>
+                  <span>{t("Differenzausgleich")}</span>
                   <strong>
                     {totals.differenceCents > 0
-                      ? formatMoney(Math.abs(totals.differenceCents)) + " müssen abgezogen werden"
-                      : formatMoney(Math.abs(totals.differenceCents)) + " müssen gutgeschrieben werden"}
+                      ? formatMoney(Math.abs(totals.differenceCents)) + " " + t("müssen abgezogen werden")
+                      : formatMoney(Math.abs(totals.differenceCents)) + " " + t("müssen gutgeschrieben werden")}
                   </strong>
                 </div>
               </div>
 
-              <div className="reconcile-mode-tabs" role="group" aria-label="Art des Ausgleichs">
+              <div className="reconcile-mode-tabs" role="group" aria-label={t("Art des Ausgleichs")}>
                 <button
                   type="button"
                   className={reconcileMode === "all" ? "active" : ""}
                   onClick={() => setReconcileMode("all")}
                 >
-                  Alle
+                  {t("Alle")}
                 </button>
                 <button
                   type="button"
                   className={reconcileMode === "selected" ? "active" : ""}
                   onClick={() => setReconcileMode("selected")}
                 >
-                  Auswahl
+                  {t("Auswahl")}
                 </button>
                 <button
                   type="button"
                   className={reconcileMode === "custom" ? "active" : ""}
                   onClick={() => setReconcileMode("custom")}
                 >
-                  Individuell
+                  {t("Individuell")}
                 </button>
               </div>
 
@@ -910,7 +928,7 @@ export default function App() {
                       </label>
                     );
                   })}
-                  <small>Eine Person auswählen = diese Person übernimmt die ganze Differenz.</small>
+                  <small>{t("Eine Person auswählen = diese Person übernimmt die ganze Differenz.")}</small>
                 </div>
               )}
 
@@ -922,7 +940,7 @@ export default function App() {
                       <div className="money-input">
                         <input
                           inputMode="decimal"
-                          placeholder="0,00"
+                          placeholder={language === "en" ? "0.00" : "0,00"}
                           value={reconcileCustom[player.id] ?? ""}
                           onChange={(event) => setReconcileCustom((current) => ({
                             ...current,
@@ -934,23 +952,23 @@ export default function App() {
                     </label>
                   ))}
                   <small>
-                    Hier sind auch Teilbeträge möglich. Nicht verteilte Cents bleiben als offene Differenz bestehen.
+                    {t("Hier sind auch Teilbeträge möglich. Nicht verteilte Cents bleiben als offene Differenz bestehen.")}
                   </small>
                 </div>
               )}
 
               <div className="reconcile-preview">
                 <div className="reconcile-preview-title">
-                  <span>Vorschau</span>
+                  <span>{t("Vorschau")}</span>
                   <strong className={plannedRemaining === 0 ? "positive" : ""}>
                     {plannedRemaining === 0
-                      ? "geht exakt auf"
-                      : "noch offen " + formatMoney(plannedRemaining)}
+                      ? t("geht exakt auf")
+                      : t("noch offen") + " " + formatMoney(plannedRemaining)}
                   </strong>
                 </div>
 
                 {planned.length === 0 ? (
-                  <p>Noch keine Verteilung ausgewählt.</p>
+                  <p>{t("Noch keine Verteilung ausgewählt.")}</p>
                 ) : (
                   <div className="reconcile-preview-list">
                     {detailNight.players
@@ -978,7 +996,7 @@ export default function App() {
                     disabled={reconcileSaving}
                     onClick={() => resetReconciliation(detailNight)}
                   >
-                    Ausgleich zurücksetzen
+                    {t("Ausgleich zurücksetzen")}
                   </button>
                 )}
                 <button
@@ -987,7 +1005,7 @@ export default function App() {
                   disabled={reconcileSaving || (reconcileMode === "selected" && reconcileSelected.length === 0)}
                   onClick={() => saveReconciliation(detailNight)}
                 >
-                  {reconcileSaving ? "Speichert …" : "Ausgleich speichern"}
+                  {reconcileSaving ? t("Speichert …") : t("Ausgleich speichern")}
                 </button>
               </div>
             </section>
@@ -1007,8 +1025,8 @@ export default function App() {
                     <span>{formatMoney(player.stakeCents)} → {formatMoney(player.cashOutCents)}</span>
                     {(player.adjustmentCents ?? 0) !== 0 && (
                       <span className="result-adjustment">
-                        Vorher {rawResult > 0 ? "+" : ""}{formatMoney(rawResult)}
-                        {" · "}Ausgleich {player.adjustmentCents > 0 ? "+" : ""}{formatMoney(player.adjustmentCents)}
+                        {t("Vorher")} {rawResult > 0 ? "+" : ""}{formatMoney(rawResult)}
+                        {" · "}{t("Ausgleich")} {player.adjustmentCents > 0 ? "+" : ""}{formatMoney(player.adjustmentCents)}
                       </span>
                     )}
                   </div>
@@ -1022,10 +1040,10 @@ export default function App() {
 
           <div className="detail-actions">
             <button className="secondary-button" type="button" onClick={() => editNight(detailNight)}>
-              Bearbeiten
+              {t("Bearbeiten")}
             </button>
             <button className="danger-outline" type="button" onClick={() => removeNight(detailNight)}>
-              Löschen
+              {t("Löschen")}
             </button>
           </div>
 
@@ -1043,33 +1061,33 @@ export default function App() {
         {screen === "home" && (
           <>
             <section className="hero-ledger">
-              <span>Einsätze gesamt</span>
+              <span>{t("Einsätze gesamt")}</span>
               <strong>{formatMoney(totalStakeAllTime)}</strong>
-              <small>{nights.length} Pokerabende</small>
+              <small>{nights.length} {t("Pokerabende")}</small>
             </section>
 
             <section className="quick-stats">
-              <div><strong>{nights.length}</strong><span>Abende</span></div>
-              <div><strong>{stats.length}</strong><span>Spieler</span></div>
-              <div><strong>{stats[0]?.name ?? "—"}</strong><span>Führung</span></div>
+              <div><strong>{nights.length}</strong><span>{t("Abende")}</span></div>
+              <div><strong>{stats.length}</strong><span>{t("Spieler")}</span></div>
+              <div><strong>{stats[0]?.name ?? "—"}</strong><span>{t("Führung")}</span></div>
             </section>
 
             <button className="gold-cta" type="button" onClick={startNew}>
-              <span className="cta-plus">+</span> Neuer Pokerabend
+              <span className="cta-plus">+</span> {t("Neuer Pokerabend")}
             </button>
 
             <section className="screen-section">
               <div className="section-title-row">
-                <h2>Letzte Abende</h2>
-                <span>{nights.length} gesamt</span>
+                <h2>{t("Letzte Abende")}</h2>
+                <span>{nights.length} {t("gesamt")}</span>
               </div>
 
               {loading ? (
-                <div className="empty-card">Lädt …</div>
+                <div className="empty-card">{t("Lädt …")}</div>
               ) : nights.length === 0 ? (
                 <div className="empty-card">
-                  <strong>Noch kein Pokerabend</strong>
-                  <p>Nach dem ersten Abend erscheint hier die Übersicht.</p>
+                  <strong>{t("Noch kein Pokerabend")}</strong>
+                  <p>{t("Nach dem ersten Abend erscheint hier die Übersicht.")}</p>
                 </div>
               ) : (
                 <div className="compact-night-list">
@@ -1083,12 +1101,12 @@ export default function App() {
                     return (
                       <button className="compact-night-card" type="button" key={night.id} onClick={() => openNight(night)}>
                         <div className="date-tile">
-                          <span>{new Date(night.playedAt + "T12:00:00").toLocaleDateString("de-DE", { month: "short" })}</span>
+                          <span>{new Date(night.playedAt + "T12:00:00").toLocaleDateString(getLocale(), { month: "short" })}</span>
                           <strong>{new Date(night.playedAt + "T12:00:00").getDate()}</strong>
                         </div>
                         <div className="compact-night-copy">
                           <strong>{night.title}</strong>
-                          <span>{night.players.length} Spieler · {formatMoney(totals.stakeCents)}</span>
+                          <span>{night.players.length} {t("Spieler")} · {formatMoney(totals.stakeCents)}</span>
                         </div>
                         <div className="compact-night-result">
                           {leader && <strong className={leaderResult >= 0 ? "positive" : "negative"}>
@@ -1109,14 +1127,14 @@ export default function App() {
         {screen === "history" && (
           <>
             <div className="screen-heading">
-              <h1>Verlauf</h1>
-              <p>Änderungen an gespeicherten Pokerabenden.</p>
+              <h1>{t("Verlauf")}</h1>
+              <p>{t("Änderungen an gespeicherten Pokerabenden.")}</p>
             </div>
 
             {history.length === 0 && !historyLoading ? (
               <div className="empty-card">
-                <strong>Noch keine Änderungen</strong>
-                <p>Neue und bearbeitete Pokerabende erscheinen hier.</p>
+                <strong>{t("Noch keine Änderungen")}</strong>
+                <p>{t("Neue und bearbeitete Pokerabende erscheinen hier.")}</p>
               </div>
             ) : (
               <div className="history-list">
@@ -1131,7 +1149,7 @@ export default function App() {
                         <time>{formatDateTime(event.createdAt)}</time>
                       </div>
                       <h2>{event.title}</h2>
-                      <p>{event.playerCount} Spieler · {formatMoney(event.totalStakeCents)} Einsatz</p>
+                      <p>{event.playerCount} {t("Spieler")} · {formatMoney(event.totalStakeCents)} {t("Einsatz")}</p>
 
                       {event.changes.length > 0 && (
                         <div className="history-changes">
@@ -1139,7 +1157,7 @@ export default function App() {
                             <span key={index}>{changeText(change)}</span>
                           ))}
                           {event.changes.length > 5 && (
-                            <span>+ {event.changes.length - 5} weitere Änderungen</span>
+                            <span>+ {event.changes.length - 5} {t("weitere Änderungen")}</span>
                           )}
                         </div>
                       )}
@@ -1149,11 +1167,11 @@ export default function App() {
               </div>
             )}
 
-            {historyLoading && <div className="loading-line">Lädt …</div>}
+            {historyLoading && <div className="loading-line">{t("Lädt …")}</div>}
 
             {historyMeta.hasMore && !historyLoading && (
               <button className="secondary-button history-more" type="button" onClick={() => refreshHistory(false)}>
-                Weitere laden
+                {t("Weitere laden")}
               </button>
             )}
           </>
@@ -1162,7 +1180,7 @@ export default function App() {
         {screen === "players" && (
           <>
             {stats.length === 0 ? (
-              <div className="empty-card">Noch keine Spieler gespeichert.</div>
+              <div className="empty-card">{t("Noch keine Spieler gespeichert.")}</div>
             ) : (
               <>
                 <section className="leaderboard-podium" aria-label="Top 3">
@@ -1182,7 +1200,7 @@ export default function App() {
                           <b className={"podium-profit " + (player.profitCents >= 0 ? "positive" : "negative")}>
                             {player.profitCents > 0 ? "+" : ""}{formatMoney(player.profitCents)}
                           </b>
-                          <span className="podium-meta">{player.nights} {player.nights === 1 ? "Abend" : "Abende"}</span>
+                          <span className="podium-meta">{player.nights} {t(player.nights === 1 ? "Abend" : "Abende")}</span>
                           <div className="podium-base" aria-hidden="true">
                             <span>{rank}</span>
                           </div>
@@ -1195,8 +1213,8 @@ export default function App() {
                 </section>
 
                 <div className="section-title-row leaderboard-list-title">
-                  <h2>Rangliste</h2>
-                  <span>Gesamtbilanz</span>
+                  <h2>{t("Rangliste")}</h2>
+                  <span>{t("Gesamtbilanz")}</span>
                 </div>
 
                 <section className="leaderboard-list">
@@ -1213,7 +1231,7 @@ export default function App() {
                         </div>
                         <div className="leaderboard-copy">
                           <strong>{player.name}</strong>
-                          <span>{player.nights} {player.nights === 1 ? "Abend" : "Abende"} · {formatMoney(player.stakeCents)} Einsatz</span>
+                          <span>{player.nights} {t(player.nights === 1 ? "Abend" : "Abende")} · {formatMoney(player.stakeCents)} {t("Einsatz")}</span>
                           <span className="leaderboard-bar" aria-hidden="true">
                             <span
                               className={"leaderboard-bar-fill " + (player.profitCents >= 0 ? "is-positive" : "is-negative")}
@@ -1236,14 +1254,40 @@ export default function App() {
         {screen === "more" && (
           <>
             <div className="screen-heading">
-              <h1>Mehr</h1>
-              <p>Einstellungen für eure Runde.</p>
+              <h1>{t("Mehr")}</h1>
+              <p>{t("Einstellungen für eure Runde.")}</p>
             </div>
 
+            <section className="settings-card language-settings-card">
+              <div className="form-card-title"><span>🌐</span><h2>{t("Sprache")}</h2></div>
+              <p className="settings-description">{t("Anzeigesprache")}</p>
+              <div className="language-picker" role="group" aria-label={t("Sprache")}>
+                <button
+                  type="button"
+                  className={language === "de" ? "active" : ""}
+                  aria-pressed={language === "de"}
+                  onClick={() => changeLanguage("de")}
+                >
+                  <strong>Deutsch</strong>
+                  <small>DE</small>
+                </button>
+                <button
+                  type="button"
+                  className={language === "en" ? "active" : ""}
+                  aria-pressed={language === "en"}
+                  onClick={() => changeLanguage("en")}
+                >
+                  <strong>English</strong>
+                  <small>EN</small>
+                </button>
+              </div>
+              <small className="settings-note">{t("Die Auswahl wird auf diesem Gerät gespeichert.")}</small>
+            </section>
+
             <section className="settings-card">
-              <div className="form-card-title"><span>♦</span><h2>Abmelden</h2></div>
+              <div className="form-card-title"><span>♦</span><h2>{t("Abmelden")}</h2></div>
               <form action="/api/logout" method="post">
-                <button className="danger-outline" type="submit">Abmelden</button>
+                <button className="danger-outline" type="submit">{t("Abmelden")}</button>
               </form>
             </section>
           </>
