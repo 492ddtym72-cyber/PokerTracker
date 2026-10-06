@@ -550,7 +550,7 @@ export default function App() {
     }
 
     return {
-      title: title.trim() || "Pokerabend",
+      title: title.trim() || t("Pokerabend"),
       playedAt,
       players: cleanPlayers,
     };
