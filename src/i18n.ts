@@ -1,0 +1,149 @@
+export type Language = "de" | "en";
+
+const STORAGE_KEY = "pokertracker-language";
+
+const ENGLISH: Record<string, string> = {
+  "Pokerabend erstellt": "Poker night created",
+  "Pokerabend geändert": "Poker night updated",
+  "Pokerabend gelöscht": "Poker night deleted",
+  "Ausgangsstand erfasst": "Baseline recorded",
+  "Name": "Name",
+  "Datum": "Date",
+  "hinzugefügt": "added",
+  "entfernt": "removed",
+  "Einsatz": "Buy-in",
+  "Endbetrag": "Cash-out",
+  "Endbeträge": "Cash-outs",
+  "Pokerabend": "Poker night",
+  "Bitte mindestens eine Person für den Ausgleich auswählen.": "Please select at least one person for the adjustment.",
+  "Bitte gültige Beträge für den Ausgleich eintragen.": "Please enter valid adjustment amounts.",
+  "Der Ausgleich ist größer als die ursprüngliche Differenz.": "The adjustment is larger than the original difference.",
+  "Differenzausgleich konnte nicht gespeichert werden.": "The difference adjustment could not be saved.",
+  "Gespeicherten Differenzausgleich wirklich zurücksetzen?": "Reset the saved difference adjustment?",
+  "Differenzausgleich konnte nicht zurückgesetzt werden.": "The difference adjustment could not be reset.",
+  "Bitte den Namen des neuen Spielers eintragen.": "Please enter the new player's name.",
+  "Bitte einen Spieler auswählen.": "Please select a player.",
+  "Ein Spieler kann pro Abend nur einmal vorkommen.": "A player can only appear once per poker night.",
+  "Bitte für jeden Spieler gültige Beträge eintragen.": "Please enter valid amounts for every player.",
+  "Ein Pokerabend braucht mindestens zwei Spieler.": "A poker night needs at least two players.",
+  "Pokerabend konnte nicht gespeichert werden.": "The poker night could not be saved.",
+  "„{title}“ wirklich löschen?": "Delete “{title}”?",
+  "Pokerabend konnte nicht gelöscht werden.": "The poker night could not be deleted.",
+  "Navigation": "Navigation",
+  "Start": "Home",
+  "Verlauf": "History",
+  "Spieler": "Players",
+  "Mehr": "More",
+  "Neuer Pokerabend": "New poker night",
+  "Pokerabend bearbeiten": "Edit poker night",
+  "Pokerabend anlegen": "Add poker night",
+  "Abend": "Night",
+  "Abende": "Nights",
+  "Datum wählen": "Choose date",
+  "Spieler auswählen": "Select player",
+  "Spieler wählen": "Select player",
+  "+ Neuer Spieler": "+ New player",
+  "Spieler entfernen": "Remove player",
+  "Name des neuen Spielers": "New player's name",
+  "Ergebnis": "Result",
+  "✓ Bilanz stimmt": "✓ Balanced",
+  "Differenz": "Difference",
+  "Speichert …": "Saving …",
+  "Änderungen speichern": "Save changes",
+  "Pokerabend speichern": "Save poker night",
+  "✓ Differenz ausgeglichen": "✓ Difference resolved",
+  "Offene Differenz": "Outstanding difference",
+  "Ursprünglich": "Original",
+  "Ausgleich": "Adjustment",
+  "Schließen": "Close",
+  "Ausgleich bearbeiten": "Edit adjustment",
+  "Differenz klären": "Resolve difference",
+  "Differenzausgleich": "Difference adjustment",
+  "müssen abgezogen werden": "must be deducted",
+  "müssen gutgeschrieben werden": "must be credited",
+  "Art des Ausgleichs": "Adjustment method",
+  "Alle": "All",
+  "Auswahl": "Selected",
+  "Individuell": "Custom",
+  "Eine Person auswählen = diese Person übernimmt die ganze Differenz.": "Selecting one person means they cover the entire difference.",
+  "Hier sind auch Teilbeträge möglich. Nicht verteilte Cents bleiben als offene Differenz bestehen.": "Partial amounts are allowed. Unallocated cents remain as an outstanding difference.",
+  "Vorschau": "Preview",
+  "geht exakt auf": "balances exactly",
+  "noch offen": "still outstanding",
+  "Noch keine Verteilung ausgewählt.": "No allocation selected yet.",
+  "Ausgleich zurücksetzen": "Reset adjustment",
+  "Ausgleich speichern": "Save adjustment",
+  "Vorher": "Before",
+  "Bearbeiten": "Edit",
+  "Löschen": "Delete",
+  "Einsätze gesamt": "Total buy-ins",
+  "Pokerabende": "Poker nights",
+  "Führung": "Leader",
+  "Letzte Abende": "Recent nights",
+  "gesamt": "total",
+  "Lädt …": "Loading …",
+  "Noch kein Pokerabend": "No poker nights yet",
+  "Nach dem ersten Abend erscheint hier die Übersicht.": "Your overview will appear here after the first poker night.",
+  "Änderungen an gespeicherten Pokerabenden.": "Changes to saved poker nights.",
+  "Noch keine Änderungen": "No changes yet",
+  "Neue und bearbeitete Pokerabende erscheinen hier.": "New and edited poker nights appear here.",
+  "weitere Änderungen": "more changes",
+  "Weitere laden": "Load more",
+  "Noch keine Spieler gespeichert.": "No players saved yet.",
+  "Rangliste": "Leaderboard",
+  "Gesamtbilanz": "Overall balance",
+  "Einstellungen für eure Runde.": "Settings for your group.",
+  "Abmelden": "Log out",
+  "Sprache": "Language",
+  "Anzeigesprache": "Display language",
+  "Die Auswahl wird auf diesem Gerät gespeichert.": "Saved on this device.",
+  "Nicht angemeldet.": "Not signed in.",
+  "Etwas ist schiefgelaufen.": "Something went wrong.",
+  "Daten konnten nicht geladen werden.": "The data could not be loaded.",
+  "Ungültiger Pokerabend.": "Invalid poker night.",
+  "Bitte einen gültigen Namen für den Pokerabend angeben.": "Please enter a valid name for the poker night.",
+  "Bitte ein gültiges Datum angeben.": "Please enter a valid date.",
+  "Ein Pokerabend braucht zwischen 2 und 20 Spieler.": "A poker night needs between 2 and 20 players.",
+  "Ungültiger Spieler.": "Invalid player.",
+  "Ungültige Spieler-ID.": "Invalid player ID.",
+  "Jeder Spieler braucht einen gültigen Namen.": "Every player needs a valid name.",
+  "Bitte gültige Geldbeträge angeben.": "Please enter valid monetary amounts.",
+  "Ungültiger Differenzausgleich.": "Invalid difference adjustment.",
+  "Zu viele Ausgleichsbuchungen.": "Too many adjustment entries.",
+  "Ungültige Ausgleichsbuchung.": "Invalid adjustment entry.",
+  "Ungültige Spieler-ID im Differenzausgleich.": "Invalid player ID in the difference adjustment.",
+  "Ungültiger Betrag im Differenzausgleich.": "Invalid amount in the difference adjustment.",
+  "Ein Spieler kann nur einmal im Differenzausgleich vorkommen.": "A player can only appear once in the difference adjustment.",
+  "Pokerabend nicht gefunden.": "Poker night not found.",
+  "Der ausgewählte Spieler gehört nicht zu diesem Pokerabend.": "The selected player does not belong to this poker night.",
+  "Dieser Pokerabend hat keine Differenz zum Ausgleichen.": "This poker night has no difference to adjust.",
+  "Bei einem Überschuss können nur Beträge abgezogen werden.": "For a surplus, amounts can only be deducted.",
+  "Der Ausgleich ist größer als die offene Differenz.": "The adjustment is larger than the outstanding difference.",
+  "Bei einem Fehlbetrag können nur Beträge gutgeschrieben werden.": "For a shortfall, amounts can only be credited.",
+  "Der ausgewählte Spieler existiert nicht mehr.": "The selected player no longer exists.",
+  "Authentifizierung ist vorübergehend nicht verfügbar.": "Authentication is temporarily unavailable."
+};
+
+export function getLanguage(): Language {
+  if (typeof window === "undefined") return "de";
+  return window.localStorage.getItem(STORAGE_KEY) === "en" ? "en" : "de";
+}
+
+export function setLanguagePreference(language: Language) {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(STORAGE_KEY, language);
+  }
+
+  if (typeof document !== "undefined") {
+    document.documentElement.lang = language;
+  }
+}
+
+export function getLocale() {
+  return getLanguage() === "en" ? "en-GB" : "de-DE";
+}
+
+export function t(source: string) {
+  if (getLanguage() !== "en") return source;
+  return ENGLISH[source] ?? source;
+}
