@@ -4,5 +4,7 @@
   Cache-Control: no-cache, no-store, must-revalidate
 /manifest.webmanifest
   Cache-Control: no-cache, no-store, must-revalidate
-/pokertracker-icon-180-hd-v3.png
+/apple-touch-icon.png
+  Cache-Control: no-cache, no-store, must-revalidate
+/pokertracker-icon-180-hd-v4.png
   Cache-Control: no-cache, no-store, must-revalidate
