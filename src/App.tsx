@@ -5,6 +5,7 @@ import {
   loadHistory,
   loadNights,
   updateNight,
+  updateNightAdjustments,
 } from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
 import { GOLD_WREATH, SILVER_WREATH } from "./leaderboardFrames";
@@ -17,6 +18,7 @@ import type {
 } from "./types";
 
 type Screen = "home" | "history" | "players" | "more";
+type ReconcileMode = "all" | "selected" | "custom";
 
 type DraftPlayer = {
   key: string;
@@ -85,14 +87,41 @@ function formatDateTime(value: string) {
   });
 }
 
+function playerResultCents(player: PokerNight["players"][number]) {
+  return player.cashOutCents - player.stakeCents + (player.adjustmentCents ?? 0);
+}
+
+function distributeCents(totalCents: number, playerIds: string[]) {
+  if (playerIds.length === 0 || totalCents === 0) return [];
+
+  const sign = totalCents < 0 ? -1 : 1;
+  const absolute = Math.abs(totalCents);
+  const base = Math.floor(absolute / playerIds.length);
+  const remainder = absolute % playerIds.length;
+
+  return playerIds
+    .map((playerId, index) => ({
+      playerId,
+      amountCents: sign * (base + (index < remainder ? 1 : 0)),
+    }))
+    .filter((adjustment) => adjustment.amountCents !== 0);
+}
+
 function nightTotals(night: PokerNight) {
   const stakeCents = night.players.reduce((sum, player) => sum + player.stakeCents, 0);
   const cashOutCents = night.players.reduce((sum, player) => sum + player.cashOutCents, 0);
+  const adjustmentCents = night.players.reduce(
+    (sum, player) => sum + (player.adjustmentCents ?? 0),
+    0,
+  );
+  const differenceCents = cashOutCents - stakeCents;
 
   return {
     stakeCents,
     cashOutCents,
-    differenceCents: cashOutCents - stakeCents,
+    adjustmentCents,
+    differenceCents,
+    remainingDifferenceCents: differenceCents + adjustmentCents,
   };
 }
 
@@ -161,6 +190,11 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [reconcileOpen, setReconcileOpen] = useState(false);
+  const [reconcileMode, setReconcileMode] = useState<ReconcileMode>("all");
+  const [reconcileSelected, setReconcileSelected] = useState<string[]>([]);
+  const [reconcileCustom, setReconcileCustom] = useState<Record<string, string>>({});
+  const [reconcileSaving, setReconcileSaving] = useState(false);
   const [error, setError] = useState("");
 
   async function refreshNights() {
@@ -218,7 +252,7 @@ export default function App() {
           wins: 0,
         };
 
-        const profit = player.cashOutCents - player.stakeCents;
+        const profit = playerResultCents(player);
         existing.name = player.name;
         existing.nights += 1;
         existing.stakeCents += player.stakeCents;
@@ -281,6 +315,7 @@ export default function App() {
     setScreen(next);
     setEditorOpen(false);
     setDetailNightId(null);
+    setReconcileOpen(false);
     setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -296,6 +331,7 @@ export default function App() {
   function startNew() {
     resetEditor();
     setDetailNightId(null);
+    setReconcileOpen(false);
     setEditorOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -303,11 +339,13 @@ export default function App() {
   function openNight(night: PokerNight) {
     setDetailNightId(night.id);
     setEditorOpen(false);
+    setReconcileOpen(false);
     setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function editNight(night: PokerNight) {
+    setReconcileOpen(false);
     setEditingId(night.id);
     setTitle(night.title);
     setPlayedAt(night.playedAt);
@@ -323,6 +361,110 @@ export default function App() {
     setEditorOpen(true);
     setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function openReconciliation(night: PokerNight) {
+    const hasExisting = night.players.some((player) => (player.adjustmentCents ?? 0) !== 0);
+
+    setReconcileMode(hasExisting ? "custom" : "all");
+    setReconcileSelected(night.players.map((player) => player.id));
+    setReconcileCustom(Object.fromEntries(
+      night.players.map((player) => [
+        player.id,
+        player.adjustmentCents ? moneyInput(Math.abs(player.adjustmentCents)) : "",
+      ]),
+    ));
+    setReconcileOpen(true);
+    setError("");
+  }
+
+  function plannedAdjustments(night: PokerNight) {
+    const totals = nightTotals(night);
+    const targetCents = -totals.differenceCents;
+
+    if (reconcileMode === "all") {
+      return distributeCents(targetCents, night.players.map((player) => player.id));
+    }
+
+    if (reconcileMode === "selected") {
+      return distributeCents(targetCents, reconcileSelected);
+    }
+
+    const sign = totals.differenceCents > 0 ? -1 : 1;
+    return night.players.flatMap((player) => {
+      const value = reconcileCustom[player.id]?.trim() ?? "";
+      if (!value) return [];
+
+      const cents = parseMoney(value);
+      if (cents === null || cents === 0) return [];
+
+      return [{ playerId: player.id, amountCents: sign * cents }];
+    });
+  }
+
+  async function saveReconciliation(night: PokerNight) {
+    setError("");
+
+    const totals = nightTotals(night);
+    if (totals.differenceCents === 0) {
+      setReconcileOpen(false);
+      return;
+    }
+
+    if (reconcileMode === "selected" && reconcileSelected.length === 0) {
+      setError("Bitte mindestens eine Person für den Ausgleich auswählen.");
+      return;
+    }
+
+    if (reconcileMode === "custom") {
+      for (const value of Object.values(reconcileCustom)) {
+        if (value.trim() && parseMoney(value) === null) {
+          setError("Bitte gültige Beträge für den Ausgleich eintragen.");
+          return;
+        }
+      }
+    }
+
+    const adjustments = plannedAdjustments(night);
+    const totalAdjustment = adjustments.reduce((sum, item) => sum + item.amountCents, 0);
+    const remaining = totals.differenceCents + totalAdjustment;
+
+    if (
+      (totals.differenceCents > 0 && remaining < 0) ||
+      (totals.differenceCents < 0 && remaining > 0)
+    ) {
+      setError("Der Ausgleich ist größer als die ursprüngliche Differenz.");
+      return;
+    }
+
+    setReconcileSaving(true);
+
+    try {
+      await updateNightAdjustments(night.id, adjustments);
+      await refreshNights();
+      setReconcileOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Differenzausgleich konnte nicht gespeichert werden.");
+    } finally {
+      setReconcileSaving(false);
+    }
+  }
+
+  async function resetReconciliation(night: PokerNight) {
+    if (!window.confirm("Gespeicherten Differenzausgleich wirklich zurücksetzen?")) return;
+
+    setReconcileSaving(true);
+    setError("");
+
+    try {
+      await updateNightAdjustments(night.id, []);
+      await refreshNights();
+      setReconcileOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Differenzausgleich konnte nicht zurückgesetzt werden.");
+    } finally {
+      setReconcileSaving(false);
+    }
   }
 
   function updatePlayer(key: string, patch: Partial<DraftPlayer>) {
@@ -625,7 +767,13 @@ export default function App() {
   if (detailNight) {
     const totals = nightTotals(detailNight);
     const ranking = [...detailNight.players].sort(
-      (a, b) => (b.cashOutCents - b.stakeCents) - (a.cashOutCents - a.stakeCents),
+      (a, b) => playerResultCents(b) - playerResultCents(a),
+    );
+    const planned = reconcileOpen ? plannedAdjustments(detailNight) : [];
+    const plannedTotal = planned.reduce((sum, item) => sum + item.amountCents, 0);
+    const plannedRemaining = totals.differenceCents + plannedTotal;
+    const adjustmentByPlayer = new Map(
+      planned.map((adjustment) => [adjustment.playerId, adjustment.amountCents]),
     );
 
     return (
@@ -654,15 +802,187 @@ export default function App() {
             </div>
           </section>
 
-          <div className={totals.differenceCents === 0 ? "detail-balance good" : "detail-balance bad"}>
-            {totals.differenceCents === 0
-              ? "✓ Bilanz stimmt"
-              : "Differenz " + formatMoney(totals.differenceCents)}
-          </div>
+          <section className={
+            "detail-balance-card " +
+            (totals.remainingDifferenceCents === 0 ? "good" : "bad")
+          }>
+            <div className="detail-balance-copy">
+              <strong>
+                {totals.differenceCents === 0
+                  ? "✓ Bilanz stimmt"
+                  : totals.remainingDifferenceCents === 0
+                    ? "✓ Differenz ausgeglichen"
+                    : "Offene Differenz " + formatMoney(totals.remainingDifferenceCents)}
+              </strong>
+              {totals.differenceCents !== 0 && (
+                <span>
+                  Ursprünglich {formatMoney(totals.differenceCents)}
+                  {totals.adjustmentCents !== 0
+                    ? " · Ausgleich " + formatMoney(totals.adjustmentCents)
+                    : ""}
+                </span>
+              )}
+            </div>
+
+            {totals.differenceCents !== 0 && (
+              <button
+                className="balance-action"
+                type="button"
+                onClick={() => reconcileOpen ? setReconcileOpen(false) : openReconciliation(detailNight)}
+              >
+                {reconcileOpen
+                  ? "Schließen"
+                  : totals.adjustmentCents !== 0
+                    ? "Ausgleich bearbeiten"
+                    : "Differenz klären"}
+              </button>
+            )}
+          </section>
+
+          {reconcileOpen && totals.differenceCents !== 0 && (
+            <section className="reconcile-editor">
+              <div className="reconcile-editor-heading">
+                <div>
+                  <span>Differenzausgleich</span>
+                  <strong>
+                    {totals.differenceCents > 0
+                      ? formatMoney(Math.abs(totals.differenceCents)) + " müssen abgezogen werden"
+                      : formatMoney(Math.abs(totals.differenceCents)) + " müssen gutgeschrieben werden"}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="reconcile-mode-tabs" role="group" aria-label="Art des Ausgleichs">
+                <button
+                  type="button"
+                  className={reconcileMode === "all" ? "active" : ""}
+                  onClick={() => setReconcileMode("all")}
+                >
+                  Alle
+                </button>
+                <button
+                  type="button"
+                  className={reconcileMode === "selected" ? "active" : ""}
+                  onClick={() => setReconcileMode("selected")}
+                >
+                  Auswahl
+                </button>
+                <button
+                  type="button"
+                  className={reconcileMode === "custom" ? "active" : ""}
+                  onClick={() => setReconcileMode("custom")}
+                >
+                  Individuell
+                </button>
+              </div>
+
+              {reconcileMode === "selected" && (
+                <div className="reconcile-player-select">
+                  {detailNight.players.map((player) => {
+                    const checked = reconcileSelected.includes(player.id);
+                    return (
+                      <label key={player.id}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => setReconcileSelected((current) =>
+                            checked
+                              ? current.filter((id) => id !== player.id)
+                              : [...current, player.id]
+                          )}
+                        />
+                        <span className="avatar">{initials(player.name)}</span>
+                        <strong>{player.name}</strong>
+                      </label>
+                    );
+                  })}
+                  <small>Eine Person auswählen = diese Person übernimmt die ganze Differenz.</small>
+                </div>
+              )}
+
+              {reconcileMode === "custom" && (
+                <div className="reconcile-custom-list">
+                  {detailNight.players.map((player) => (
+                    <label key={player.id}>
+                      <span>{player.name}</span>
+                      <div className="money-input">
+                        <input
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          value={reconcileCustom[player.id] ?? ""}
+                          onChange={(event) => setReconcileCustom((current) => ({
+                            ...current,
+                            [player.id]: event.target.value,
+                          }))}
+                        />
+                        <span>€</span>
+                      </div>
+                    </label>
+                  ))}
+                  <small>
+                    Hier sind auch Teilbeträge möglich. Nicht verteilte Cents bleiben als offene Differenz bestehen.
+                  </small>
+                </div>
+              )}
+
+              <div className="reconcile-preview">
+                <div className="reconcile-preview-title">
+                  <span>Vorschau</span>
+                  <strong className={plannedRemaining === 0 ? "positive" : ""}>
+                    {plannedRemaining === 0
+                      ? "geht exakt auf"
+                      : "noch offen " + formatMoney(plannedRemaining)}
+                  </strong>
+                </div>
+
+                {planned.length === 0 ? (
+                  <p>Noch keine Verteilung ausgewählt.</p>
+                ) : (
+                  <div className="reconcile-preview-list">
+                    {detailNight.players
+                      .filter((player) => adjustmentByPlayer.has(player.id))
+                      .map((player) => {
+                        const amount = adjustmentByPlayer.get(player.id) ?? 0;
+                        return (
+                          <div key={player.id}>
+                            <span>{player.name}</span>
+                            <strong className={amount >= 0 ? "positive" : "negative"}>
+                              {amount > 0 ? "+" : ""}{formatMoney(amount)}
+                            </strong>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+
+              <div className="reconcile-editor-actions">
+                {totals.adjustmentCents !== 0 && (
+                  <button
+                    className="danger-outline"
+                    type="button"
+                    disabled={reconcileSaving}
+                    onClick={() => resetReconciliation(detailNight)}
+                  >
+                    Ausgleich zurücksetzen
+                  </button>
+                )}
+                <button
+                  className="gold-cta"
+                  type="button"
+                  disabled={reconcileSaving || (reconcileMode === "selected" && reconcileSelected.length === 0)}
+                  onClick={() => saveReconciliation(detailNight)}
+                >
+                  {reconcileSaving ? "Speichert …" : "Ausgleich speichern"}
+                </button>
+              </div>
+            </section>
+          )}
 
           <section className="results-card">
             {ranking.map((player, index) => {
-              const result = player.cashOutCents - player.stakeCents;
+              const rawResult = player.cashOutCents - player.stakeCents;
+              const result = playerResultCents(player);
 
               return (
                 <div className="result-row" key={player.id}>
@@ -671,6 +991,12 @@ export default function App() {
                   <div className="result-name">
                     <strong>{player.name}</strong>
                     <span>{formatMoney(player.stakeCents)} → {formatMoney(player.cashOutCents)}</span>
+                    {(player.adjustmentCents ?? 0) !== 0 && (
+                      <span className="result-adjustment">
+                        Vorher {rawResult > 0 ? "+" : ""}{formatMoney(rawResult)}
+                        {" · "}Ausgleich {player.adjustmentCents > 0 ? "+" : ""}{formatMoney(player.adjustmentCents)}
+                      </span>
+                    )}
                   </div>
                   <b className={result >= 0 ? "positive" : "negative"}>
                     {result > 0 ? "+" : ""}{formatMoney(result)}
@@ -736,9 +1062,9 @@ export default function App() {
                   {nights.map((night) => {
                     const totals = nightTotals(night);
                     const leader = [...night.players].sort(
-                      (a, b) => (b.cashOutCents - b.stakeCents) - (a.cashOutCents - a.stakeCents),
+                      (a, b) => playerResultCents(b) - playerResultCents(a),
                     )[0];
-                    const leaderResult = leader ? leader.cashOutCents - leader.stakeCents : 0;
+                    const leaderResult = leader ? playerResultCents(leader) : 0;
 
                     return (
                       <button className="compact-night-card" type="button" key={night.id} onClick={() => openNight(night)}>

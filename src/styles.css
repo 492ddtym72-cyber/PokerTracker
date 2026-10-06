@@ -676,6 +676,230 @@ select:focus {
   color: #e79d96;
 }
 
+.detail-balance-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0 14px;
+  padding: 11px 12px;
+  border-radius: 12px;
+}
+
+.detail-balance-card.good {
+  border: 1px solid rgba(82,215,128,.15);
+  background: rgba(82,215,128,.07);
+}
+
+.detail-balance-card.bad {
+  border: 1px solid rgba(236,113,107,.18);
+  background: rgba(236,113,107,.07);
+}
+
+.detail-balance-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.detail-balance-copy strong {
+  color: #e5e9e5;
+  font-size: 10px;
+}
+
+.detail-balance-card.good .detail-balance-copy strong {
+  color: #7edb9d;
+}
+
+.detail-balance-card.bad .detail-balance-copy strong {
+  color: #e79d96;
+}
+
+.detail-balance-copy span {
+  color: #778b80;
+  font-size: 8px;
+}
+
+.balance-action {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(231,198,117,.35);
+  border-radius: 9px;
+  background: rgba(231,198,117,.08);
+  color: #e7cf96;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.reconcile-editor {
+  display: grid;
+  gap: 12px;
+  margin: -3px 0 14px;
+  padding: 14px;
+  border: 1px solid rgba(231,198,117,.18);
+  border-radius: 15px;
+  background: rgba(8,31,23,.96);
+}
+
+.reconcile-editor-heading span,
+.reconcile-editor-heading strong {
+  display: block;
+}
+
+.reconcile-editor-heading span {
+  color: var(--gold);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.reconcile-editor-heading strong {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.reconcile-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: rgba(0,0,0,.12);
+}
+
+.reconcile-mode-tabs button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #7d9186;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.reconcile-mode-tabs button.active {
+  background: rgba(231,198,117,.13);
+  color: #ecd9a7;
+}
+
+.reconcile-player-select,
+.reconcile-custom-list {
+  display: grid;
+  gap: 7px;
+}
+
+.reconcile-player-select > label {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 18px 30px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255,255,255,.018);
+}
+
+.reconcile-player-select input {
+  width: 16px;
+  min-height: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: #d9b75f;
+}
+
+.reconcile-player-select strong {
+  font-size: 10px;
+}
+
+.reconcile-player-select small,
+.reconcile-custom-list small {
+  color: #71847a;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.reconcile-custom-list > label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 124px;
+  align-items: center;
+  gap: 9px;
+  color: #a7b3ad;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.reconcile-custom-list .money-input input {
+  min-height: 36px;
+}
+
+.reconcile-preview {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: rgba(0,0,0,.1);
+}
+
+.reconcile-preview-title,
+.reconcile-preview-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.reconcile-preview-title {
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--line);
+}
+
+.reconcile-preview-title span {
+  color: #84968d;
+  font-size: 8px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.reconcile-preview-title strong {
+  font-size: 9px;
+}
+
+.reconcile-preview > p {
+  margin: 8px 0 0;
+  color: #71847a;
+  font-size: 9px;
+}
+
+.reconcile-preview-list {
+  display: grid;
+  gap: 5px;
+  padding-top: 7px;
+}
+
+.reconcile-preview-list span,
+.reconcile-preview-list strong {
+  font-size: 9px;
+}
+
+.reconcile-editor-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.reconcile-editor-actions .danger-outline,
+.reconcile-editor-actions .gold-cta {
+  margin-top: 0;
+}
+
+.result-adjustment {
+  color: #b6aa83 !important;
+}
+
 .results-card {
   overflow: hidden;
   border-radius: 16px;

@@ -1,5 +1,6 @@
 import type {
   HistoryResponse,
+  NightAdjustmentInput,
   NightInput,
   PokerNight,
 } from "../types";
@@ -60,6 +61,17 @@ export function updateNight(id: string, input: NightInput) {
 export function deleteNight(id: string) {
   return api<void>("/api/nights/" + encodeURIComponent(id), {
     method: "DELETE",
+  });
+}
+
+export function updateNightAdjustments(id: string, adjustments: NightAdjustmentInput[]) {
+  return api<{
+    rawDifferenceCents: number;
+    adjustmentTotalCents: number;
+    remainingDifferenceCents: number;
+  }>("/api/nights/" + encodeURIComponent(id), {
+    method: "PATCH",
+    body: JSON.stringify({ adjustments }),
   });
 }
 

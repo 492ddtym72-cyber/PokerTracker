@@ -13,6 +13,7 @@ interface NightRow {
   player_name: string | null;
   stake_cents: number | null;
   cash_out_cents: number | null;
+  adjustment_cents: number | null;
 }
 
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
@@ -27,10 +28,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
       p.id AS player_id,
       p.name AS player_name,
       r.stake_cents,
-      r.cash_out_cents
+      r.cash_out_cents,
+      COALESCE(a.amount_cents, 0) AS adjustment_cents
     FROM poker_nights n
     LEFT JOIN night_results r ON r.night_id = n.id
     LEFT JOIN players p ON p.id = r.player_id
+    LEFT JOIN night_adjustments a
+      ON a.night_id = n.id AND a.player_id = r.player_id
     ORDER BY n.played_at DESC, n.created_at DESC, p.name COLLATE NOCASE ASC`,
   ).all<NightRow>();
 
@@ -45,6 +49,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
       name: string;
       stakeCents: number;
       cashOutCents: number;
+      adjustmentCents: number;
     }>;
   }>();
 
@@ -69,6 +74,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
         name: row.player_name,
         stakeCents: row.stake_cents ?? 0,
         cashOutCents: row.cash_out_cents ?? 0,
+        adjustmentCents: row.adjustment_cents ?? 0,
       });
     }
   }
