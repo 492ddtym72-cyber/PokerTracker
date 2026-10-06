@@ -229,14 +229,35 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .cta-plus {
   width: 23px;
   height: 23px;
-  display: grid;
-  place-items: center;
+  flex: 0 0 23px;
+  position: relative;
+  display: inline-block;
   border-radius: 50%;
   background: #173127;
   color: var(--gold);
-  font-size: 19px;
-  line-height: 1;
-  transform: translateY(-2px);
+  font-size: 0;
+  line-height: 0;
+}
+
+.cta-plus::before,
+.cta-plus::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: var(--gold);
+  border-radius: 1px;
+  transform: translate(-50%, -50%);
+}
+
+.cta-plus::before {
+  width: 11px;
+  height: 3px;
+}
+
+.cta-plus::after {
+  width: 3px;
+  height: 11px;
 }
 
 .screen-section { margin-top: 27px; }
