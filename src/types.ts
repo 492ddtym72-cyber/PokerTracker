@@ -3,6 +3,7 @@ export interface PlayerResult {
   name: string;
   stakeCents: number;
   cashOutCents: number;
+  adjustmentCents: number;
 }
 
 export interface PokerNight {
@@ -25,6 +26,11 @@ export interface NightInput {
   title: string;
   playedAt: string;
   players: NightPlayerInput[];
+}
+
+export interface NightAdjustmentInput {
+  playerId: string;
+  amountCents: number;
 }
 
 export type AuditEventType =
