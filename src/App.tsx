@@ -381,13 +381,27 @@ export default function App() {
   function plannedAdjustments(night: PokerNight) {
     const totals = nightTotals(night);
     const targetCents = -totals.differenceCents;
+    const playersByOriginalProfit = [...night.players].sort(
+      (a, b) =>
+        (b.cashOutCents - b.stakeCents) - (a.cashOutCents - a.stakeCents) ||
+        a.name.localeCompare(b.name, "de"),
+    );
 
     if (reconcileMode === "all") {
-      return distributeCents(targetCents, night.players.map((player) => player.id));
+      return distributeCents(
+        targetCents,
+        playersByOriginalProfit.map((player) => player.id),
+      );
     }
 
     if (reconcileMode === "selected") {
-      return distributeCents(targetCents, reconcileSelected);
+      const selectedIds = new Set(reconcileSelected);
+      return distributeCents(
+        targetCents,
+        playersByOriginalProfit
+          .filter((player) => selectedIds.has(player.id))
+          .map((player) => player.id),
+      );
     }
 
     const sign = totals.differenceCents > 0 ? -1 : 1;
