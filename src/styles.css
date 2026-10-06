@@ -244,7 +244,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   content: "";
   position: absolute;
   left: 50%;
-  top: 50%;
+  top: calc(50% - 2px);
   background: var(--gold);
   border-radius: 1px;
   transform: translate(-50%, -50%);
