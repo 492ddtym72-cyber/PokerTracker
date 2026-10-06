@@ -42,6 +42,7 @@ const ENGLISH: Record<string, string> = {
   "Datum wählen": "Choose date",
   "Spieler auswählen": "Select player",
   "Spieler wählen": "Select player",
+  "+ Spieler": "+ Player",
   "+ Neuer Spieler": "+ New player",
   "Spieler entfernen": "Remove player",
   "Name des neuen Spielers": "New player's name",
