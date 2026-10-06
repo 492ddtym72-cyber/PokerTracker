@@ -4,6 +4,7 @@ import type {
   NightInput,
   PokerNight,
 } from "../types";
+import { t } from "../i18n";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -16,15 +17,15 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (response.status === 401) {
     window.location.assign("/login");
-    throw new Error("Nicht angemeldet.");
+    throw new Error(t("Nicht angemeldet."));
   }
 
   if (!response.ok) {
-    let message = "Etwas ist schiefgelaufen.";
+    let message = t("Etwas ist schiefgelaufen.");
 
     try {
       const body = (await response.json()) as { error?: string };
-      if (body.error) message = body.error;
+      if (body.error) message = t(body.error);
     } catch {
       // Keep the generic message when the server did not return JSON.
     }
