@@ -25,6 +25,7 @@ PokerTracker calculates profit/loss, checks the table balance and builds lifetim
 - session history
 - lifetime player standings
 - mobile-first interface
+- German / English interface with a device-local language preference
 
 ## Stack
 
