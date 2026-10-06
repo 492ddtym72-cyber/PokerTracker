@@ -13,6 +13,11 @@ export interface NightInput {
   players: NightPlayerInput[];
 }
 
+export interface NightAdjustmentInput {
+  playerId: string;
+  amountCents: number;
+}
+
 export interface NightSnapshot {
   id: string;
   title: string;
@@ -50,6 +55,18 @@ function snapshotFromInput(id: string, input: NightInput): NightSnapshot {
     playedAt: input.playedAt,
     players: input.players.map((player) => ({ ...player })),
   };
+}
+
+function sameNightResults(before: NightSnapshot, after: NightSnapshot) {
+  if (before.players.length !== after.players.length) return false;
+
+  const key = (player: NightPlayerInput) =>
+    normalizeName(player.name) + ":" + player.stakeCents + ":" + player.cashOutCents;
+
+  const beforeKeys = before.players.map(key).sort();
+  const afterKeys = after.players.map(key).sort();
+
+  return beforeKeys.every((value, index) => value === afterKeys[index]);
 }
 
 function auditStatement(
@@ -144,6 +161,150 @@ export function validateNightInput(value: unknown): NightInput {
   }
 
   return { title, playedAt, players: cleanPlayers };
+}
+
+export function validateNightAdjustments(value: unknown): NightAdjustmentInput[] {
+  if (!value || typeof value !== "object") {
+    throw new Error("Ungültiger Differenzausgleich.");
+  }
+
+  const raw = value as Record<string, unknown>;
+  const adjustments = Array.isArray(raw.adjustments) ? raw.adjustments : [];
+
+  if (adjustments.length > 20) {
+    throw new Error("Zu viele Ausgleichsbuchungen.");
+  }
+
+  const clean: NightAdjustmentInput[] = [];
+  const seen = new Set<string>();
+
+  for (const rawAdjustment of adjustments) {
+    if (!rawAdjustment || typeof rawAdjustment !== "object") {
+      throw new Error("Ungültige Ausgleichsbuchung.");
+    }
+
+    const adjustment = rawAdjustment as Record<string, unknown>;
+    const playerId = typeof adjustment.playerId === "string"
+      ? adjustment.playerId.trim()
+      : "";
+    const amountCents = Number(adjustment.amountCents);
+
+    if (!/^player_[a-f0-9]{24}$/.test(playerId)) {
+      throw new Error("Ungültige Spieler-ID im Differenzausgleich.");
+    }
+
+    if (
+      !Number.isSafeInteger(amountCents) ||
+      Math.abs(amountCents) > 100_000_000
+    ) {
+      throw new Error("Ungültiger Betrag im Differenzausgleich.");
+    }
+
+    if (seen.has(playerId)) {
+      throw new Error("Ein Spieler kann nur einmal im Differenzausgleich vorkommen.");
+    }
+    seen.add(playerId);
+
+    if (amountCents !== 0) {
+      clean.push({ playerId, amountCents });
+    }
+  }
+
+  return clean;
+}
+
+export async function writeNightAdjustments(
+  env: Env,
+  nightId: string,
+  adjustments: NightAdjustmentInput[],
+) {
+  const rows = await env.DB.prepare(
+    `SELECT player_id, stake_cents, cash_out_cents
+     FROM night_results
+     WHERE night_id = ?`,
+  ).bind(nightId).all<{
+    player_id: string;
+    stake_cents: number;
+    cash_out_cents: number;
+  }>();
+
+  if (rows.results.length === 0) {
+    throw new Error("Pokerabend nicht gefunden.");
+  }
+
+  const participatingIds = new Set(rows.results.map((row) => row.player_id));
+  const rawDifferenceCents = rows.results.reduce(
+    (sum, row) => sum + row.cash_out_cents - row.stake_cents,
+    0,
+  );
+
+  for (const adjustment of adjustments) {
+    if (!participatingIds.has(adjustment.playerId)) {
+      throw new Error("Der ausgewählte Spieler gehört nicht zu diesem Pokerabend.");
+    }
+  }
+
+  const adjustmentTotalCents = adjustments.reduce(
+    (sum, adjustment) => sum + adjustment.amountCents,
+    0,
+  );
+
+  if (rawDifferenceCents === 0 && adjustmentTotalCents !== 0) {
+    throw new Error("Dieser Pokerabend hat keine Differenz zum Ausgleichen.");
+  }
+
+  if (rawDifferenceCents > 0) {
+    if (adjustments.some((adjustment) => adjustment.amountCents > 0)) {
+      throw new Error("Bei einem Überschuss können nur Beträge abgezogen werden.");
+    }
+    if (adjustmentTotalCents < -rawDifferenceCents) {
+      throw new Error("Der Ausgleich ist größer als die offene Differenz.");
+    }
+  }
+
+  if (rawDifferenceCents < 0) {
+    if (adjustments.some((adjustment) => adjustment.amountCents < 0)) {
+      throw new Error("Bei einem Fehlbetrag können nur Beträge gutgeschrieben werden.");
+    }
+    if (adjustmentTotalCents > -rawDifferenceCents) {
+      throw new Error("Der Ausgleich ist größer als die offene Differenz.");
+    }
+  }
+
+  const now = new Date().toISOString();
+  const statements: D1PreparedStatement[] = [
+    env.DB.prepare("DELETE FROM night_adjustments WHERE night_id = ?").bind(nightId),
+  ];
+
+  for (const adjustment of adjustments) {
+    statements.push(
+      env.DB.prepare(
+        `INSERT INTO night_adjustments
+         (id, night_id, player_id, amount_cents, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        crypto.randomUUID(),
+        nightId,
+        adjustment.playerId,
+        adjustment.amountCents,
+        now,
+        now,
+      ),
+    );
+  }
+
+  statements.push(
+    env.DB.prepare("UPDATE poker_nights SET updated_at = ? WHERE id = ?")
+      .bind(now, nightId),
+  );
+
+  await env.DB.batch(statements);
+
+  return {
+    rawDifferenceCents,
+    adjustmentTotalCents,
+    remainingDifferenceCents: rawDifferenceCents + adjustmentTotalCents,
+  };
 }
 
 export async function loadNightSnapshot(env: Env, nightId: string) {
@@ -264,6 +425,13 @@ export async function writeNight(
         "UPDATE poker_nights SET title = ?, played_at = ?, updated_at = ? WHERE id = ?",
       ).bind(input.title, input.playedAt, now, nightId),
     );
+
+    if (before && !sameNightResults(before, after)) {
+      statements.push(
+        env.DB.prepare("DELETE FROM night_adjustments WHERE night_id = ?").bind(nightId),
+      );
+    }
+
     statements.push(
       env.DB.prepare("DELETE FROM night_results WHERE night_id = ?").bind(nightId),
     );
