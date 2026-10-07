@@ -946,11 +946,6 @@ export default function App() {
     return profilePhotoByPlayer.get(playerId) ?? null;
   }
 
-  const sessionNights = useMemo(
-    () => nights.filter((night) => night.recordType === "session"),
-    [nights],
-  );
-
   const totalStakeAllTime = useMemo(
     () => nights.reduce(
       (nightTotal, night) =>
