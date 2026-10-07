@@ -213,7 +213,11 @@ const ENGLISH: Record<string, string> = {
   "Dieses Gerät": "This device",
   "Wer benutzt PokerTracker auf diesem Gerät?": "Who uses PokerTracker on this device?",
   "Keine Person ausgewählt": "No person selected",
-  "Diese Auswahl wird nur lokal auf diesem Gerät gespeichert und verändert keine Pokerergebnisse.": "This choice is stored only on this device and does not change poker results."
+  "Diese Auswahl wird nur lokal auf diesem Gerät gespeichert und verändert keine Pokerergebnisse.": "This choice is stored only on this device and does not change poker results.",
+  "Betrag kopieren": "Copy amount",
+  "Betrag kopiert": "Amount copied",
+  "{amount} in die Zwischenablage kopiert": "{amount} copied to clipboard",
+  "Betrag konnte nicht aktualisiert werden.": "The amount could not be refreshed."
 };
 
 export function getLanguage(): Language {
