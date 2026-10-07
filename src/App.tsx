@@ -179,6 +179,136 @@ function changeText(change: AuditChange) {
   return `${change.player} · ${field} ${formatMoney(change.beforeCents)} → ${formatMoney(change.afterCents)}`;
 }
 
+type ChipSuit = "spade" | "heart" | "diamond" | "club";
+
+const CHIP_SUITS: ChipSuit[] = ["spade", "heart", "diamond", "club"];
+
+function ChipSuitIcon({ suit }: { suit: ChipSuit }) {
+  return (
+    <svg
+      className={`brand-chip-suit is-${suit}`}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {suit === "spade" && (
+        <path d="M12 2.1C10.45 5.1 4.15 8.8 4.15 13.05c0 2.72 2.07 4.77 4.63 4.77 1.16 0 2.2-.42 3.02-1.16-.38 2.12-1.34 3.78-2.88 5.24h6.16c-1.54-1.46-2.5-3.12-2.88-5.24.82.74 1.86 1.16 3.02 1.16 2.56 0 4.63-2.05 4.63-4.77C19.85 8.8 13.55 5.1 12 2.1Z" />
+      )}
+      {suit === "heart" && (
+        <path d="M12 21.2 10.48 19.8C5.08 14.85 1.5 11.58 1.5 7.55 1.5 4.28 4.05 2 7.12 2c1.73 0 3.39.8 4.88 2.32C13.49 2.8 15.15 2 16.88 2 19.95 2 22.5 4.28 22.5 7.55c0 4.03-3.58 7.3-8.98 12.25L12 21.2Z" />
+      )}
+      {suit === "diamond" && (
+        <path d="M12 1.8 20.25 12 12 22.2 3.75 12 12 1.8Z" />
+      )}
+      {suit === "club" && (
+        <>
+          <circle cx="12" cy="7.2" r="4.35" />
+          <circle cx="7.15" cy="13" r="4.35" />
+          <circle cx="16.85" cy="13" r="4.35" />
+          <path d="M10.55 13.7h2.9c.08 3.65.84 5.72 3.15 7.3H7.4c2.31-1.58 3.07-3.65 3.15-7.3Z" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function AnimatedPokerChip() {
+  const [chip, setChip] = useState({ step: 0, frontSuit: 0, backSuit: 1 });
+  const [isTurning, setIsTurning] = useState(false);
+  const [motionEnabled, setMotionEnabled] = useState(true);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const syncMotionPreference = () => setMotionEnabled(!mediaQuery.matches);
+
+    syncMotionPreference();
+    mediaQuery.addEventListener?.("change", syncMotionPreference);
+
+    return () => mediaQuery.removeEventListener?.("change", syncMotionPreference);
+  }, []);
+
+  useEffect(() => {
+    if (!motionEnabled) return;
+
+    let firstFlipTimer: number | undefined;
+    let intervalTimer: number | undefined;
+    let settleTimer: number | undefined;
+
+    const primeHiddenFace = () => {
+      setChip((current) => {
+        const visibleSuit =
+          current.step % 2 === 0 ? current.frontSuit : current.backSuit;
+        const nextSuit = (visibleSuit + 1) % CHIP_SUITS.length;
+
+        return current.step % 2 === 0
+          ? { ...current, backSuit: nextSuit }
+          : { ...current, frontSuit: nextSuit };
+      });
+    };
+
+    const flip = () => {
+      if (document.visibilityState !== "visible") return;
+
+      setIsTurning(true);
+      setChip((current) => ({ ...current, step: current.step + 1 }));
+
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(() => {
+        setIsTurning(false);
+        primeHiddenFace();
+      }, 820);
+    };
+
+    const start = () => {
+      firstFlipTimer = window.setTimeout(() => {
+        flip();
+        intervalTimer = window.setInterval(flip, 3800);
+      }, 3000);
+    };
+
+    const stop = () => {
+      window.clearTimeout(firstFlipTimer);
+      window.clearInterval(intervalTimer);
+      window.clearTimeout(settleTimer);
+    };
+
+    const handleVisibility = () => {
+      stop();
+      setIsTurning(false);
+      primeHiddenFace();
+
+      if (document.visibilityState === "visible") start();
+    };
+
+    if (document.visibilityState === "visible") start();
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [motionEnabled]);
+
+  const rotation = chip.step * 180;
+
+  return (
+    <span className="brand-chip-scene" aria-hidden="true">
+      <span
+        className={`brand-chip${isTurning ? " is-turning" : ""}`}
+        style={{ transform: `rotateY(${rotation}deg)` }}
+      >
+        <span className="brand-chip-edge" />
+        <span className="brand-chip-face brand-chip-face-front">
+          <ChipSuitIcon suit={CHIP_SUITS[chip.frontSuit]} />
+        </span>
+        <span className="brand-chip-face brand-chip-face-back">
+          <ChipSuitIcon suit={CHIP_SUITS[chip.backSuit]} />
+        </span>
+      </span>
+    </span>
+  );
+}
+
 export default function App() {
   const [language, setLanguage] = useState<Language>(() => getLanguage());
   const [screen, setScreen] = useState<Screen>("home");
@@ -601,7 +731,7 @@ export default function App() {
     return (
       <header className="app-header">
         <button className="brand-button" type="button" onClick={() => navigate("home")}>
-          <span className="brand-suit">♠</span>
+          <AnimatedPokerChip />
           <strong>PokerTracker</strong>
         </button>
       </header>
