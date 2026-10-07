@@ -92,6 +92,7 @@ export interface HistoryResponse {
 export interface SettlementPlayer {
   id: string;
   name: string;
+  paypalMe: string | null;
   pokerBalanceCents: number;
   paidOutCents: number;
   receivedCents: number;
