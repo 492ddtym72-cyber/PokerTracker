@@ -726,6 +726,10 @@ export default function App() {
   const [reconcileCustom, setReconcileCustom] = useState<Record<string, string>>({});
   const [reconcileSaving, setReconcileSaving] = useState(false);
   const [profilePhotoSaving, setProfilePhotoSaving] = useState(false);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState<{
+    playerId: string;
+    photo: string | null;
+  } | null>(null);
   const [error, setError] = useState("");
 
   async function refreshNights() {
@@ -836,6 +840,7 @@ export default function App() {
 
   function profilePhotoFor(playerId: string | null | undefined) {
     if (!playerId) return null;
+    if (profilePhotoPreview?.playerId === playerId) return profilePhotoPreview.photo;
     return profilePhotoByPlayer.get(playerId) ?? null;
   }
 
@@ -910,14 +915,23 @@ export default function App() {
   async function saveProfilePhoto(file: File) {
     if (!currentPlayerId) return;
 
+    const playerId = currentPlayerId;
     setProfilePhotoSaving(true);
     setError("");
 
     try {
       const profilePhoto = await prepareProfilePhoto(file);
-      await updatePlayerProfilePhoto(currentPlayerId, profilePhoto);
-      await refreshPlayers();
+      setProfilePhotoPreview({ playerId, photo: profilePhoto });
+
+      await updatePlayerProfilePhoto(playerId, profilePhoto);
+      setPlayerProfiles((current) =>
+        current.map((player) =>
+          player.id === playerId ? { ...player, profilePhoto } : player,
+        ),
+      );
+      setProfilePhotoPreview(null);
     } catch (err) {
+      setProfilePhotoPreview(null);
       setError(
         err instanceof Error
           ? err.message
@@ -931,13 +945,21 @@ export default function App() {
   async function removeProfilePhoto() {
     if (!currentPlayerId) return;
 
+    const playerId = currentPlayerId;
     setProfilePhotoSaving(true);
+    setProfilePhotoPreview({ playerId, photo: null });
     setError("");
 
     try {
-      await updatePlayerProfilePhoto(currentPlayerId, null);
-      await refreshPlayers();
+      await updatePlayerProfilePhoto(playerId, null);
+      setPlayerProfiles((current) =>
+        current.map((player) =>
+          player.id === playerId ? { ...player, profilePhoto: null } : player,
+        ),
+      );
+      setProfilePhotoPreview(null);
     } catch (err) {
+      setProfilePhotoPreview(null);
       setError(
         err instanceof Error
           ? err.message
