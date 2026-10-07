@@ -242,12 +242,18 @@ const ENGLISH: Record<string, string> = {
   "Aktuelle Serie": "Current streak",
   "Bester Abend": "Best night",
   "Schlechtester Abend": "Worst night",
+  "Schwächster Abend": "Weakest night",
   "Bester Monat": "Best month",
   "Bilanzverlauf": "Balance trend",
   "Gewinnabende in Folge": "winning nights in a row",
   "Meine Spielerkarte": "My player card",
   "Statistiken & Verlauf": "Stats & trend",
-  "Noch keine Pokerabende": "No poker nights yet"
+  "Noch keine Pokerabende": "No poker nights yet",
+  "Historischer Ausgangsstand": "Historical starting balance",
+  "Nicht als Pokerabend gewertet": "Not counted as a poker night",
+  "In Gesamtbilanz enthalten": "Included in overall balance",
+  "Ausgangsstand": "Starting balance",
+  "Dieser Datensatz zählt zur Gesamtbilanz, aber nicht zu den Session-Statistiken.": "This record is included in the overall balance but not in session statistics."
 };
 
 export function getLanguage(): Language {
