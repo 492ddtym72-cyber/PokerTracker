@@ -996,7 +996,7 @@
 }
 
 
-/* Compact player card + historical starting balance */
+/* Compact player card */
 .player-card-dialog {
   width: min(100%, 390px);
   max-height: min(84vh, 620px);
@@ -1080,23 +1080,6 @@
   font-size: 27px;
 }
 
-.player-card-baseline-note {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 3px;
-  color: #778a80;
-  font-size: 7px;
-  font-weight: 750;
-  line-height: 1.25;
-}
-
-.player-card-baseline-note b {
-  font-size: 7px;
-  font-weight: 850;
-  font-variant-numeric: tabular-nums;
-}
-
 .player-card-quick-stats > div {
   padding: 8px 4px 7px;
 }
@@ -1139,56 +1122,6 @@
 
 .player-trend-chart {
   height: 58px;
-}
-
-.historical-balance-section {
-  margin-top: 20px;
-}
-
-.historical-balance-card {
-  border-color: rgba(231,198,117,.14);
-  background: rgba(231,198,117,.025);
-}
-
-.historical-balance-icon {
-  display: grid;
-  place-items: center;
-  color: #cbb06b;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.historical-balance-tag {
-  padding: 4px 7px;
-  border: 1px solid rgba(231,198,117,.15);
-  border-radius: 999px;
-  background: rgba(231,198,117,.05);
-  color: #bca66c;
-  font-size: 7px;
-  font-weight: 850;
-  white-space: nowrap;
-}
-
-.historical-detail-note {
-  display: grid;
-  gap: 3px;
-  margin: -12px 0 12px;
-  padding: 10px 12px;
-  border: 1px solid rgba(231,198,117,.15);
-  border-radius: 12px;
-  background: rgba(231,198,117,.04);
-}
-
-.historical-detail-note strong {
-  color: #ddc482;
-  font-size: 9px;
-}
-
-.historical-detail-note span {
-  color: #7d9086;
-  font-size: 8px;
-  line-height: 1.4;
 }
 
 .profile-player-card-link {
