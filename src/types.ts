@@ -137,12 +137,11 @@ export interface SettlementPaymentInput {
 }
 
 
-export interface PreparedPayPalPayment {
+export interface PreparedPaymentApp {
   fromPlayerId: string;
   fromPlayerName: string;
   toPlayerId: string;
   toPlayerName: string;
   amountCents: number;
   currency: "EUR";
-  paypalUrl: string;
 }
