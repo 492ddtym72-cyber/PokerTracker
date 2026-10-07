@@ -93,12 +93,12 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   position: relative;
   display: block;
   transform-style: preserve-3d;
-  transition: transform 2400ms linear;
+  transition: transform 1200ms linear;
   will-change: transform, filter;
 }
 
 .brand-chip.is-turning {
-  animation: brand-chip-lighting 4800ms linear infinite;
+  animation: brand-chip-lighting 2400ms linear both;
 }
 
 .brand-chip-edge,
@@ -183,14 +183,12 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 
 @keyframes brand-chip-lighting {
   0%,
-  50%,
   100% {
     filter: brightness(1) saturate(1);
   }
 
-  25%,
-  75% {
-    filter: brightness(.78) saturate(.9);
+  50% {
+    filter: brightness(.72) saturate(.88);
   }
 }
 
