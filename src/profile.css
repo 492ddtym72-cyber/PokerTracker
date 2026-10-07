@@ -994,3 +994,234 @@
     transition: none;
   }
 }
+
+
+/* Compact player card + historical starting balance */
+.player-card-dialog {
+  width: min(100%, 390px);
+  max-height: min(84vh, 620px);
+  padding: 18px 18px 15px;
+  border-radius: 25px;
+}
+
+.player-card-dialog::before {
+  inset: 6px;
+  border-radius: 19px;
+}
+
+.player-card-corner {
+  line-height: 1;
+}
+
+.player-card-corner strong {
+  display: none;
+}
+
+.player-card-corner span {
+  margin: 0;
+  font-size: 12px;
+  opacity: .86;
+}
+
+.player-card-corner-top {
+  top: 15px;
+  left: 16px;
+}
+
+.player-card-corner-bottom {
+  right: 16px;
+  bottom: 14px;
+}
+
+.player-card-close {
+  width: 31px;
+  height: 31px;
+  top: 13px;
+  right: 13px;
+  border-radius: 10px;
+}
+
+.player-card-identity {
+  padding: 2px 40px 0;
+}
+
+.player-card-avatar-shell {
+  width: 68px;
+  height: 68px;
+  margin-bottom: 7px;
+}
+
+.player-card-avatar {
+  width: 56px;
+  height: 56px;
+  font-size: 15px;
+}
+
+.player-card-suit-badge {
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+}
+
+.player-card-identity h2 {
+  font-size: 23px;
+}
+
+.player-card-rank {
+  margin-top: 3px;
+}
+
+.player-card-balance {
+  margin: 10px 0 9px;
+}
+
+.player-card-balance strong {
+  margin-top: 2px;
+  font-size: 27px;
+}
+
+.player-card-baseline-note {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  color: #778a80;
+  font-size: 7px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.player-card-baseline-note b {
+  font-size: 7px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+.player-card-quick-stats > div {
+  padding: 8px 4px 7px;
+}
+
+.player-card-highlight {
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+}
+
+.player-card-highlight-suit {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  font-size: 17px;
+}
+
+.player-card-records {
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.player-card-records > div {
+  min-height: 48px;
+  gap: 2px;
+  padding: 7px 9px;
+  border-radius: 11px;
+}
+
+.player-card-trend {
+  margin-top: 8px;
+  padding: 8px 9px 5px;
+  border-radius: 12px;
+}
+
+.player-card-trend-heading {
+  padding-bottom: 2px;
+}
+
+.player-trend-chart {
+  height: 58px;
+}
+
+.historical-balance-section {
+  margin-top: 20px;
+}
+
+.historical-balance-card {
+  border-color: rgba(231,198,117,.14);
+  background: rgba(231,198,117,.025);
+}
+
+.historical-balance-icon {
+  display: grid;
+  place-items: center;
+  color: #cbb06b;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.historical-balance-tag {
+  padding: 4px 7px;
+  border: 1px solid rgba(231,198,117,.15);
+  border-radius: 999px;
+  background: rgba(231,198,117,.05);
+  color: #bca66c;
+  font-size: 7px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.historical-detail-note {
+  display: grid;
+  gap: 3px;
+  margin: -12px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(231,198,117,.15);
+  border-radius: 12px;
+  background: rgba(231,198,117,.04);
+}
+
+.historical-detail-note strong {
+  color: #ddc482;
+  font-size: 9px;
+}
+
+.historical-detail-note span {
+  color: #7d9086;
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.profile-player-card-link {
+  margin-top: 8px;
+}
+
+@media (max-width: 420px) {
+  .player-card-overlay {
+    padding: 12px;
+  }
+
+  .player-card-dialog {
+    max-height: calc(100vh - 24px);
+    padding: 17px 14px 14px;
+  }
+
+  .player-card-identity {
+    padding-inline: 38px;
+  }
+
+  .player-card-balance {
+    margin-top: 9px;
+  }
+
+  .player-card-quick-stats > div {
+    padding: 7px 4px 6px;
+  }
+
+  .player-card-records > div {
+    min-height: 45px;
+  }
+
+  .player-trend-chart {
+    height: 52px;
+  }
+}
