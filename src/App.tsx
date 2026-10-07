@@ -57,6 +57,136 @@ type PlayerStats = {
   wins: number;
 };
 
+type PlayerCardDetails = PlayerStats & {
+  rank: number | null;
+  winRate: number;
+  averageProfitCents: number;
+  bestResultCents: number;
+  worstResultCents: number;
+  bestWinStreak: number;
+  currentWinStreak: number;
+  bestMonthLabel: string | null;
+  bestMonthProfitCents: number;
+  trend: number[];
+};
+
+function playerCardSuit(playerId: string) {
+  const suits = ["♠", "♥", "♦", "♣"] as const;
+  const hash = Array.from(playerId).reduce((sum, character) => sum + character.charCodeAt(0), 0);
+  return suits[hash % suits.length];
+}
+
+function calculatePlayerCardDetails(
+  player: PlayerStats,
+  rank: number | null,
+  nights: PokerNight[],
+): PlayerCardDetails {
+  const appearances = nights
+    .flatMap((night) => {
+      const result = night.players.find((candidate) => candidate.id === player.id);
+      return result
+        ? [{
+            playedAt: night.playedAt,
+            createdAt: night.createdAt,
+            resultCents: playerResultCents(result),
+          }]
+        : [];
+    })
+    .sort(
+      (a, b) =>
+        a.playedAt.localeCompare(b.playedAt) ||
+        a.createdAt.localeCompare(b.createdAt),
+    );
+
+  let cumulative = 0;
+  let runningWinStreak = 0;
+  let bestWinStreak = 0;
+  const trend = [0];
+  const monthTotals = new Map<string, number>();
+
+  for (const appearance of appearances) {
+    cumulative += appearance.resultCents;
+    trend.push(cumulative);
+
+    if (appearance.resultCents > 0) {
+      runningWinStreak += 1;
+      bestWinStreak = Math.max(bestWinStreak, runningWinStreak);
+    } else {
+      runningWinStreak = 0;
+    }
+
+    const monthKey = appearance.playedAt.slice(0, 7);
+    monthTotals.set(monthKey, (monthTotals.get(monthKey) ?? 0) + appearance.resultCents);
+  }
+
+  let currentWinStreak = 0;
+  for (let index = appearances.length - 1; index >= 0; index -= 1) {
+    if (appearances[index].resultCents <= 0) break;
+    currentWinStreak += 1;
+  }
+
+  const results = appearances.map((appearance) => appearance.resultCents);
+  const bestMonth = Array.from(monthTotals.entries()).sort(
+    (a, b) => b[1] - a[1] || b[0].localeCompare(a[0]),
+  )[0];
+
+  return {
+    ...player,
+    rank,
+    winRate: player.nights > 0 ? player.wins / player.nights : 0,
+    averageProfitCents: player.nights > 0 ? Math.round(player.profitCents / player.nights) : 0,
+    bestResultCents: results.length > 0 ? Math.max(...results) : 0,
+    worstResultCents: results.length > 0 ? Math.min(...results) : 0,
+    bestWinStreak,
+    currentWinStreak,
+    bestMonthLabel: bestMonth
+      ? new Date(bestMonth[0] + "-01T12:00:00").toLocaleDateString(getLocale(), {
+          month: "long",
+          year: "numeric",
+        })
+      : null,
+    bestMonthProfitCents: bestMonth?.[1] ?? 0,
+    trend,
+  };
+}
+
+function PlayerTrendChart({ values }: { values: number[] }) {
+  const width = 300;
+  const height = 84;
+  const padding = 7;
+  const minValue = Math.min(0, ...values);
+  const maxValue = Math.max(0, ...values);
+  const range = Math.max(1, maxValue - minValue);
+  const step = values.length > 1 ? (width - padding * 2) / (values.length - 1) : 0;
+  const yFor = (value: number) =>
+    padding + ((maxValue - value) / range) * (height - padding * 2);
+  const points = values
+    .map((value, index) => `${padding + index * step},${yFor(value)}`)
+    .join(" ");
+  const lastX = padding + Math.max(0, values.length - 1) * step;
+  const lastY = yFor(values[values.length - 1] ?? 0);
+
+  return (
+    <svg
+      className="player-trend-chart"
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label={t("Bilanzverlauf")}
+    >
+      <line
+        className="player-trend-zero"
+        x1={padding}
+        x2={width - padding}
+        y1={yFor(0)}
+        y2={yFor(0)}
+      />
+      <polyline className="player-trend-line" points={points} />
+      <circle className="player-trend-dot" cx={lastX} cy={lastY} r="3.2" />
+    </svg>
+  );
+}
+
 function today() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -516,6 +646,7 @@ export default function App() {
   );
   const [screen, setScreen] = useState<Screen>("home");
   const [profileSwitcherOpen, setProfileSwitcherOpen] = useState(false);
+  const [playerCardId, setPlayerCardId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [detailNightId, setDetailNightId] = useState<string | null>(null);
   const [nights, setNights] = useState<PokerNight[]>([]);
@@ -684,13 +815,15 @@ export default function App() {
   }, [players]);
 
   useEffect(() => {
-    if (!profileSwitcherOpen) return;
+    if (!profileSwitcherOpen && !playerCardId) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setProfileSwitcherOpen(false);
+      if (event.key !== "Escape") return;
+      setProfileSwitcherOpen(false);
+      setPlayerCardId(null);
     };
 
     document.addEventListener("keydown", handleKeyDown);
@@ -699,7 +832,7 @@ export default function App() {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [profileSwitcherOpen]);
+  }, [profileSwitcherOpen, playerCardId]);
 
   function changeLanguage(next: Language) {
     setLanguagePreference(next);
@@ -1122,6 +1255,185 @@ export default function App() {
           >
             {t("Kein Profil verwenden")}
           </button>
+        </section>
+      </div>
+    );
+  }
+
+  function PlayerCardDialog() {
+    if (!playerCardId) return null;
+
+    const profile = knownPlayers.find((player) => player.id === playerCardId);
+    const statsIndex = stats.findIndex((player) => player.id === playerCardId);
+    const player = statsIndex >= 0
+      ? stats[statsIndex]
+      : profile
+        ? {
+            id: profile.id,
+            name: profile.name,
+            nights: 0,
+            stakeCents: 0,
+            cashOutCents: 0,
+            profitCents: 0,
+            wins: 0,
+          }
+        : null;
+
+    if (!player) return null;
+
+    const details = calculatePlayerCardDetails(
+      player,
+      statsIndex >= 0 ? statsIndex + 1 : null,
+      nights,
+    );
+    const suit = playerCardSuit(player.id);
+    const redSuit = suit === "♥" || suit === "♦";
+    const winRate = details.nights > 0
+      ? new Intl.NumberFormat(getLocale(), {
+          style: "percent",
+          maximumFractionDigits: 0,
+        }).format(details.winRate)
+      : "—";
+    const highlight = details.nights === 0
+      ? { label: t("Spielerprofil"), value: t("Noch keine Pokerabende") }
+      : details.currentWinStreak >= 2
+        ? {
+            label: t("Aktuelle Serie"),
+            value: `${details.currentWinStreak} ${t("Gewinnabende in Folge")}`,
+          }
+        : details.bestWinStreak >= 2
+          ? {
+              label: t("Beste Serie"),
+              value: `${details.bestWinStreak} ${t("Gewinnabende in Folge")}`,
+            }
+          : {
+              label: t("Bester Abend"),
+              value: (details.bestResultCents > 0 ? "+" : "") + formatMoney(details.bestResultCents),
+            };
+
+    return (
+      <div
+        className="player-card-overlay"
+        role="presentation"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setPlayerCardId(null);
+        }}
+      >
+        <section
+          className={"player-card-dialog" + (redSuit ? " is-red-suit" : "")}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="player-card-name"
+        >
+          <div className="player-card-corner player-card-corner-top" aria-hidden="true">
+            <strong>{initials(player.name).slice(0, 1)}</strong>
+            <span>{suit}</span>
+          </div>
+          <div className="player-card-corner player-card-corner-bottom" aria-hidden="true">
+            <strong>{initials(player.name).slice(0, 1)}</strong>
+            <span>{suit}</span>
+          </div>
+
+          <button
+            className="player-card-close"
+            type="button"
+            aria-label={t("Schließen")}
+            onClick={() => setPlayerCardId(null)}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" />
+            </svg>
+          </button>
+
+          <div className="player-card-identity">
+            <div className="player-card-avatar-shell">
+              <PlayerAvatar
+                className="player-card-avatar"
+                name={player.name}
+                photo={profilePhotoFor(player.id)}
+              />
+              <span className="player-card-suit-badge" aria-hidden="true">{suit}</span>
+            </div>
+            <span className="player-card-eyebrow">{t("Spielerprofil")}</span>
+            <h2 id="player-card-name">{player.name}</h2>
+            {details.rank && (
+              <span className="player-card-rank">{t("Rang")} #{details.rank}</span>
+            )}
+          </div>
+
+          <div className="player-card-balance">
+            <span>{t("Gesamtbilanz")}</span>
+            <strong className={details.profitCents >= 0 ? "positive" : "negative"}>
+              {details.profitCents > 0 ? "+" : ""}{formatMoney(details.profitCents)}
+            </strong>
+          </div>
+
+          <div className="player-card-quick-stats">
+            <div>
+              <strong>{details.nights}</strong>
+              <span>{t("Pokerabende")}</span>
+            </div>
+            <div>
+              <strong>{winRate}</strong>
+              <span>{t("Gewinnquote")}</span>
+            </div>
+            <div>
+              <strong>{details.nights > 0
+                ? (details.averageProfitCents > 0 ? "+" : "") + formatMoney(details.averageProfitCents)
+                : "—"}</strong>
+              <span>{t("Ø pro Abend")}</span>
+            </div>
+            <div>
+              <strong>{details.bestWinStreak || "—"}</strong>
+              <span>{t("Beste Serie")}</span>
+            </div>
+          </div>
+
+          <div className="player-card-highlight">
+            <span className="player-card-highlight-suit" aria-hidden="true">{suit}</span>
+            <div>
+              <span>{highlight.label}</span>
+              <strong>{highlight.value}</strong>
+            </div>
+          </div>
+
+          <div className="player-card-records">
+            <div>
+              <span>{t("Bester Abend")}</span>
+              <strong className={details.bestResultCents >= 0 ? "positive" : "negative"}>
+                {details.nights > 0
+                  ? (details.bestResultCents > 0 ? "+" : "") + formatMoney(details.bestResultCents)
+                  : "—"}
+              </strong>
+            </div>
+            <div>
+              <span>{t("Schlechtester Abend")}</span>
+              <strong className={details.worstResultCents >= 0 ? "positive" : "negative"}>
+                {details.nights > 0
+                  ? (details.worstResultCents > 0 ? "+" : "") + formatMoney(details.worstResultCents)
+                  : "—"}
+              </strong>
+            </div>
+            <div className="player-card-best-month">
+              <span>{t("Bester Monat")}</span>
+              <strong>{details.bestMonthLabel ?? "—"}</strong>
+              {details.bestMonthLabel && (
+                <small className={details.bestMonthProfitCents >= 0 ? "positive" : "negative"}>
+                  {details.bestMonthProfitCents > 0 ? "+" : ""}{formatMoney(details.bestMonthProfitCents)}
+                </small>
+              )}
+            </div>
+          </div>
+
+          <div className="player-card-trend">
+            <div className="player-card-trend-heading">
+              <span>{t("Bilanzverlauf")}</span>
+              <strong className={details.profitCents >= 0 ? "positive" : "negative"}>
+                {details.profitCents > 0 ? "+" : ""}{formatMoney(details.profitCents)}
+              </strong>
+            </div>
+            <PlayerTrendChart values={details.trend} />
+          </div>
         </section>
       </div>
     );
@@ -1767,7 +2079,24 @@ export default function App() {
                     { rank: 1, player: stats[0] },
                     { rank: 3, player: stats[2] },
                   ].map(({ rank, player }) => (
-                    <div className={"podium-slot podium-rank-" + rank} key={rank}>
+                    <div
+                      className={
+                        "podium-slot podium-rank-" + rank +
+                        (player ? " is-clickable" : "")
+                      }
+                      key={rank}
+                      role={player ? "button" : undefined}
+                      tabIndex={player ? 0 : undefined}
+                      aria-label={player ? player.name + " · " + t("Spielerprofil") : undefined}
+                      onClick={() => {
+                        if (player) setPlayerCardId(player.id);
+                      }}
+                      onKeyDown={(event) => {
+                        if (!player || (event.key !== "Enter" && event.key !== " ")) return;
+                        event.preventDefault();
+                        setPlayerCardId(player.id);
+                      }}
+                    >
                       {player ? (
                         <>
                           <div className={"framed-avatar podium-avatar frame-rank-" + rank}>
@@ -1805,7 +2134,19 @@ export default function App() {
                     const width = Math.max(3, Math.round((Math.abs(player.profitCents) / maxAbsProfit) * 100));
 
                     return (
-                      <article className="leaderboard-row" key={player.id}>
+                      <article
+                        className="leaderboard-row is-clickable"
+                        key={player.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={player.name + " · " + t("Spielerprofil")}
+                        onClick={() => setPlayerCardId(player.id)}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter" && event.key !== " ") return;
+                          event.preventDefault();
+                          setPlayerCardId(player.id);
+                        }}
+                      >
                         <span className={"leaderboard-rank leaderboard-place-" + rank}>{rank}</span>
                         <div className={"framed-avatar leaderboard-mini-avatar " + (rank <= 3 ? "frame-rank-" + rank : "frame-neutral")}>
                           <PlayerAvatar
@@ -1882,6 +2223,7 @@ export default function App() {
               </div>
 
               {currentPlayerId && (
+                <>
                 <div className="profile-photo-setting">
                   <div className="profile-photo-setting-copy">
                     <strong>{t("Profilbild")}</strong>
@@ -1932,6 +2274,22 @@ export default function App() {
                     )}
                   </div>
                 </div>
+
+                <button
+                  className="player-card-settings-link"
+                  type="button"
+                  onClick={() => setPlayerCardId(currentPlayerId)}
+                >
+                  <span className="player-card-settings-suit" aria-hidden="true">
+                    {playerCardSuit(currentPlayerId)}
+                  </span>
+                  <span className="player-card-settings-copy">
+                    <strong>{t("Meine Spielerkarte")}</strong>
+                    <small>{t("Statistiken & Verlauf")}</small>
+                  </span>
+                  <span className="settings-chevron"><ChevronIcon /></span>
+                </button>
+                </>
               )}
             </section>
 
@@ -1984,6 +2342,7 @@ export default function App() {
 
       <BottomNav />
       <ProfileSwitcherDialog />
+      <PlayerCardDialog />
     </main>
   );
 }
