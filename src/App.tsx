@@ -487,9 +487,8 @@ function AnimatedPokerChip() {
       const bottom = center + radius;
       const left = leftCenter - safeRx;
       const right = rightCenter + safeRx;
+      const width = right - left;
 
-      // Recreate the side contour for EACH canvas operation. The previous
-      // version accidentally stroked the last groove outside the clip.
       const traceHullPath = () => {
         context.beginPath();
         context.moveTo(leftCenter, top);
@@ -506,23 +505,23 @@ function AnimatedPokerChip() {
         context.closePath();
       };
 
-      const sideGradient = context.createLinearGradient(left, 0, right, 0);
-      sideGradient.addColorStop(0, "#3b311d");
-      sideGradient.addColorStop(0.14, "#8d743d");
-      sideGradient.addColorStop(0.32, "#17372a");
-      sideGradient.addColorStop(0.50, "#c4a65c");
-      sideGradient.addColorStop(0.68, "#17372a");
-      sideGradient.addColorStop(0.86, "#886f3b");
-      sideGradient.addColorStop(1, "#332b1b");
+      // A poker-chip edge is an opaque, dark clay cylinder, not a gold tube.
+      // Subtle lighting changes across its thickness, but the base is solid.
+      const clay = context.createLinearGradient(left, 0, right, 0);
+      clay.addColorStop(0, "#081c17");
+      clay.addColorStop(0.15, "#123629");
+      clay.addColorStop(0.40, "#245441");
+      clay.addColorStop(0.62, "#1b4433");
+      clay.addColorStop(0.85, "#102c23");
+      clay.addColorStop(1, "#081b16");
 
-      // An opaque body remains visible when the projected face is edge-on.
       context.save();
       traceHullPath();
+      context.fillStyle = clay;
       context.globalAlpha = 1;
-      context.shadowColor = "rgba(0,0,0,.44)";
+      context.shadowColor = "rgba(0,0,0,.48)";
       context.shadowBlur = 2.4;
-      context.shadowOffsetY = 1.1;
-      context.fillStyle = sideGradient;
+      context.shadowOffsetY = 1;
       context.fill();
       context.restore();
 
@@ -530,49 +529,71 @@ function AnimatedPokerChip() {
       traceHullPath();
       context.clip();
 
-      // Grooves stay well inside the projected edge, including at 90 degrees.
-      context.strokeStyle = "rgba(233,202,119,.42)";
-      context.lineWidth = 0.8;
-      context.globalAlpha = 0.20 + sideVisibility * 0.16;
+      // Four thick metallic-gold inlays around the circumference: these are
+      // real poker-chip edge spots rather than the uniform lines of a tube.
+      // They remain physically part of the opaque sidewall at every angle.
+      if (width > 2) {
+        const inlay = context.createLinearGradient(left, 0, right, 0);
+        inlay.addColorStop(0, "#614a2b");
+        inlay.addColorStop(0.24, "#bb9853");
+        inlay.addColorStop(0.50, "#edce82");
+        inlay.addColorStop(0.74, "#b69350");
+        inlay.addColorStop(1, "#5e4829");
 
-      for (let y = center - 9; y <= center + 9; y += 4.8) {
-        if (right - left <= 2.5) break;
-        context.beginPath();
-        context.moveTo(left + 1.25, y);
-        context.lineTo(right - 1.25, y);
-        context.stroke();
+        // As the chip becomes edge-on the color blocks, not transparency,
+        // reveal the three-dimensional molded rim.
+        context.globalAlpha = Math.min(1, sideVisibility * 1.4);
+        for (const degrees of [-60, -20, 20, 60]) {
+          const phi = (degrees * Math.PI) / 180;
+          const y = center + Math.sin(phi) * radius;
+          const stripeHeight = 2.9 - Math.abs(Math.sin(phi)) * 0.7;
+          const inset = Math.min(0.65, width / 8);
+
+          context.fillStyle = inlay;
+          context.fillRect(
+            left + inset,
+            y - stripeHeight / 2,
+            width - inset * 2,
+            stripeHeight,
+          );
+
+          // Fine inset seams: no long horizontal lines across the entire rim.
+          context.fillStyle = "rgba(8,22,17,.50)";
+          context.fillRect(
+            left + inset,
+            y - stripeHeight / 2 - 0.45,
+            width - inset * 2,
+            0.48,
+          );
+          context.fillRect(
+            left + inset,
+            y + stripeHeight / 2 - 0.03,
+            width - inset * 2,
+            0.48,
+          );
+        }
       }
 
-      // Small, restrained specular highlight: solid metal, not glass.
-      const shine = context.createLinearGradient(left, 0, right, 0);
-      shine.addColorStop(0, "rgba(255,255,255,0)");
-      shine.addColorStop(0.42, "rgba(255,241,192,.12)");
-      shine.addColorStop(0.52, "rgba(255,255,255,.05)");
-      shine.addColorStop(0.62, "rgba(255,241,192,.10)");
-      shine.addColorStop(1, "rgba(255,255,255,0)");
+      // Thin raised lips make the two face/edge boundaries legible at 32px.
+      // They are vertical (across the chip thickness), and stay clipped.
+      if (width > 2.2) {
+        context.globalAlpha = Math.min(0.88, sideVisibility * 1.2);
+        context.lineWidth = 0.58;
 
-      context.globalAlpha = 0.22 + sideVisibility * 0.10;
-      context.fillStyle = shine;
-      context.fillRect(left, top, right - left, bottom - top);
-
-      const innerShade = context.createLinearGradient(left, 0, right, 0);
-      innerShade.addColorStop(0, "rgba(0,0,0,.16)");
-      innerShade.addColorStop(0.18, "rgba(0,0,0,.05)");
-      innerShade.addColorStop(0.50, "rgba(0,0,0,0)");
-      innerShade.addColorStop(0.82, "rgba(0,0,0,.05)");
-      innerShade.addColorStop(1, "rgba(0,0,0,.16)");
-
-      context.globalAlpha = 0.9;
-      context.fillStyle = innerShade;
-      context.fillRect(left, top, right - left, bottom - top);
+        for (const x of [left + 0.72, right - 0.72]) {
+          context.strokeStyle = "rgba(239,206,128,.68)";
+          context.beginPath();
+          context.moveTo(x, top + 1.5);
+          context.lineTo(x, bottom - 1.5);
+          context.stroke();
+        }
+      }
       context.restore();
 
-      // Draw the actual silhouette last, never the previous groove path.
       context.save();
       traceHullPath();
-      context.globalAlpha = 1;
-      context.strokeStyle = "rgba(226,195,111,.30)";
-      context.lineWidth = 0.8;
+      context.strokeStyle = "rgba(195,162,88,.65)";
+      context.lineWidth = 0.65;
       context.stroke();
       context.restore();
     };
@@ -581,14 +602,13 @@ function AnimatedPokerChip() {
       faceCenterX: number,
       faceScale: number,
       suit: ChipSuit,
-      faceAlpha: number,
-      lightAmount: number,
     ) => {
       context.save();
       context.translate(faceCenterX, center);
       context.scale(Math.max(faceScale, 0.026), 1);
-      // Fade the entire surface, including the glyph and outline, together.
-      context.globalAlpha = faceAlpha;
+      // The molded face is always fully opaque. Only its decorative details
+      // become less legible when foreshortened, never the underlying material.
+      context.globalAlpha = 1;
 
       const faceGradient = context.createRadialGradient(
         -radius * 0.28,
@@ -598,7 +618,7 @@ function AnimatedPokerChip() {
         0,
         radius,
       );
-      faceGradient.addColorStop(0, `rgba(30,76,59,${lightAmount})`);
+      faceGradient.addColorStop(0, "#285642");
       faceGradient.addColorStop(0.56, "#12382b");
       faceGradient.addColorStop(1, "#09261d");
 
@@ -609,6 +629,11 @@ function AnimatedPokerChip() {
       context.strokeStyle = "#b99d57";
       context.lineWidth = 1.15;
       context.stroke();
+
+      context.globalAlpha = Math.max(
+        0,
+        Math.min(1, (faceScale - 0.16) / 0.32),
+      );
 
       context.beginPath();
       context.arc(0, 0, radius - 3, 0, Math.PI * 2);
@@ -672,22 +697,10 @@ function AnimatedPokerChip() {
       const nearFaceSign = cosine >= 0 ? 1 : -1;
       const nearFaceCenter =
         center + nearFaceSign * halfThickness * sine;
-      const faceAlpha = Math.max(
-        0,
-        Math.min(1, (faceScale - 0.18) / 0.42),
-      );
-      const lightAmount = 0.88 + faceScale * 0.12;
-
-      // No symbol or front rings should be painted over the solid sidewall
-      // when the disk is almost perfectly edge-on.
-      if (faceScale > 0.08 && faceAlpha > 0.01) {
-        drawFace(
-          nearFaceCenter,
-          faceScale,
-          suit,
-          faceAlpha,
-          lightAmount,
-        );
+      // Draw the nearest surface as opaque clay. Only the last few degrees
+      // are edge-only, when the face is physically too thin to be visible.
+      if (faceScale > 0.075) {
+        drawFace(nearFaceCenter, faceScale, suit);
       }
     };
 
