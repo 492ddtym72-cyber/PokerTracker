@@ -404,8 +404,15 @@ function SettlementFlow({
   );
 }
 
-export function SettlementSummary({ onOpen }: { onOpen: () => void }) {
-  const [data, setData] = useState<SettlementResponse | null>(null);
+export function SettlementSummary({
+  onOpen,
+  data,
+  onDataChange,
+}: {
+  onOpen: () => void;
+  data: SettlementResponse | null;
+  onDataChange: (data: SettlementResponse) => void;
+}) {
 
   useEffect(() => {
     let active = true;
@@ -413,7 +420,7 @@ export function SettlementSummary({ onOpen }: { onOpen: () => void }) {
     const reload = () => {
       loadSettlements()
         .then((response) => {
-          if (active) setData(response);
+          if (active) onDataChange(response);
         })
         .catch(() => {
           // Keep the rest of the app usable if this optional summary cannot load.
@@ -436,11 +443,9 @@ export function SettlementSummary({ onOpen }: { onOpen: () => void }) {
       window.removeEventListener("pageshow", refreshIfVisible);
       document.removeEventListener("visibilitychange", refreshIfVisible);
     };
-  }, []);
+  }, [onDataChange]);
 
-  if (!data) return null;
-
-  const balanced = data.totalOutstandingCents === 0 && data.groupDifferenceCents === 0;
+  const balanced = data !== null && data.totalOutstandingCents === 0 && data.groupDifferenceCents === 0;
 
   return (
     <button className="settlement-summary-card" type="button" onClick={onOpen}>
@@ -448,11 +453,13 @@ export function SettlementSummary({ onOpen }: { onOpen: () => void }) {
       <span className="settlement-summary-copy">
         <strong>{t("Ausgleichen")}</strong>
         <small>
-          {balanced
-            ? t("Alles ausgeglichen")
-            : t("Noch auszugleichen") + " " + formatMoney(data.totalOutstandingCents)}
+          {!data
+            ? t("Lädt …")
+            : balanced
+              ? t("Alles ausgeglichen")
+              : t("Noch auszugleichen") + " " + formatMoney(data.totalOutstandingCents)}
         </small>
-        {data.groupDifferenceCents !== 0 && (
+        {data && data.groupDifferenceCents !== 0 && (
           <em>
             {t("Offene Session-Differenz")}: {formatMoney(data.groupDifferenceCents)}
           </em>
@@ -468,11 +475,13 @@ export function SettlementScreen({
   currentPlayerId,
   onCurrentPlayerChange,
   playerProfiles,
+  onDataChange,
 }: {
   onClose: () => void;
   currentPlayerId: string | null;
   onCurrentPlayerChange: (playerId: string | null) => void;
   playerProfiles: PlayerProfile[];
+  onDataChange: (data: SettlementResponse) => void;
 }) {
   const [data, setData] = useState<SettlementResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -501,6 +510,7 @@ export function SettlementScreen({
   async function refresh() {
     const response = await loadSettlements();
     setData(response);
+    onDataChange(response);
     return response;
   }
 
@@ -510,7 +520,10 @@ export function SettlementScreen({
     const reload = (showError: boolean) =>
       loadSettlements()
         .then((response) => {
-          if (active) setData(response);
+          if (active) {
+            setData(response);
+            onDataChange(response);
+          }
         })
         .catch((err: unknown) => {
           if (active && showError) {
@@ -548,7 +561,7 @@ export function SettlementScreen({
       window.removeEventListener("pageshow", refreshIfVisible);
       document.removeEventListener("visibilitychange", refreshIfVisible);
     };
-  }, []);
+  }, [onDataChange]);
 
   useEffect(() => {
     if (!paymentAppNotice) return;
@@ -733,6 +746,7 @@ export function SettlementScreen({
     try {
       const response = await createSettlementPayment(input);
       setData(response);
+      onDataChange(response);
       setDraft(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Zahlung konnte nicht gespeichert werden."));
@@ -749,6 +763,7 @@ export function SettlementScreen({
     try {
       const response = await voidSettlementPayment(id);
       setData(response);
+      onDataChange(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Zahlung konnte nicht storniert werden."));
     } finally {

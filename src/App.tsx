@@ -28,6 +28,7 @@ import type {
   NightInput,
   PlayerProfile,
   PokerNight,
+  SettlementResponse,
 } from "./types";
 
 type Screen = "home" | "history" | "players" | "settlement" | "more";
@@ -838,6 +839,8 @@ export default function App() {
   const [detailNightId, setDetailNightId] = useState<string | null>(null);
   const [nights, setNights] = useState<PokerNight[]>([]);
   const [playerProfiles, setPlayerProfiles] = useState<PlayerProfile[]>([]);
+  // Keep the latest settlement snapshot across screen changes.
+  const [settlementData, setSettlementData] = useState<SettlementResponse | null>(null);
   const [history, setHistory] = useState<AuditEvent[]>([]);
   const [historyMeta, setHistoryMeta] = useState<HistoryResponse["pagination"]>({
     offset: 0,
@@ -2162,7 +2165,11 @@ export default function App() {
               </section>
             )}
 
-            <SettlementSummary onOpen={() => navigate("settlement")} />
+            <SettlementSummary
+              onOpen={() => navigate("settlement")}
+              data={settlementData}
+              onDataChange={setSettlementData}
+            />
 
             <button className="gold-cta" type="button" onClick={startNew}>
               <span className="cta-plus" aria-hidden="true">
@@ -2228,6 +2235,7 @@ export default function App() {
             currentPlayerId={currentPlayerId}
             onCurrentPlayerChange={changeCurrentPlayer}
             playerProfiles={playerProfiles}
+            onDataChange={setSettlementData}
           />
         )}
 
