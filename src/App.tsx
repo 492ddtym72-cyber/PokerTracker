@@ -19,6 +19,7 @@ import {
 } from "./i18n";
 import { GOLD_WREATH, SILVER_WREATH } from "./leaderboardFrames";
 import { SettlementScreen, SettlementSummary } from "./Settlement";
+import { PlayerAvatar, playerInitials } from "./PlayerAvatar";
 import type {
   AuditChange,
   AuditEvent,
@@ -204,31 +205,6 @@ function emptyPlayer(): DraftPlayer {
     stake: "",
     cashOut: "",
   };
-}
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? "?") + (parts[1]?.[0] ?? "")).toUpperCase();
-}
-
-function PlayerAvatar({
-  name,
-  photo,
-  className = "avatar",
-}: {
-  name: string;
-  photo?: string | null;
-  className?: string;
-}) {
-  return (
-    <span
-      className={`${className} player-photo${photo ? " has-photo" : ""}`}
-      style={photo ? { backgroundImage: `url("${photo}")` } : undefined}
-      aria-hidden="true"
-    >
-      {photo ? "" : initials(name)}
-    </span>
-  );
 }
 
 function readBlobAsDataUrl(blob: Blob) {
@@ -1405,11 +1381,11 @@ export default function App() {
           aria-labelledby="player-card-name"
         >
           <div className="player-card-corner player-card-corner-top" aria-hidden="true">
-            <strong>{initials(player.name).slice(0, 1)}</strong>
+            <strong>{playerInitials(player.name).slice(0, 1)}</strong>
             <span>{suit}</span>
           </div>
           <div className="player-card-corner player-card-corner-bottom" aria-hidden="true">
-            <strong>{initials(player.name).slice(0, 1)}</strong>
+            <strong>{playerInitials(player.name).slice(0, 1)}</strong>
             <span>{suit}</span>
           </div>
 
@@ -2090,6 +2066,7 @@ export default function App() {
             onClose={() => navigate("home")}
             currentPlayerId={currentPlayerId}
             onCurrentPlayerChange={changeCurrentPlayer}
+            playerProfiles={playerProfiles}
           />
         )}
 
