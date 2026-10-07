@@ -1,3 +1,9 @@
+export interface PlayerProfile {
+  id: string;
+  name: string;
+  profilePhoto: string | null;
+}
+
 export interface PlayerResult {
   id: string;
   name: string;
