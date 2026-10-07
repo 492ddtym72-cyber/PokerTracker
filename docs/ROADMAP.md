@@ -33,9 +33,10 @@
 - [ ] Import
 - [ ] Optional notes / venue
 - [ ] Session filters
+- [x] Settlements / who owes whom
+- [x] Partial payment tracking and undo history
 
 ## Later only if genuinely useful
-- settlements / who owes whom
 - multiple currencies
 - separate groups
 - individual accounts and permissions

@@ -29,6 +29,7 @@ For each night, PokerTracker compares total stakes with total cash-outs. A diffe
 - **New poker night** — fast end-of-evening entry
 - **Players** — lifetime standings derived from saved nights
 - **More** — password and session settings
+- **Settle up** — current player balances, suggested transfers, partial payments and payment history
 
 ## History rules
 
@@ -43,6 +44,18 @@ Each create, update or delete stores a before/after snapshot so the UI can show 
 
 Deleted poker nights remain visible in history but are excluded from active statistics.
 
+## Settlement rules
+
+Poker results and real-world payments are separate ledgers.
+
+- Poker results remain unchanged after a payment.
+- Each payment is stored in cents with payer, recipient, date and optional note.
+- Partial payments are supported.
+- Active payments reduce the outstanding balances; voided payments remain in history but no longer affect balances.
+- Suggested transfers are recalculated from current open balances.
+- A payment cannot exceed either the payer's open debt or the recipient's open winnings.
+- Unresolved poker-night differences are shown separately because payments cannot make an imbalanced set of results sum to zero.
+
 ## Explicitly out of scope
 
 - hand histories
@@ -50,7 +63,6 @@ Deleted poker nights remain visible in history but are excluded from active stat
 - live chip tracking
 - blinds / positions / cards
 - poker strategy or odds tools
-- payments or money transfer
 - public profiles
 
 ## Product principle

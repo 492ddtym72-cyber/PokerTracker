@@ -16,6 +16,7 @@ import {
   type Language,
 } from "./i18n";
 import { GOLD_WREATH, SILVER_WREATH } from "./leaderboardFrames";
+import { SettlementScreen, SettlementSummary } from "./Settlement";
 import type {
   AuditChange,
   AuditEvent,
@@ -24,7 +25,7 @@ import type {
   PokerNight,
 } from "./types";
 
-type Screen = "home" | "history" | "players" | "more";
+type Screen = "home" | "history" | "players" | "settlement" | "more";
 type ReconcileMode = "all" | "selected" | "custom";
 
 type DraftPlayer = {
@@ -1072,6 +1073,8 @@ export default function App() {
               <div><strong>{stats[0]?.name ?? "—"}</strong><span>{t("Führung")}</span></div>
             </section>
 
+            <SettlementSummary onOpen={() => navigate("settlement")} />
+
             <button className="gold-cta" type="button" onClick={startNew}>
               <span className="cta-plus" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false">
@@ -1127,6 +1130,10 @@ export default function App() {
               )}
             </section>
           </>
+        )}
+
+        {screen === "settlement" && (
+          <SettlementScreen onClose={() => navigate("home")} />
         )}
 
         {screen === "history" && (
