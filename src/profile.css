@@ -5,6 +5,9 @@
 }
 
 .player-photo.has-photo {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
   color: transparent;
   text-shadow: none;
 }
