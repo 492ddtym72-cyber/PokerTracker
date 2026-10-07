@@ -35,9 +35,12 @@ function initials(name: string) {
 const PAYPAL_MARK_URL =
   "https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg";
 
-function paypalPaymentUrl(paypalMe: string, amountCents: number) {
-  const amount = (amountCents / 100).toFixed(2);
-  return `https://paypal.me/${encodeURIComponent(paypalMe)}/${amount}EUR`;
+function paypalPaymentUrl(fromPlayerId: string, toPlayerId: string) {
+  const params = new URLSearchParams({
+    fromPlayerId,
+    toPlayerId,
+  });
+  return "/api/settlements/paypal?" + params.toString();
 }
 
 type PaymentDraft = {
@@ -131,11 +134,43 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
   }
 
   useEffect(() => {
-    refresh()
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : t("Ausgleichsdaten konnten nicht geladen werden."));
-      })
-      .finally(() => setLoading(false));
+    let active = true;
+
+    const reload = (showError: boolean) => {
+      loadSettlements()
+        .then((response) => {
+          if (active) setData(response);
+        })
+        .catch((err: unknown) => {
+          if (active && showError) {
+            setError(
+              err instanceof Error
+                ? err.message
+                : t("Ausgleichsdaten konnten nicht geladen werden."),
+            );
+          }
+        });
+    };
+
+    reload(true);
+    setLoading(false);
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") reload(false);
+    };
+
+    const intervalId = window.setInterval(refreshIfVisible, 15_000);
+    window.addEventListener("focus", refreshIfVisible);
+    window.addEventListener("pageshow", refreshIfVisible);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshIfVisible);
+      window.removeEventListener("pageshow", refreshIfVisible);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
   }, []);
 
   const debtors = useMemo(
@@ -330,9 +365,10 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
                         {paypalMe ? (
                           <a
                             className="paypal-payment-button"
-                            href={paypalPaymentUrl(paypalMe, suggestion.amountCents)}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            href={paypalPaymentUrl(
+                              suggestion.fromPlayerId,
+                              suggestion.toPlayerId,
+                            )}
                           >
                             <img src={PAYPAL_MARK_URL} alt="" aria-hidden="true" />
                             <span>{t("Mit PayPal zahlen")}</span>
