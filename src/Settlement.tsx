@@ -79,15 +79,32 @@ export function SettlementSummary({ onOpen }: { onOpen: () => void }) {
 
   useEffect(() => {
     let active = true;
-    loadSettlements()
-      .then((response) => {
-        if (active) setData(response);
-      })
-      .catch(() => {
-        // Keep the rest of the app usable if this optional summary cannot load.
-      });
+
+    const reload = () => {
+      loadSettlements()
+        .then((response) => {
+          if (active) setData(response);
+        })
+        .catch(() => {
+          // Keep the rest of the app usable if this optional summary cannot load.
+        });
+    };
+
+    reload();
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") reload();
+    };
+
+    window.addEventListener("focus", refreshIfVisible);
+    window.addEventListener("pageshow", refreshIfVisible);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+
     return () => {
       active = false;
+      window.removeEventListener("focus", refreshIfVisible);
+      window.removeEventListener("pageshow", refreshIfVisible);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
     };
   }, []);
 
@@ -136,7 +153,7 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     let active = true;
 
-    const reload = (showError: boolean) => {
+    const reload = (showError: boolean) =>
       loadSettlements()
         .then((response) => {
           if (active) setData(response);
@@ -150,13 +167,13 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
             );
           }
         });
-    };
 
-    reload(true);
-    setLoading(false);
+    reload(true).finally(() => {
+      if (active) setLoading(false);
+    });
 
     const refreshIfVisible = () => {
-      if (document.visibilityState === "visible") reload(false);
+      if (document.visibilityState === "visible") void reload(false);
     };
 
     const intervalId = window.setInterval(refreshIfVisible, 15_000);
