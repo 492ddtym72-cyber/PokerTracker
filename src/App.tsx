@@ -239,6 +239,7 @@ function AnimatedPokerChip() {
 
     let firstFlipTimer: number | undefined;
     let intervalTimer: number | undefined;
+    let prepareTimer: number | undefined;
     let settleTimer: number | undefined;
 
     const primeHiddenFace = () => {
@@ -256,14 +257,23 @@ function AnimatedPokerChip() {
     const flip = () => {
       if (document.visibilityState !== "visible") return;
 
-      setIsTurning(true);
-      setChip((current) => ({ ...current, step: current.step + 1 }));
+      // Prepare the hidden face first. The suit is already physically on the
+      // back of the chip before the 180° turn starts, so nothing swaps after
+      // the animation has finished.
+      primeHiddenFace();
 
-      window.clearTimeout(settleTimer);
-      settleTimer = window.setTimeout(() => {
-        setIsTurning(false);
-        primeHiddenFace();
-      }, 820);
+      window.clearTimeout(prepareTimer);
+      prepareTimer = window.setTimeout(() => {
+        if (document.visibilityState !== "visible") return;
+
+        setIsTurning(true);
+        setChip((current) => ({ ...current, step: current.step + 1 }));
+
+        window.clearTimeout(settleTimer);
+        settleTimer = window.setTimeout(() => {
+          setIsTurning(false);
+        }, 820);
+      }, 34);
     };
 
     const start = () => {
@@ -276,6 +286,7 @@ function AnimatedPokerChip() {
     const stop = () => {
       window.clearTimeout(firstFlipTimer);
       window.clearInterval(intervalTimer);
+      window.clearTimeout(prepareTimer);
       window.clearTimeout(settleTimer);
     };
 
