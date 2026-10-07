@@ -19,6 +19,7 @@ import {
 } from "./i18n";
 import { GOLD_WREATH, SILVER_WREATH } from "./leaderboardFrames";
 import { SettlementScreen, SettlementSummary } from "./Settlement";
+import { ProfilePhotoCropper } from "./ProfilePhotoCropper";
 import { PlayerAvatar, playerInitials } from "./PlayerAvatar";
 import type {
   AuditChange,
@@ -216,88 +217,6 @@ function emptyPlayer(): DraftPlayer {
     stake: "",
     cashOut: "",
   };
-}
-
-function readBlobAsDataUrl(blob: Blob) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(new Error(t("Profilfoto konnte nicht verarbeitet werden.")));
-    reader.readAsDataURL(blob);
-  });
-}
-
-async function prepareProfilePhoto(file: File) {
-  if (!file.type.startsWith("image/")) {
-    throw new Error(t("Profilfoto konnte nicht verarbeitet werden."));
-  }
-
-  const objectUrl = URL.createObjectURL(file);
-
-  try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const candidate = new Image();
-      candidate.onload = () => resolve(candidate);
-      candidate.onerror = () => reject(new Error(t("Profilfoto konnte nicht verarbeitet werden.")));
-      candidate.src = objectUrl;
-    });
-
-    const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
-    if (!sourceSize) {
-      throw new Error(t("Profilfoto konnte nicht verarbeitet werden."));
-    }
-
-    const sourceX = Math.max(0, (image.naturalWidth - sourceSize) / 2);
-    const sourceY = Math.max(0, (image.naturalHeight - sourceSize) / 2);
-    const targetSize = 320;
-    const canvas = document.createElement("canvas");
-    canvas.width = targetSize;
-    canvas.height = targetSize;
-
-    const context = canvas.getContext("2d");
-    if (!context) {
-      throw new Error(t("Profilfoto konnte nicht verarbeitet werden."));
-    }
-
-    context.imageSmoothingEnabled = true;
-    context.imageSmoothingQuality = "high";
-    context.drawImage(
-      image,
-      sourceX,
-      sourceY,
-      sourceSize,
-      sourceSize,
-      0,
-      0,
-      targetSize,
-      targetSize,
-    );
-
-    const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, "image/webp", 0.82);
-    });
-
-    if (!blob) {
-      throw new Error(t("Profilfoto konnte nicht verarbeitet werden."));
-    }
-
-    const dataUrl = await readBlobAsDataUrl(blob);
-    if (dataUrl.length > 250_000) {
-      const smallerBlob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob(resolve, "image/webp", 0.64);
-      });
-
-      if (!smallerBlob) {
-        throw new Error(t("Profilfoto konnte nicht verarbeitet werden."));
-      }
-
-      return readBlobAsDataUrl(smallerBlob);
-    }
-
-    return dataUrl;
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
 }
 
 function leaderboardFrame(rank: number) {
@@ -906,6 +825,7 @@ export default function App() {
     playerId: string;
     photo: string | null;
   } | null>(null);
+  const [profilePhotoCropFile, setProfilePhotoCropFile] = useState<File | null>(null);
   const [error, setError] = useState("");
 
   async function refreshNights() {
@@ -1062,7 +982,7 @@ export default function App() {
   }, [players]);
 
   useEffect(() => {
-    if (!profileSwitcherOpen && !playerCardId) return;
+    if (!profileSwitcherOpen && !playerCardId && !profilePhotoCropFile) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -1071,6 +991,7 @@ export default function App() {
       if (event.key !== "Escape") return;
       setProfileSwitcherOpen(false);
       setPlayerCardId(null);
+      if (!profilePhotoSaving) setProfilePhotoCropFile(null);
     };
 
     document.addEventListener("keydown", handleKeyDown);
@@ -1079,7 +1000,7 @@ export default function App() {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [profileSwitcherOpen, playerCardId]);
+  }, [profileSwitcherOpen, playerCardId, profilePhotoCropFile, profilePhotoSaving]);
 
   function changeLanguage(next: Language) {
     setLanguagePreference(next);
@@ -1099,17 +1020,15 @@ export default function App() {
     setError("");
   }
 
-  async function saveProfilePhoto(file: File) {
-    if (!currentPlayerId) return;
+  async function saveProfilePhoto(profilePhoto: string) {
+    if (!currentPlayerId) return t("Bitte zuerst ein Profil auswählen.");
 
     const playerId = currentPlayerId;
     setProfilePhotoSaving(true);
+    setProfilePhotoPreview({ playerId, photo: profilePhoto });
     setError("");
 
     try {
-      const profilePhoto = await prepareProfilePhoto(file);
-      setProfilePhotoPreview({ playerId, photo: profilePhoto });
-
       await updatePlayerProfilePhoto(playerId, profilePhoto);
       setPlayerProfiles((current) =>
         current.map((player) =>
@@ -1117,13 +1036,15 @@ export default function App() {
         ),
       );
       setProfilePhotoPreview(null);
+      return null;
     } catch (err) {
       setProfilePhotoPreview(null);
-      setError(
+      const message =
         err instanceof Error
           ? err.message
-          : t("Profilfoto konnte nicht gespeichert werden."),
-      );
+          : t("Profilfoto konnte nicht gespeichert werden.");
+      setError(message);
+      return message;
     } finally {
       setProfilePhotoSaving(false);
     }
@@ -2493,12 +2414,14 @@ export default function App() {
                         <input
                           className="profile-photo-input"
                           type="file"
-                          accept="image/*"
+                          accept="image/jpeg,image/png,image/webp"
                           disabled={profilePhotoSaving}
                           onChange={(event) => {
                             const file = event.currentTarget.files?.[0];
                             event.currentTarget.value = "";
-                            if (file) void saveProfilePhoto(file);
+                            if (!file) return;
+                            setError("");
+                            setProfilePhotoCropFile(file);
                           }}
                         />
                       </label>
@@ -2604,6 +2527,20 @@ export default function App() {
       <BottomNav />
       <ProfileSwitcherDialog />
       <PlayerCardDialog />
+      {profilePhotoCropFile && (
+        <ProfilePhotoCropper
+          file={profilePhotoCropFile}
+          saving={profilePhotoSaving}
+          onCancel={() => {
+            if (!profilePhotoSaving) setProfilePhotoCropFile(null);
+          }}
+          onConfirm={async (photo) => {
+            const saveError = await saveProfilePhoto(photo);
+            if (!saveError) setProfilePhotoCropFile(null);
+            return saveError;
+          }}
+        />
+      )}
     </main>
   );
 }
