@@ -219,6 +219,74 @@ function ChipSuitIcon({ suit }: { suit: ChipSuit }) {
   );
 }
 
+
+function ProfileSwitchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="9" cy="7.25" r="3.15" />
+      <path d="M3.75 18.25c.55-3.15 2.38-5.05 5.25-5.05 1.55 0 2.8.53 3.72 1.5" />
+      <path d="M15.35 8.2h4.7m-2.05-2.05 2.05 2.05L18 10.25" />
+      <path d="M20.25 15.8h-4.7m2.05 2.05-2.05-2.05 2.05-2.05" />
+    </svg>
+  );
+}
+
+function GlobeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="8.75" />
+      <path d="M3.7 12h16.6M12 3.25c2.15 2.35 3.3 5.25 3.3 8.75S14.15 18.4 12 20.75M12 3.25C9.85 5.6 8.7 8.5 8.7 12s1.15 6.4 3.3 8.75" />
+    </svg>
+  );
+}
+
+function LogoutIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M10.25 4.25H6.5A2.25 2.25 0 0 0 4.25 6.5v11A2.25 2.25 0 0 0 6.5 19.75h3.75" />
+      <path d="M13.25 8.25 17 12l-3.75 3.75M8.75 12H17" />
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="m9.5 5.75 6.25 6.25-6.25 6.25" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="m5.75 12.5 4 4 8.5-9" />
+    </svg>
+  );
+}
+
+function GermanyFlag() {
+  return (
+    <svg className="language-flag" viewBox="0 0 60 40" aria-hidden="true" focusable="false">
+      <rect width="60" height="13.34" y="0" fill="#111111" />
+      <rect width="60" height="13.34" y="13.33" fill="#DD0000" />
+      <rect width="60" height="13.34" y="26.66" fill="#FFCE00" />
+    </svg>
+  );
+}
+
+function UnitedKingdomFlag() {
+  return (
+    <svg className="language-flag" viewBox="0 0 60 40" aria-hidden="true" focusable="false">
+      <rect width="60" height="40" fill="#012169" />
+      <path d="M0 0 60 40M60 0 0 40" stroke="#FFFFFF" strokeWidth="8" />
+      <path d="M0 0 60 40M60 0 0 40" stroke="#C8102E" strokeWidth="4" />
+      <path d="M30 0v40M0 20h60" stroke="#FFFFFF" strokeWidth="12" />
+      <path d="M30 0v40M0 20h60" stroke="#C8102E" strokeWidth="7" />
+    </svg>
+  );
+}
+
 function AnimatedPokerChip() {
   const [chip, setChip] = useState({
     rotation: 0,
@@ -1452,39 +1520,51 @@ export default function App() {
 
         {screen === "more" && (
           <>
-            <div className="screen-heading">
+            <div className="screen-heading settings-screen-heading">
               <h1>{t("Mehr")}</h1>
-              <p>{t("Einstellungen für eure Runde.")}</p>
             </div>
 
-            <section className="settings-card identity-settings-card">
-              <div className="form-card-title"><span>◎</span><h2>{t("Dieses Gerät")}</h2></div>
-              <p className="settings-description">{t("Wer benutzt PokerTracker auf diesem Gerät?")}</p>
-              <div className="device-player-setting">
-                <span className="avatar">
-                  {initials(
-                    knownPlayers.find((player) => player.id === currentPlayerId)?.name ?? "?",
-                  )}
-                </span>
-                <select
-                  value={currentPlayerId ?? ""}
-                  aria-label={t("Dieses Gerät")}
-                  onChange={(event) => changeCurrentPlayer(event.target.value || null)}
-                >
-                  <option value="">{t("Keine Person ausgewählt")}</option>
-                  {knownPlayers.map((player) => (
-                    <option key={player.id} value={player.id}>{player.name}</option>
-                  ))}
-                </select>
+            <section className="settings-card identity-settings-card settings-compact-card">
+              <div className="settings-card-title">
+                <span className="settings-title-icon"><ProfileSwitchIcon /></span>
+                <h2>{t("Profil auf diesem Gerät")}</h2>
               </div>
-              <small className="settings-note">
-                {t("Diese Auswahl wird nur lokal auf diesem Gerät gespeichert und verändert keine Pokerergebnisse.")}
-              </small>
+
+              <div className="device-player-setting">
+                <span className="avatar profile-avatar">
+                  {currentPlayerId
+                    ? initials(
+                        knownPlayers.find((player) => player.id === currentPlayerId)?.name ?? "?",
+                      )
+                    : <ProfileSwitchIcon />}
+                </span>
+
+                <div className="profile-select-shell">
+                  <strong>
+                    {knownPlayers.find((player) => player.id === currentPlayerId)?.name
+                      ?? t("Keine Person ausgewählt")}
+                  </strong>
+                  <span className="settings-chevron"><ChevronIcon /></span>
+                  <select
+                    value={currentPlayerId ?? ""}
+                    aria-label={t("Profil auf diesem Gerät")}
+                    onChange={(event) => changeCurrentPlayer(event.target.value || null)}
+                  >
+                    <option value="">{t("Keine Person ausgewählt")}</option>
+                    {knownPlayers.map((player) => (
+                      <option key={player.id} value={player.id}>{player.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </section>
 
-            <section className="settings-card language-settings-card">
-              <div className="form-card-title"><span>🌐</span><h2>{t("Sprache")}</h2></div>
-              <p className="settings-description">{t("Anzeigesprache")}</p>
+            <section className="settings-card language-settings-card settings-compact-card">
+              <div className="settings-card-title">
+                <span className="settings-title-icon"><GlobeIcon /></span>
+                <h2>{t("Sprache")}</h2>
+              </div>
+
               <div className="language-picker" role="group" aria-label={t("Sprache")}>
                 <button
                   type="button"
@@ -1492,8 +1572,11 @@ export default function App() {
                   aria-pressed={language === "de"}
                   onClick={() => changeLanguage("de")}
                 >
+                  <span className="language-flag-shell"><GermanyFlag /></span>
                   <strong>Deutsch</strong>
-                  <small>DE</small>
+                  <span className="language-state" aria-hidden="true">
+                    {language === "de" && <CheckIcon />}
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -1501,17 +1584,22 @@ export default function App() {
                   aria-pressed={language === "en"}
                   onClick={() => changeLanguage("en")}
                 >
+                  <span className="language-flag-shell"><UnitedKingdomFlag /></span>
                   <strong>English</strong>
-                  <small>EN</small>
+                  <span className="language-state" aria-hidden="true">
+                    {language === "en" && <CheckIcon />}
+                  </span>
                 </button>
               </div>
-              <small className="settings-note">{t("Die Auswahl wird auf diesem Gerät gespeichert.")}</small>
             </section>
 
-            <section className="settings-card">
-              <div className="form-card-title"><span>♦</span><h2>{t("Abmelden")}</h2></div>
+            <section className="settings-card logout-settings-card">
               <form action="/api/logout" method="post">
-                <button className="danger-outline" type="submit">{t("Abmelden")}</button>
+                <button className="settings-logout-button" type="submit">
+                  <span className="settings-action-icon"><LogoutIcon /></span>
+                  <strong>{t("Abmelden")}</strong>
+                  <span className="settings-chevron"><ChevronIcon /></span>
+                </button>
               </form>
             </section>
           </>
