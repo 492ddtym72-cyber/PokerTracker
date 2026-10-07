@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   createNight,
   deleteNight,
@@ -539,6 +539,8 @@ function AnimatedPokerChip() {
   });
   const [motionEnabled, setMotionEnabled] = useState(true);
   const [spinning, setSpinning] = useState(false);
+  const phaseRef = useRef<"idle" | "to-edge" | "from-edge">("idle");
+  const nextTurnTimerRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -550,74 +552,119 @@ function AnimatedPokerChip() {
     return () => mediaQuery.removeEventListener?.("change", syncMotionPreference);
   }, []);
 
-  function startNextHalfTurn() {
-    if (!motionEnabled || document.visibilityState !== "visible") return;
+  function clearNextTurnTimer() {
+    if (nextTurnTimerRef.current !== undefined) {
+      window.clearTimeout(nextTurnTimerRef.current);
+      nextTurnTimerRef.current = undefined;
+    }
+  }
 
+  function scheduleNextTurn(delay = 600) {
+    clearNextTurnTimer();
+
+    nextTurnTimerRef.current = window.setTimeout(() => {
+      nextTurnTimerRef.current = undefined;
+      startNextHalfTurn();
+    }, delay);
+  }
+
+  function startNextHalfTurn() {
+    if (
+      !motionEnabled ||
+      document.visibilityState !== "visible" ||
+      phaseRef.current !== "idle"
+    ) {
+      return;
+    }
+
+    phaseRef.current = "to-edge";
     setSpinning(true);
 
-    // Prepare the face that is currently pointing away from the viewer BEFORE
-    // the rotation starts. This makes the next symbol behave like artwork on
-    // the physical reverse side of the chip: the visible face never changes
-    // while it is facing the viewer, and the new suit can only appear after
-    // the chip has passed through its edge-on position.
-    setChip((current) => {
-      const halfTurns = Math.round(current.rotation / 180);
-      const frontVisible = halfTurns % 2 === 0;
-      const visibleSuit = frontVisible ? current.frontSuit : current.backSuit;
-      const nextSuit = (visibleSuit + 1) % CHIP_SUITS.length;
-
-      return frontVisible
-        ? { ...current, backSuit: nextSuit }
-        : { ...current, frontSuit: nextSuit };
-    });
-
-    // Give React a paint with the hidden face prepared before moving the chip.
-    // Two frames avoid a one-frame compositor flash at exactly 0° / 180°.
+    // First rotate only to the exact 90° edge-on position. No suit changes
+    // before or after a fully visible face anymore.
     window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        setChip((current) => ({
-          ...current,
-          rotation: current.rotation + 180,
-        }));
-      });
+      setChip((current) => ({
+        ...current,
+        rotation: current.rotation + 90,
+      }));
     });
   }
 
   useEffect(() => {
     if (!motionEnabled) {
+      clearNextTurnTimer();
+      phaseRef.current = "idle";
       setSpinning(false);
       return;
     }
 
-    let startTimer: number | undefined;
-
-    const start = () => {
-      window.clearTimeout(startTimer);
-      startTimer = window.setTimeout(startNextHalfTurn, 500);
-    };
+    scheduleNextTurn(600);
 
     const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        start();
-      } else {
-        setSpinning(false);
+      if (document.visibilityState === "visible" && phaseRef.current === "idle") {
+        scheduleNextTurn(600);
+      } else if (document.visibilityState !== "visible") {
+        clearNextTurnTimer();
       }
     };
 
-    start();
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
-      window.clearTimeout(startTimer);
+      clearNextTurnTimer();
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [motionEnabled]);
 
-  function handleTurnFinished() {
-    // Do not change either symbol at the end of a turn. At this moment a face
-    // is fully visible, so changing artwork here can look like a fake swap.
-    // The next hidden face is prepared by startNextHalfTurn instead.
-    startNextHalfTurn();
+  function handleTurnTransitionEnd(event: React.TransitionEvent<HTMLSpanElement>) {
+    if (
+      event.target !== event.currentTarget ||
+      event.propertyName !== "transform"
+    ) {
+      return;
+    }
+
+    if (phaseRef.current === "to-edge") {
+      // The chip is now exactly edge-on. This is the ONLY moment at which a
+      // suit is changed. The face that is about to emerge is invisible here,
+      // so the swap cannot be seen by the user.
+      setChip((current) => {
+        const emergingFront =
+          Math.round((current.rotation + 90) / 180) % 2 === 0;
+        const departingSuit = emergingFront
+          ? current.backSuit
+          : current.frontSuit;
+        const nextSuit = (departingSuit + 1) % CHIP_SUITS.length;
+
+        return emergingFront
+          ? { ...current, frontSuit: nextSuit }
+          : { ...current, backSuit: nextSuit };
+      });
+
+      phaseRef.current = "from-edge";
+
+      // Make sure the edge-on frame with the new hidden artwork is actually
+      // painted before the second quarter-turn begins. This avoids Safari/iOS
+      // compositing the suit change on a visible face.
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          setChip((current) => ({
+            ...current,
+            rotation: current.rotation + 90,
+          }));
+        });
+      });
+
+      return;
+    }
+
+    if (phaseRef.current === "from-edge") {
+      // A new face is now fully visible. Leave its symbol completely untouched
+      // and pause briefly before starting the next 180° flip.
+      phaseRef.current = "idle";
+      setSpinning(false);
+      scheduleNextTurn(600);
+    }
   }
 
   return (
@@ -625,7 +672,7 @@ function AnimatedPokerChip() {
       <span
         className={`brand-chip${spinning ? " is-turning" : ""}`}
         style={{ transform: `rotateY(${chip.rotation}deg)` }}
-        onTransitionEnd={handleTurnFinished}
+        onTransitionEnd={handleTurnTransitionEnd}
       >
         <span className="brand-chip-edge" />
         <span className="brand-chip-face brand-chip-face-front">
