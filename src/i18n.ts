@@ -221,6 +221,7 @@ const ENGLISH: Record<string, string> = {
   "Foto ändern": "Change photo",
   "Foto entfernen": "Remove photo",
   "Foto wird gespeichert …": "Saving photo …",
+  "Tippe auf das Kamera-Symbol, um ein Profilbild zu wählen.": "Tap the camera icon to choose a profile photo.",
   "Profilfoto konnte nicht gespeichert werden.": "The profile photo could not be saved.",
   "Profilfoto konnte nicht verarbeitet werden.": "The profile photo could not be processed.",
   "Ungültiges Profilfoto.": "Invalid profile photo.",
