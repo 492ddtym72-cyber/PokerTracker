@@ -104,3 +104,14 @@ export function voidSettlementPayment(id: string) {
     method: "DELETE",
   });
 }
+
+
+export function updatePlayerPayPalMe(id: string, paypalMe: string) {
+  return api<SettlementResponse>(
+    "/api/players/" + encodeURIComponent(id) + "/paypal",
+    {
+      method: "PUT",
+      body: JSON.stringify({ paypalMe }),
+    },
+  );
+}
