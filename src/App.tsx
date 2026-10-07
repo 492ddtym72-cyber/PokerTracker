@@ -2263,113 +2263,78 @@ export default function App() {
               <h1>{t("Einstellungen")}</h1>
             </div>
 
-            <section className="settings-card identity-settings-card settings-compact-card">
-              <div className="settings-card-title">
-                <span className="settings-title-icon"><ProfileSwitchIcon /></span>
+            <section className="settings-card identity-settings-card profile-device-card">
+              <div className="profile-device-heading">
                 <h2>{t("Profil auf diesem Gerät")}</h2>
               </div>
 
-              <div className="device-player-setting">
+              <div className="profile-device-center">
                 {currentPlayerId ? (
-                  <PlayerAvatar
-                    className="avatar profile-avatar"
-                    name={knownPlayers.find((player) => player.id === currentPlayerId)?.name ?? "?"}
-                    photo={profilePhotoFor(currentPlayerId)}
-                  />
-                ) : (
-                  <span className="avatar profile-avatar">
-                    <ProfileSwitchIcon />
-                  </span>
-                )}
+                  <>
+                    <div className="profile-device-avatar-wrap">
+                      <PlayerAvatar
+                        className="profile-device-avatar"
+                        name={knownPlayers.find((player) => player.id === currentPlayerId)?.name ?? "?"}
+                        photo={profilePhotoFor(currentPlayerId)}
+                      />
 
-                <div className="profile-select-shell">
-                  <strong>
-                    {knownPlayers.find((player) => player.id === currentPlayerId)?.name
-                      ?? t("Keine Person ausgewählt")}
-                  </strong>
-                  <span className="settings-chevron"><ChevronIcon /></span>
-                  <select
-                    value={currentPlayerId ?? ""}
-                    aria-label={t("Profil auf diesem Gerät")}
-                    onChange={(event) => changeCurrentPlayer(event.target.value || null)}
-                  >
-                    <option value="">{t("Keine Person ausgewählt")}</option>
-                    {knownPlayers.map((player) => (
-                      <option key={player.id} value={player.id}>{player.name}</option>
-                    ))}
-                  </select>
-                </div>
+                      <label
+                        className={
+                          "profile-device-camera" +
+                          (profilePhotoSaving ? " is-disabled" : "")
+                        }
+                        aria-label={
+                          profilePhotoFor(currentPlayerId)
+                            ? t("Foto ändern")
+                            : t("Foto auswählen")
+                        }
+                      >
+                        <CameraIcon />
+                        <input
+                          className="profile-photo-input"
+                          type="file"
+                          accept="image/*"
+                          disabled={profilePhotoSaving}
+                          onChange={(event) => {
+                            const file = event.currentTarget.files?.[0];
+                            event.currentTarget.value = "";
+                            if (file) void saveProfilePhoto(file);
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    <strong className="profile-device-name">
+                      {knownPlayers.find((player) => player.id === currentPlayerId)?.name ?? ""}
+                    </strong>
+
+                    <p className="profile-device-hint">
+                      {profilePhotoSaving
+                        ? t("Foto wird gespeichert …")
+                        : t("Tippe auf das Kamera-Symbol, um ein Profilbild zu wählen.")}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <span className="profile-device-avatar profile-device-avatar-empty" aria-hidden="true">
+                      <ProfileSwitchIcon />
+                    </span>
+                    <strong className="profile-device-name">{t("Keine Person ausgewählt")}</strong>
+                  </>
+                )}
               </div>
 
-              {currentPlayerId && (
-                <>
-                <div className="profile-photo-setting">
-                  <div className="profile-photo-setting-copy">
-                    <strong>{t("Profilbild")}</strong>
-                    <span>
-                      {knownPlayers.find((player) => player.id === currentPlayerId)?.name ?? ""}
-                    </span>
-                  </div>
-
-                  <div className="profile-photo-actions">
-                    <label
-                      className={
-                        "profile-photo-button" +
-                        (profilePhotoSaving ? " is-disabled" : "")
-                      }
-                    >
-                      <CameraIcon />
-                      {profilePhotoFor(currentPlayerId)
-                        ? t("Foto ändern")
-                        : t("Foto auswählen")}
-                      <input
-                        className="profile-photo-input"
-                        type="file"
-                        accept="image/*"
-                        disabled={profilePhotoSaving}
-                        onChange={(event) => {
-                          const file = event.currentTarget.files?.[0];
-                          event.currentTarget.value = "";
-                          if (file) void saveProfilePhoto(file);
-                        }}
-                      />
-                    </label>
-
-                    {profilePhotoFor(currentPlayerId) && (
-                      <button
-                        className="profile-photo-remove"
-                        type="button"
-                        disabled={profilePhotoSaving}
-                        onClick={() => void removeProfilePhoto()}
-                      >
-                        {t("Foto entfernen")}
-                      </button>
-                    )}
-
-                    {profilePhotoSaving && (
-                      <span className="profile-photo-saving">
-                        {t("Foto wird gespeichert …")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <button
-                  className="player-card-settings-link"
-                  type="button"
-                  onClick={() => setPlayerCardId(currentPlayerId)}
-                >
-                  <span className="player-card-settings-suit" aria-hidden="true">
-                    {playerCardSuit(currentPlayerId)}
-                  </span>
-                  <span className="player-card-settings-copy">
-                    <strong>{t("Meine Spielerkarte")}</strong>
-                    <small>{t("Statistiken & Verlauf")}</small>
-                  </span>
-                  <span className="settings-chevron"><ChevronIcon /></span>
-                </button>
-                </>
-              )}
+              <button
+                className="profile-device-switch"
+                type="button"
+                onClick={() => setProfileSwitcherOpen(true)}
+              >
+                <span className="profile-device-switch-icon" aria-hidden="true">
+                  <ProfileSwitchIcon />
+                </span>
+                <strong>{t("Profil wechseln")}</strong>
+                <span className="settings-chevron"><ChevronIcon /></span>
+              </button>
             </section>
 
             <section className="settings-card language-settings-card settings-compact-card">
