@@ -2,7 +2,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import {
   createSettlementPayment,
   loadSettlements,
-  updatePlayerPayPalMe,
+  preparePayPalPayment,
   voidSettlementPayment,
 } from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
@@ -12,6 +12,27 @@ import type {
   SettlementResponse,
   SettlementSuggestion,
 } from "./types";
+
+const PAYPAL_MARK_URL =
+  "https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg";
+const PAYPAL_RETURN_NOTICE_KEY = "pokertracker-paypal-return-notice";
+
+type SettlementView = "list" | "flow";
+
+type PaymentDraft = {
+  fromPlayerId: string;
+  toPlayerId: string;
+  amount: string;
+  paidAt: string;
+  note: string;
+  clientToken: string;
+};
+
+type PayPalFallback = {
+  amountCents: number;
+  paypalUrl: string;
+  toPlayerName: string;
+};
 
 function localToday() {
   const date = new Date();
@@ -32,25 +53,43 @@ function initials(name: string) {
   return ((parts[0]?.[0] ?? "?") + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
-const PAYPAL_MARK_URL =
-  "https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg";
-
-function paypalPaymentUrl(fromPlayerId: string, toPlayerId: string) {
-  const params = new URLSearchParams({
-    fromPlayerId,
-    toPlayerId,
-  });
-  return "/api/settlements/paypal?" + params.toString();
+function personLabel(id: string, name: string, currentPlayerId: string | null) {
+  return id === currentPlayerId ? t("Du") : name;
 }
 
-type PaymentDraft = {
-  fromPlayerId: string;
-  toPlayerId: string;
-  amount: string;
-  paidAt: string;
-  note: string;
-  clientToken: string;
-};
+function clipboardAmount(cents: number) {
+  return new Intl.NumberFormat(getLocale(), {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: false,
+  }).format(cents / 100);
+}
+
+async function copyText(value: string) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch {
+    // Fall through to the textarea fallback.
+  }
+
+  try {
+    const input = document.createElement("textarea");
+    input.value = value;
+    input.setAttribute("readonly", "");
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    input.select();
+    const copied = document.execCommand("copy");
+    input.remove();
+    return copied;
+  } catch {
+    return false;
+  }
+}
 
 function emptyDraft(): PaymentDraft {
   return {
@@ -72,6 +111,136 @@ function suggestionDraft(suggestion: SettlementSuggestion): PaymentDraft {
     note: "",
     clientToken: crypto.randomUUID(),
   };
+}
+
+function SettlementFlow({
+  suggestions,
+  currentPlayerId,
+  onSelect,
+}: {
+  suggestions: SettlementSuggestion[];
+  currentPlayerId: string | null;
+  onSelect: (suggestion: SettlementSuggestion) => void;
+}) {
+  const payers = Array.from(
+    new Map(
+      suggestions.map((item) => [
+        item.fromPlayerId,
+        { id: item.fromPlayerId, name: item.fromPlayerName },
+      ]),
+    ).values(),
+  ).sort((a, b) =>
+    Number(b.id === currentPlayerId) - Number(a.id === currentPlayerId) ||
+    a.name.localeCompare(b.name, getLocale())
+  );
+
+  const receivers = Array.from(
+    new Map(
+      suggestions.map((item) => [
+        item.toPlayerId,
+        { id: item.toPlayerId, name: item.toPlayerName },
+      ]),
+    ).values(),
+  ).sort((a, b) =>
+    Number(b.id === currentPlayerId) - Number(a.id === currentPlayerId) ||
+    a.name.localeCompare(b.name, getLocale())
+  );
+
+  const rowHeight = 92;
+  const height = Math.max(220, Math.max(payers.length, receivers.length) * rowHeight + 54);
+  const maxAmount = Math.max(1, ...suggestions.map((item) => item.amountCents));
+  const payerY = new Map(
+    payers.map((player, index) => [player.id, 58 + index * rowHeight]),
+  );
+  const receiverY = new Map(
+    receivers.map((player, index) => [player.id, 58 + index * rowHeight]),
+  );
+
+  return (
+    <div className="settlement-flow-card">
+      <div className="settlement-flow-headings" aria-hidden="true">
+        <span>{t("Zahlt")}</span>
+        <span>{t("Erhält")}</span>
+      </div>
+
+      <svg
+        className="settlement-network"
+        viewBox={`0 0 680 ${height}`}
+        role="img"
+        aria-label={t("Visuelle Übersicht der empfohlenen Zahlungen")}
+      >
+        {suggestions.map((suggestion, index) => {
+          const fromY = payerY.get(suggestion.fromPlayerId) ?? 58;
+          const toY = receiverY.get(suggestion.toPlayerId) ?? 58;
+          const strokeWidth = 2.5 + (suggestion.amountCents / maxAmount) * 5.5;
+          const labelY = (fromY + toY) / 2 - 7;
+          const path = `M 148 ${fromY} C 270 ${fromY}, 410 ${toY}, 532 ${toY}`;
+
+          return (
+            <g
+              key={suggestion.fromPlayerId + ":" + suggestion.toPlayerId + ":" + index}
+              className="settlement-network-transfer"
+              onClick={() => onSelect(suggestion)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelect(suggestion);
+                }
+              }}
+            >
+              <path
+                d={path}
+                className="settlement-network-line"
+                style={{ strokeWidth }}
+              />
+              <path d={path} className="settlement-network-hitarea" />
+              <text x="340" y={labelY} textAnchor="middle" className="settlement-network-amount">
+                {formatMoney(suggestion.amountCents)}
+              </text>
+            </g>
+          );
+        })}
+
+        {payers.map((player) => {
+          const y = payerY.get(player.id) ?? 58;
+          const isMe = player.id === currentPlayerId;
+          return (
+            <g key={player.id} className={isMe ? "settlement-network-node is-me" : "settlement-network-node"}>
+              <circle cx="92" cy={y} r="30" className="settlement-network-node-circle payer" />
+              <text x="92" y={y + 5} textAnchor="middle" className="settlement-network-initials">
+                {initials(player.name)}
+              </text>
+              <text x="92" y={y + 45} textAnchor="middle" className="settlement-network-name">
+                {personLabel(player.id, player.name, currentPlayerId)}
+              </text>
+            </g>
+          );
+        })}
+
+        {receivers.map((player) => {
+          const y = receiverY.get(player.id) ?? 58;
+          const isMe = player.id === currentPlayerId;
+          return (
+            <g key={player.id} className={isMe ? "settlement-network-node is-me" : "settlement-network-node"}>
+              <circle cx="588" cy={y} r="30" className="settlement-network-node-circle receiver" />
+              <text x="588" y={y + 5} textAnchor="middle" className="settlement-network-initials">
+                {initials(player.name)}
+              </text>
+              <text x="588" y={y + 45} textAnchor="middle" className="settlement-network-name">
+                {personLabel(player.id, player.name, currentPlayerId)}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+
+      <p className="settlement-flow-note">
+        {t("Die Pfeile zeigen optimierte Ausgleichszahlungen, nicht direkte Schulden aus einzelnen Pokerabenden.")}
+      </p>
+    </div>
+  );
 }
 
 export function SettlementSummary({ onOpen }: { onOpen: () => void }) {
@@ -133,15 +302,26 @@ export function SettlementSummary({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-export function SettlementScreen({ onClose }: { onClose: () => void }) {
+export function SettlementScreen({
+  onClose,
+  currentPlayerId,
+  onCurrentPlayerChange,
+}: {
+  onClose: () => void;
+  currentPlayerId: string | null;
+  onCurrentPlayerChange: (playerId: string | null) => void;
+}) {
   const [data, setData] = useState<SettlementResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [voidingId, setVoidingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<PaymentDraft | null>(null);
-  const [paypalEditingPlayerId, setPaypalEditingPlayerId] = useState<string | null>(null);
-  const [paypalDraft, setPaypalDraft] = useState("");
-  const [paypalSaving, setPaypalSaving] = useState(false);
+  const [view, setView] = useState<SettlementView>(() =>
+    window.localStorage.getItem("pokertracker-settlement-view") === "flow" ? "flow" : "list"
+  );
+  const [paypalOpeningKey, setPaypalOpeningKey] = useState<string | null>(null);
+  const [paypalFallback, setPaypalFallback] = useState<PayPalFallback | null>(null);
+  const [paypalNotice, setPaypalNotice] = useState("");
   const [error, setError] = useState("");
 
   async function refresh() {
@@ -172,6 +352,12 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
       if (active) setLoading(false);
     });
 
+    const returnNotice = window.sessionStorage.getItem(PAYPAL_RETURN_NOTICE_KEY);
+    if (returnNotice) {
+      window.sessionStorage.removeItem(PAYPAL_RETURN_NOTICE_KEY);
+      setPaypalNotice(returnNotice);
+    }
+
     const refreshIfVisible = () => {
       if (document.visibilityState === "visible") void reload(false);
     };
@@ -190,6 +376,12 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!paypalNotice) return;
+    const timeout = window.setTimeout(() => setPaypalNotice(""), 6500);
+    return () => window.clearTimeout(timeout);
+  }, [paypalNotice]);
+
   const debtors = useMemo(
     () => data?.players
       .filter((player) => player.openBalanceCents < 0)
@@ -204,6 +396,35 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
     [data],
   );
 
+  const currentPlayer = useMemo(
+    () => data?.players.find((player) => player.id === currentPlayerId) ?? null,
+    [data, currentPlayerId],
+  );
+
+  const suggestions = useMemo(() => {
+    if (!data) return [];
+    if (!currentPlayerId) return data.suggestions;
+
+    return data.suggestions
+      .map((suggestion, index) => ({ suggestion, index }))
+      .sort((a, b) => {
+        const aMine =
+          a.suggestion.fromPlayerId === currentPlayerId ||
+          a.suggestion.toPlayerId === currentPlayerId;
+        const bMine =
+          b.suggestion.fromPlayerId === currentPlayerId ||
+          b.suggestion.toPlayerId === currentPlayerId;
+
+        return Number(bMine) - Number(aMine) || a.index - b.index;
+      })
+      .map(({ suggestion }) => suggestion);
+  }, [data, currentPlayerId]);
+
+  function changeView(next: SettlementView) {
+    setView(next);
+    window.localStorage.setItem("pokertracker-settlement-view", next);
+  }
+
   function openManualPayment() {
     setDraft(emptyDraft());
     setError("");
@@ -214,28 +435,62 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
     setError("");
   }
 
-  function openPayPalSetup(playerId: string) {
-    const player = data?.players.find((candidate) => candidate.id === playerId);
-    setPaypalEditingPlayerId(playerId);
-    setPaypalDraft(player?.paypalMe ?? "");
+  async function openPayPal(suggestion: SettlementSuggestion) {
+    const key = suggestion.fromPlayerId + ":" + suggestion.toPlayerId;
+    setPaypalOpeningKey(key);
     setError("");
-  }
-
-  async function savePayPalMe(event: FormEvent, playerId: string) {
-    event.preventDefault();
-    setPaypalSaving(true);
-    setError("");
+    setPaypalFallback(null);
 
     try {
-      const response = await updatePlayerPayPalMe(playerId, paypalDraft.trim());
-      setData(response);
-      setPaypalEditingPlayerId(null);
-      setPaypalDraft("");
+      const prepared = await preparePayPalPayment(
+        suggestion.fromPlayerId,
+        suggestion.toPlayerId,
+      );
+      const amount = clipboardAmount(prepared.amountCents);
+      const copied = await copyText(amount);
+
+      if (!copied) {
+        setPaypalFallback({
+          amountCents: prepared.amountCents,
+          paypalUrl: prepared.paypalUrl,
+          toPlayerName: prepared.toPlayerName,
+        });
+        return;
+      }
+
+      window.sessionStorage.setItem(
+        PAYPAL_RETURN_NOTICE_KEY,
+        t("{amount} kopiert · Empfänger in PayPal auswählen")
+          .replace("{amount}", formatMoney(prepared.amountCents)),
+      );
+      window.location.assign(prepared.paypalUrl);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("PayPal.Me konnte nicht gespeichert werden."));
+      setError(
+        err instanceof Error
+          ? err.message
+          : t("PayPal-Zahlung konnte nicht vorbereitet werden."),
+      );
+      await refresh().catch(() => undefined);
     } finally {
-      setPaypalSaving(false);
+      setPaypalOpeningKey(null);
     }
+  }
+
+  async function continuePayPalFallback() {
+    if (!paypalFallback) return;
+
+    const copied = await copyText(clipboardAmount(paypalFallback.amountCents));
+    if (!copied) {
+      setError(t("Der Betrag konnte nicht kopiert werden. Bitte manuell übernehmen."));
+      return;
+    }
+
+    window.sessionStorage.setItem(
+      PAYPAL_RETURN_NOTICE_KEY,
+      t("{amount} kopiert · Empfänger in PayPal auswählen")
+        .replace("{amount}", formatMoney(paypalFallback.amountCents)),
+    );
+    window.location.assign(paypalFallback.paypalUrl);
   }
 
   async function submitPayment(event: FormEvent) {
@@ -306,6 +561,13 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
+      {paypalNotice && (
+        <div className="settlement-toast" role="status">
+          <span>✓</span>
+          <strong>{paypalNotice}</strong>
+        </div>
+      )}
+
       {loading ? (
         <div className="empty-card">{t("Lädt …")}</div>
       ) : data ? (
@@ -320,6 +582,56 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
             </small>
           </section>
 
+          {currentPlayer ? (
+            <section className="my-settlement-card">
+              <div>
+                <span>{t("Dein Ausgleich")}</span>
+                <strong>{currentPlayer.name}</strong>
+              </div>
+              <b className={
+                currentPlayer.openBalanceCents > 0
+                  ? "positive"
+                  : currentPlayer.openBalanceCents < 0
+                    ? "negative"
+                    : ""
+              }>
+                {currentPlayer.openBalanceCents > 0
+                  ? t("Du bekommst noch {amount}").replace(
+                      "{amount}",
+                      formatMoney(currentPlayer.openBalanceCents),
+                    )
+                  : currentPlayer.openBalanceCents < 0
+                    ? t("Du zahlst noch {amount}").replace(
+                        "{amount}",
+                        formatMoney(Math.abs(currentPlayer.openBalanceCents)),
+                      )
+                    : t("Du bist ausgeglichen")}
+              </b>
+            </section>
+          ) : (
+            <section className="settlement-profile-nudge">
+              <div>
+                <strong>{t("PokerTracker personalisieren")}</strong>
+                <span>{t("Wer bist du? Die Auswahl bleibt nur auf diesem Gerät.")}</span>
+              </div>
+              <select
+                value=""
+                aria-label={t("Wer bist du?")}
+                onChange={(event) => {
+                  if (event.target.value) onCurrentPlayerChange(event.target.value);
+                }}
+              >
+                <option value="">{t("Spieler wählen")}</option>
+                {data.players
+                  .slice()
+                  .sort((a, b) => a.name.localeCompare(b.name, getLocale()))
+                  .map((player) => (
+                    <option key={player.id} value={player.id}>{player.name}</option>
+                  ))}
+              </select>
+            </section>
+          )}
+
           {data.groupDifferenceCents !== 0 && (
             <section className="settlement-warning">
               <strong>{t("Offene Session-Differenz")}: {formatMoney(data.groupDifferenceCents)}</strong>
@@ -328,34 +640,79 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
           )}
 
           <section className="settlement-section">
-            <div className="section-title-row">
-              <h2>{t("Zahlungsvorschläge")}</h2>
-              <span>{data.suggestions.length}</span>
+            <div className="settlement-section-head">
+              <div className="section-title-row">
+                <h2>{t("Zahlungsvorschläge")}</h2>
+                <span>{data.suggestions.length}</span>
+              </div>
+              <div className="settlement-view-toggle" role="group" aria-label={t("Ansicht")}>
+                <button
+                  type="button"
+                  className={view === "list" ? "active" : ""}
+                  aria-pressed={view === "list"}
+                  onClick={() => changeView("list")}
+                >
+                  {t("Liste")}
+                </button>
+                <button
+                  type="button"
+                  className={view === "flow" ? "active" : ""}
+                  aria-pressed={view === "flow"}
+                  onClick={() => changeView("flow")}
+                >
+                  {t("Fluss")}
+                </button>
+              </div>
             </div>
 
             {data.suggestions.length === 0 ? (
               <div className="settlement-empty-inline">
                 <strong>{t("Keine Zahlungen nötig.")}</strong>
               </div>
+            ) : view === "flow" ? (
+              <SettlementFlow
+                suggestions={suggestions}
+                currentPlayerId={currentPlayerId}
+                onSelect={openSuggestedPayment}
+              />
             ) : (
               <div className="settlement-suggestion-list">
-                {data.suggestions.map((suggestion, index) => {
-                  const receiver = data.players.find(
-                    (player) => player.id === suggestion.toPlayerId,
-                  );
-                  const paypalMe = receiver?.paypalMe ?? null;
-                  const paypalSetupOpen = paypalEditingPlayerId === suggestion.toPlayerId;
+                {suggestions.map((suggestion, index) => {
+                  const paypalAvailable =
+                    !currentPlayerId || suggestion.fromPlayerId === currentPlayerId;
+                  const paypalKey = suggestion.fromPlayerId + ":" + suggestion.toPlayerId;
 
                   return (
-                    <article className="settlement-payment-card" key={
-                      suggestion.fromPlayerId + ":" + suggestion.toPlayerId + ":" + index
-                    }>
+                    <article
+                      className={
+                        "settlement-payment-card" +
+                        (
+                          currentPlayerId &&
+                          (
+                            suggestion.fromPlayerId === currentPlayerId ||
+                            suggestion.toPlayerId === currentPlayerId
+                          )
+                            ? " is-personal"
+                            : ""
+                        )
+                      }
+                      key={paypalKey + ":" + index}
+                    >
                       <div className="settlement-payment-flow">
                         <div className="settlement-flow-player">
-                          <span className="settlement-flow-avatar settlement-flow-avatar-payer">
+                          <span className={
+                            "settlement-flow-avatar settlement-flow-avatar-payer" +
+                            (suggestion.fromPlayerId === currentPlayerId ? " is-me" : "")
+                          }>
                             {initials(suggestion.fromPlayerName)}
                           </span>
-                          <strong>{suggestion.fromPlayerName}</strong>
+                          <strong>
+                            {personLabel(
+                              suggestion.fromPlayerId,
+                              suggestion.fromPlayerName,
+                              currentPlayerId,
+                            )}
+                          </strong>
                           <small>{t("Zahlt")}</small>
                         </div>
 
@@ -365,10 +722,19 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
                         </div>
 
                         <div className="settlement-flow-player">
-                          <span className="settlement-flow-avatar settlement-flow-avatar-receiver">
+                          <span className={
+                            "settlement-flow-avatar settlement-flow-avatar-receiver" +
+                            (suggestion.toPlayerId === currentPlayerId ? " is-me" : "")
+                          }>
                             {initials(suggestion.toPlayerName)}
                           </span>
-                          <strong>{suggestion.toPlayerName}</strong>
+                          <strong>
+                            {personLabel(
+                              suggestion.toPlayerId,
+                              suggestion.toPlayerName,
+                              currentPlayerId,
+                            )}
+                          </strong>
                           <small>{t("Erhält")}</small>
                         </div>
                       </div>
@@ -378,26 +744,23 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
                         <strong>{formatMoney(suggestion.amountCents)}</strong>
                       </div>
 
-                      <div className="settlement-payment-actions">
-                        {paypalMe ? (
-                          <a
-                            className="paypal-payment-button"
-                            href={paypalPaymentUrl(
-                              suggestion.fromPlayerId,
-                              suggestion.toPlayerId,
-                            )}
-                          >
-                            <img src={PAYPAL_MARK_URL} alt="" aria-hidden="true" />
-                            <span>{t("Mit PayPal zahlen")}</span>
-                          </a>
-                        ) : (
+                      <div className={
+                        "settlement-payment-actions" +
+                        (paypalAvailable ? "" : " single-action")
+                      }>
+                        {paypalAvailable && (
                           <button
-                            className="paypal-payment-button paypal-payment-button-setup"
+                            className="paypal-payment-button"
                             type="button"
-                            onClick={() => openPayPalSetup(suggestion.toPlayerId)}
+                            disabled={paypalOpeningKey === paypalKey}
+                            onClick={() => openPayPal(suggestion)}
                           >
                             <img src={PAYPAL_MARK_URL} alt="" aria-hidden="true" />
-                            <span>{t("PayPal einrichten")}</span>
+                            <span>
+                              {paypalOpeningKey === paypalKey
+                                ? t("Betrag wird geprüft …")
+                                : t("Mit PayPal zahlen")}
+                            </span>
                           </button>
                         )}
 
@@ -410,52 +773,10 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
                         </button>
                       </div>
 
-                      {paypalSetupOpen && (
-                        <form
-                          className="paypal-setup-form"
-                          onSubmit={(event) => savePayPalMe(event, suggestion.toPlayerId)}
-                        >
-                          <div>
-                            <strong>{t("PayPal.Me für {name}").replace("{name}", suggestion.toPlayerName)}</strong>
-                            <span>{t("Nur den Namen hinter paypal.me/ eintragen.")}</span>
-                          </div>
-                          <div className="paypal-setup-input-row">
-                            <span>paypal.me/</span>
-                            <input
-                              autoFocus
-                              inputMode="text"
-                              autoCapitalize="none"
-                              autoCorrect="off"
-                              maxLength={20}
-                              value={paypalDraft}
-                              onChange={(event) => setPaypalDraft(event.target.value)}
-                              placeholder={suggestion.toPlayerName.replace(/[^A-Za-z0-9]/g, "")}
-                            />
-                          </div>
-                          <div className="paypal-setup-actions">
-                            <button
-                              type="button"
-                              className="secondary-button"
-                              disabled={paypalSaving}
-                              onClick={() => {
-                                setPaypalEditingPlayerId(null);
-                                setPaypalDraft("");
-                              }}
-                            >
-                              {t("Abbrechen")}
-                            </button>
-                            <button
-                              type="submit"
-                              className="paypal-save-button"
-                              disabled={paypalSaving}
-                            >
-                              {paypalSaving ? t("Speichert …") : t("PayPal speichern")}
-                            </button>
-                          </div>
-                          <small>
-                            {t("PayPal öffnet die Zahlung mit dem Betrag. PokerTracker markiert sie erst nach dem Eintragen als bezahlt.")}
-                          </small>
-                        </form>
+                      {paypalAvailable && (
+                        <small className="paypal-live-note">
+                          {t("Der Betrag wird beim Öffnen frisch berechnet und in die Zwischenablage kopiert.")}
+                        </small>
                       )}
                     </article>
                   );
@@ -467,6 +788,37 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
               + {t("Andere Zahlung")}
             </button>
           </section>
+
+          {paypalFallback && (
+            <section className="paypal-fallback-card">
+              <div className="form-card-title">
+                <img src={PAYPAL_MARK_URL} alt="" aria-hidden="true" />
+                <h2>{t("PayPal vorbereiten")}</h2>
+              </div>
+              <p>
+                {t("Aktueller Betrag für {name}: {amount}")
+                  .replace("{name}", paypalFallback.toPlayerName)
+                  .replace("{amount}", formatMoney(paypalFallback.amountCents))}
+              </p>
+              <p>{t("Der Betrag konnte nicht automatisch kopiert werden. Tippe erneut, um ihn zu kopieren und PayPal zu öffnen.")}</p>
+              <div className="payment-editor-actions">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setPaypalFallback(null)}
+                >
+                  {t("Abbrechen")}
+                </button>
+                <button
+                  type="button"
+                  className="paypal-save-button"
+                  onClick={continuePayPalFallback}
+                >
+                  {t("Kopieren & PayPal öffnen")}
+                </button>
+              </div>
+            </section>
+          )}
 
           {draft && (
             <section className="payment-editor">
@@ -571,13 +923,26 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
             <div className="settlement-balance-list">
               {data.players
                 .slice()
-                .sort((a, b) => b.openBalanceCents - a.openBalanceCents || a.name.localeCompare(b.name))
+                .sort((a, b) =>
+                  Number(b.id === currentPlayerId) - Number(a.id === currentPlayerId) ||
+                  b.openBalanceCents - a.openBalanceCents ||
+                  a.name.localeCompare(b.name)
+                )
                 .map((player) => (
-                  <article key={player.id}>
+                  <article className={player.id === currentPlayerId ? "is-current-player" : ""} key={player.id}>
                     <span className="avatar">{initials(player.name)}</span>
                     <div>
-                      <strong>{player.name}</strong>
-                      <small>{t("Pokerbilanz")} {player.pokerBalanceCents > 0 ? "+" : ""}{formatMoney(player.pokerBalanceCents)}</small>
+                      <strong>{personLabel(player.id, player.name, currentPlayerId)}</strong>
+                      <small>
+                        {t("Pokerbilanz")} {player.pokerBalanceCents > 0 ? "+" : ""}
+                        {formatMoney(player.pokerBalanceCents)}
+                        {player.paidOutCents > 0
+                          ? " · " + t("gezahlt") + " " + formatMoney(player.paidOutCents)
+                          : ""}
+                        {player.receivedCents > 0
+                          ? " · " + t("erhalten") + " " + formatMoney(player.receivedCents)
+                          : ""}
+                      </small>
                     </div>
                     <b className={
                       player.openBalanceCents > 0
@@ -609,7 +974,11 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
                 {data.payments.map((payment) => (
                   <article className={payment.voidedAt ? "is-voided" : ""} key={payment.id}>
                     <div>
-                      <strong>{payment.fromPlayerName} → {payment.toPlayerName}</strong>
+                      <strong>
+                        {personLabel(payment.fromPlayerId, payment.fromPlayerName, currentPlayerId)}
+                        {" → "}
+                        {personLabel(payment.toPlayerId, payment.toPlayerName, currentPlayerId)}
+                      </strong>
                       <small>
                         {formatPaymentDate(payment.paidAt)}
                         {payment.note ? " · " + payment.note : ""}
