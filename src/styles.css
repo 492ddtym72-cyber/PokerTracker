@@ -93,12 +93,12 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   position: relative;
   display: block;
   transform-style: preserve-3d;
-  transition: transform 800ms cubic-bezier(.22, 1, .36, 1);
+  transition: transform 2400ms linear;
   will-change: transform, filter;
 }
 
 .brand-chip.is-turning {
-  animation: brand-chip-lighting 800ms cubic-bezier(.22, 1, .36, 1);
+  animation: brand-chip-lighting 4800ms linear infinite;
 }
 
 .brand-chip-edge,
@@ -183,13 +183,14 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 
 @keyframes brand-chip-lighting {
   0%,
+  50%,
   100% {
     filter: brightness(1) saturate(1);
   }
 
-  48%,
-  52% {
-    filter: brightness(.72) saturate(.84);
+  25%,
+  75% {
+    filter: brightness(.78) saturate(.9);
   }
 }
 
@@ -2016,6 +2017,7 @@ select:focus {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 9px;
   padding: 0 14px;
   border: 1px solid rgba(231,198,117,.18);
   border-radius: 13px;
@@ -2026,6 +2028,47 @@ select:focus {
   color: #e7c675;
   font-size: 23px;
   letter-spacing: -.035em;
+}
+
+.settlement-copy-button {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  flex: 0 0 30px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(231,198,117,.16);
+  border-radius: 9px;
+  background: rgba(231,198,117,.055);
+  color: #9eaa9f;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.settlement-copy-button svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.settlement-copy-button.is-copied {
+  border-color: rgba(82,215,128,.32);
+  background: rgba(82,215,128,.10);
+  color: #7be29d;
+  animation: settlement-copy-confirm 420ms cubic-bezier(.22, 1, .36, 1);
+}
+
+@keyframes settlement-copy-confirm {
+  0% { transform: scale(.76); }
+  55% { transform: scale(1.12); }
+  100% { transform: scale(1); }
 }
 
 .settlement-payment-actions {
@@ -2191,6 +2234,43 @@ select:focus {
   display: grid;
   gap: 11px;
   margin-top: 12px;
+}
+
+.payment-editor-route {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #061812;
+}
+
+.payment-editor-route > div {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  text-align: center;
+}
+
+.payment-editor-route .avatar {
+  width: 38px;
+  height: 38px;
+}
+
+.payment-editor-route strong {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.payment-editor-route-arrow {
+  color: #d6b663;
+  font-size: 20px;
 }
 
 .payment-editor label {
@@ -2387,7 +2467,7 @@ select:focus {
   }
 
   .settlement-payment-actions {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 
   .paypal-payment-button,
@@ -2617,15 +2697,23 @@ select:focus {
 }
 
 .settlement-toast {
+  width: min(calc(100% - 32px), 420px);
+  position: fixed;
+  z-index: 80;
+  left: 50%;
+  bottom: calc(88px + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: -10px 0 12px;
+  margin: 0;
   padding: 10px 12px;
-  border: 1px solid rgba(82,215,128,.16);
-  border-radius: 11px;
-  background: #0b281f;
+  border: 1px solid rgba(82,215,128,.18);
+  border-radius: 12px;
+  background: rgba(11,40,31,.97);
   color: #bce9ca;
+  box-shadow: 0 12px 34px rgba(0,0,0,.28);
+  transform: translateX(-50%);
+  animation: settlement-toast-in 220ms ease-out;
 }
 
 .settlement-toast span {
@@ -2640,6 +2728,17 @@ select:focus {
 
 .settlement-toast strong {
   font-size: 9px;
+}
+
+@keyframes settlement-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .paypal-fallback-card {

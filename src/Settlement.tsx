@@ -100,16 +100,6 @@ async function copyText(value: string) {
   }
 }
 
-function emptyDraft(): PaymentDraft {
-  return {
-    fromPlayerId: "",
-    toPlayerId: "",
-    amount: "",
-    paidAt: localToday(),
-    note: "",
-    clientToken: crypto.randomUUID(),
-  };
-}
 
 function suggestionDraft(suggestion: SettlementSuggestion): PaymentDraft {
   return {
@@ -452,6 +442,8 @@ export function SettlementScreen({
   const [paymentAppOpeningKey, setPaymentAppOpeningKey] = useState<string | null>(null);
   const [paymentAppFallback, setPaymentAppFallback] = useState<PaymentAppFallback | null>(null);
   const [paymentAppNotice, setPaymentAppNotice] = useState("");
+  const [copyingTransferKey, setCopyingTransferKey] = useState<string | null>(null);
+  const [copiedTransferKey, setCopiedTransferKey] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   async function refresh() {
@@ -512,20 +504,6 @@ export function SettlementScreen({
     return () => window.clearTimeout(timeout);
   }, [paymentAppNotice]);
 
-  const debtors = useMemo(
-    () => data?.players
-      .filter((player) => player.openBalanceCents < 0)
-      .sort((a, b) => a.openBalanceCents - b.openBalanceCents || a.name.localeCompare(b.name)) ?? [],
-    [data],
-  );
-
-  const creditors = useMemo(
-    () => data?.players
-      .filter((player) => player.openBalanceCents > 0)
-      .sort((a, b) => b.openBalanceCents - a.openBalanceCents || a.name.localeCompare(b.name)) ?? [],
-    [data],
-  );
-
   const currentPlayer = useMemo(
     () => data?.players.find((player) => player.id === currentPlayerId) ?? null,
     [data, currentPlayerId],
@@ -555,14 +533,51 @@ export function SettlementScreen({
     window.localStorage.setItem("pokertracker-settlement-view", next);
   }
 
-  function openManualPayment() {
-    setDraft(emptyDraft());
-    setError("");
-  }
-
   function openSuggestedPayment(suggestion: SettlementSuggestion) {
     setDraft(suggestionDraft(suggestion));
     setError("");
+  }
+
+  async function copySuggestionAmount(suggestion: SettlementSuggestion) {
+    const key = suggestion.fromPlayerId + ":" + suggestion.toPlayerId;
+    setCopyingTransferKey(key);
+    setError("");
+
+    try {
+      const prepared = await preparePaymentApp(
+        suggestion.fromPlayerId,
+        suggestion.toPlayerId,
+      );
+      const copied = await copyText(clipboardAmount(prepared.amountCents));
+
+      if (!copied) {
+        setError(t("Der Betrag konnte nicht kopiert werden. Bitte manuell übernehmen."));
+        return;
+      }
+
+      setCopiedTransferKey(key);
+      setPaymentAppNotice(
+        t("{amount} in die Zwischenablage kopiert")
+          .replace("{amount}", formatMoney(prepared.amountCents)),
+      );
+
+      window.setTimeout(() => {
+        setCopiedTransferKey((current) => current === key ? null : current);
+      }, 1600);
+
+      if (prepared.amountCents !== suggestion.amountCents) {
+        await refresh().catch(() => undefined);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : t("Betrag konnte nicht aktualisiert werden."),
+      );
+      await refresh().catch(() => undefined);
+    } finally {
+      setCopyingTransferKey(null);
+    }
   }
 
   async function openPaymentApp(
@@ -878,6 +893,35 @@ export function SettlementScreen({
 
                       <div className="settlement-payment-amount">
                         <strong>{formatMoney(suggestion.amountCents)}</strong>
+                        <button
+                          type="button"
+                          className={
+                            "settlement-copy-button" +
+                            (
+                              copiedTransferKey === paypalKey
+                                ? " is-copied"
+                                : ""
+                            )
+                          }
+                          aria-label={
+                            copiedTransferKey === paypalKey
+                              ? t("Betrag kopiert")
+                              : t("Betrag kopieren")
+                          }
+                          disabled={copyingTransferKey === paypalKey}
+                          onClick={() => copySuggestionAmount(suggestion)}
+                        >
+                          {copiedTransferKey === paypalKey ? (
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="m5.5 12.5 4.1 4.1L18.7 7.5" />
+                            </svg>
+                          ) : (
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <rect x="8" y="8" width="10" height="10" rx="2" />
+                              <path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" />
+                            </svg>
+                          )}
+                        </button>
                       </div>
 
                       <div className={
@@ -931,9 +975,6 @@ export function SettlementScreen({
               </div>
             )}
 
-            <button className="secondary-button settlement-manual-button" type="button" onClick={openManualPayment}>
-              + {t("Andere Zahlung")}
-            </button>
           </section>
 
           {paymentAppFallback && (
@@ -981,41 +1022,37 @@ export function SettlementScreen({
             <section className="payment-editor">
               <div className="form-card-title"><span>€</span><h2>{t("Zahlung eintragen")}</h2></div>
               <form onSubmit={submitPayment}>
-                <label>
-                  <span>{t("Zahler")}</span>
-                  <select
-                    value={draft.fromPlayerId}
-                    onChange={(event) => setDraft((current) => current ? {
-                      ...current,
-                      fromPlayerId: event.target.value,
-                    } : current)}
-                  >
-                    <option value="">{t("Spieler wählen")}</option>
-                    {debtors.map((player) => (
-                      <option key={player.id} value={player.id}>
-                        {player.name} · {formatMoney(Math.abs(player.openBalanceCents))}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  <span>{t("Empfänger")}</span>
-                  <select
-                    value={draft.toPlayerId}
-                    onChange={(event) => setDraft((current) => current ? {
-                      ...current,
-                      toPlayerId: event.target.value,
-                    } : current)}
-                  >
-                    <option value="">{t("Spieler wählen")}</option>
-                    {creditors.map((player) => (
-                      <option key={player.id} value={player.id}>
-                        {player.name} · {formatMoney(player.openBalanceCents)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="payment-editor-route">
+                  <div>
+                    <span className="avatar">
+                      {initials(
+                        data.players.find((player) => player.id === draft.fromPlayerId)?.name ?? "?",
+                      )}
+                    </span>
+                    <strong>
+                      {personLabel(
+                        draft.fromPlayerId,
+                        data.players.find((player) => player.id === draft.fromPlayerId)?.name ?? t("Zahler"),
+                        currentPlayerId,
+                      )}
+                    </strong>
+                  </div>
+                  <span className="payment-editor-route-arrow" aria-hidden="true">→</span>
+                  <div>
+                    <span className="avatar">
+                      {initials(
+                        data.players.find((player) => player.id === draft.toPlayerId)?.name ?? "?",
+                      )}
+                    </span>
+                    <strong>
+                      {personLabel(
+                        draft.toPlayerId,
+                        data.players.find((player) => player.id === draft.toPlayerId)?.name ?? t("Empfänger"),
+                        currentPlayerId,
+                      )}
+                    </strong>
+                  </div>
+                </div>
 
                 <div className="payment-editor-grid">
                   <label>
