@@ -68,6 +68,7 @@ type PlayerCardDetails = PlayerStats & {
   currentWinStreak: number;
   bestMonthLabel: string | null;
   bestMonthProfitCents: number;
+  baselineCents: number;
   trend: number[];
 };
 
@@ -82,7 +83,15 @@ function calculatePlayerCardDetails(
   rank: number | null,
   nights: PokerNight[],
 ): PlayerCardDetails {
+  const baselineCents = nights
+    .filter((night) => night.recordType === "baseline")
+    .reduce((sum, night) => {
+      const result = night.players.find((candidate) => candidate.id === player.id);
+      return sum + (result ? playerResultCents(result) : 0);
+    }, 0);
+
   const appearances = nights
+    .filter((night) => night.recordType === "session")
     .flatMap((night) => {
       const result = night.players.find((candidate) => candidate.id === player.id);
       return result
@@ -99,10 +108,10 @@ function calculatePlayerCardDetails(
         a.createdAt.localeCompare(b.createdAt),
     );
 
-  let cumulative = 0;
+  let cumulative = baselineCents;
   let runningWinStreak = 0;
   let bestWinStreak = 0;
-  const trend = [0];
+  const trend = [baselineCents];
   const monthTotals = new Map<string, number>();
 
   for (const appearance of appearances) {
@@ -127,6 +136,7 @@ function calculatePlayerCardDetails(
   }
 
   const results = appearances.map((appearance) => appearance.resultCents);
+  const sessionProfitCents = results.reduce((sum, value) => sum + value, 0);
   const bestMonth = Array.from(monthTotals.entries()).sort(
     (a, b) => b[1] - a[1] || b[0].localeCompare(a[0]),
   )[0];
@@ -135,7 +145,7 @@ function calculatePlayerCardDetails(
     ...player,
     rank,
     winRate: player.nights > 0 ? player.wins / player.nights : 0,
-    averageProfitCents: player.nights > 0 ? Math.round(player.profitCents / player.nights) : 0,
+    averageProfitCents: player.nights > 0 ? Math.round(sessionProfitCents / player.nights) : 0,
     bestResultCents: results.length > 0 ? Math.max(...results) : 0,
     worstResultCents: results.length > 0 ? Math.min(...results) : 0,
     bestWinStreak,
@@ -147,6 +157,7 @@ function calculatePlayerCardDetails(
         })
       : null,
     bestMonthProfitCents: bestMonth?.[1] ?? 0,
+    baselineCents,
     trend,
   };
 }
@@ -851,6 +862,8 @@ export default function App() {
     const byPlayer = new Map<string, PlayerStats>();
 
     for (const night of nights) {
+      const countsAsSession = night.recordType === "session";
+
       for (const player of night.players) {
         const existing = byPlayer.get(player.id) ?? {
           id: player.id,
@@ -864,11 +877,15 @@ export default function App() {
 
         const profit = playerResultCents(player);
         existing.name = player.name;
-        existing.nights += 1;
-        existing.stakeCents += player.stakeCents;
-        existing.cashOutCents += player.cashOutCents;
         existing.profitCents += profit;
-        if (profit > 0) existing.wins += 1;
+
+        if (countsAsSession) {
+          existing.nights += 1;
+          existing.stakeCents += player.stakeCents;
+          existing.cashOutCents += player.cashOutCents;
+          if (profit > 0) existing.wins += 1;
+        }
+
         byPlayer.set(player.id, existing);
       }
     }
@@ -908,13 +925,23 @@ export default function App() {
     return profilePhotoByPlayer.get(playerId) ?? null;
   }
 
+  const sessionNights = useMemo(
+    () => nights.filter((night) => night.recordType === "session"),
+    [nights],
+  );
+
+  const baselineRecords = useMemo(
+    () => nights.filter((night) => night.recordType === "baseline"),
+    [nights],
+  );
+
   const totalStakeAllTime = useMemo(
-    () => nights.reduce(
+    () => sessionNights.reduce(
       (nightTotal, night) =>
         nightTotal + night.players.reduce((sum, player) => sum + player.stakeCents, 0),
       0,
     ),
-    [nights],
+    [sessionNights],
   );
 
   const detailNight = useMemo(
@@ -1467,11 +1494,9 @@ export default function App() {
           aria-labelledby="player-card-name"
         >
           <div className="player-card-corner player-card-corner-top" aria-hidden="true">
-            <strong>{playerInitials(player.name).slice(0, 1)}</strong>
             <span>{suit}</span>
           </div>
           <div className="player-card-corner player-card-corner-bottom" aria-hidden="true">
-            <strong>{playerInitials(player.name).slice(0, 1)}</strong>
             <span>{suit}</span>
           </div>
 
@@ -1507,6 +1532,14 @@ export default function App() {
             <strong className={details.profitCents >= 0 ? "positive" : "negative"}>
               {details.profitCents > 0 ? "+" : ""}{formatMoney(details.profitCents)}
             </strong>
+            {details.baselineCents !== 0 && (
+              <small className="player-card-baseline-note">
+                {t("Historischer Ausgangsstand")}{" "}
+                <b className={details.baselineCents >= 0 ? "positive" : "negative"}>
+                  {details.baselineCents > 0 ? "+" : ""}{formatMoney(details.baselineCents)}
+                </b>
+              </small>
+            )}
           </div>
 
           <div className="player-card-quick-stats">
@@ -1548,7 +1581,7 @@ export default function App() {
               </strong>
             </div>
             <div>
-              <span>{t("Schlechtester Abend")}</span>
+              <span>{t("Schwächster Abend")}</span>
               <strong className={details.worstResultCents >= 0 ? "positive" : "negative"}>
                 {details.nights > 0
                   ? (details.worstResultCents > 0 ? "+" : "") + formatMoney(details.worstResultCents)
@@ -1810,6 +1843,13 @@ export default function App() {
             <CurrentProfileBadge />
           </header>
 
+          {detailNight.recordType === "baseline" && (
+            <section className="historical-detail-note">
+              <strong>{t("Historischer Ausgangsstand")}</strong>
+              <span>{t("Dieser Datensatz zählt zur Gesamtbilanz, aber nicht zu den Session-Statistiken.")}</span>
+            </section>
+          )}
+
           <section className="detail-summary">
             <div>
               <span>{t("Spieler")}</span>
@@ -2055,11 +2095,11 @@ export default function App() {
             <section className="hero-ledger">
               <span>{t("Einsätze gesamt")}</span>
               <strong>{formatMoney(totalStakeAllTime)}</strong>
-              <small>{nights.length} {t("Pokerabende")}</small>
+              <small>{sessionNights.length} {t("Pokerabende")}</small>
             </section>
 
             <section className="quick-stats">
-              <div><strong>{nights.length}</strong><span>{t("Abende")}</span></div>
+              <div><strong>{sessionNights.length}</strong><span>{t("Abende")}</span></div>
               <div><strong>{stats.length}</strong><span>{t("Spieler")}</span></div>
               <div><strong>{stats[0]?.name ?? "—"}</strong><span>{t("Führung")}</span></div>
             </section>
@@ -2102,19 +2142,19 @@ export default function App() {
             <section className="screen-section">
               <div className="section-title-row">
                 <h2>{t("Letzte Abende")}</h2>
-                <span>{nights.length} {t("gesamt")}</span>
+                <span>{sessionNights.length} {t("gesamt")}</span>
               </div>
 
               {loading ? (
                 <div className="empty-card">{t("Lädt …")}</div>
-              ) : nights.length === 0 ? (
+              ) : sessionNights.length === 0 ? (
                 <div className="empty-card">
                   <strong>{t("Noch kein Pokerabend")}</strong>
                   <p>{t("Nach dem ersten Abend erscheint hier die Übersicht.")}</p>
                 </div>
               ) : (
                 <div className="compact-night-list">
-                  {nights.map((night) => {
+                  {sessionNights.map((night) => {
                     const totals = nightTotals(night);
                     const leader = [...night.players].sort(
                       (a, b) => playerResultCents(b) - playerResultCents(a),
@@ -2144,6 +2184,35 @@ export default function App() {
                 </div>
               )}
             </section>
+
+            {baselineRecords.length > 0 && (
+              <section className="screen-section historical-balance-section">
+                <div className="section-title-row">
+                  <h2>{t("Historischer Ausgangsstand")}</h2>
+                  <span>{t("Nicht als Pokerabend gewertet")}</span>
+                </div>
+                <div className="compact-night-list">
+                  {baselineRecords.map((night) => (
+                    <button
+                      className="compact-night-card historical-balance-card"
+                      type="button"
+                      key={night.id}
+                      onClick={() => openNight(night)}
+                    >
+                      <div className="date-tile historical-balance-icon" aria-hidden="true">∑</div>
+                      <div className="compact-night-copy">
+                        <strong>{night.title}</strong>
+                        <span>
+                          {formatDate(night.playedAt)} · {t("In Gesamtbilanz enthalten")}
+                        </span>
+                      </div>
+                      <span className="historical-balance-tag">{t("Ausgangsstand")}</span>
+                      <span className="chevron">›</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
           </>
         )}
 
@@ -2398,6 +2467,23 @@ export default function App() {
                 <strong>{t("Profil wechseln")}</strong>
                 <span className="settings-chevron"><ChevronIcon /></span>
               </button>
+
+              {currentPlayerId && (
+                <button
+                  className="player-card-settings-link profile-player-card-link"
+                  type="button"
+                  onClick={() => setPlayerCardId(currentPlayerId)}
+                >
+                  <span className="player-card-settings-suit" aria-hidden="true">
+                    {playerCardSuit(currentPlayerId)}
+                  </span>
+                  <span className="player-card-settings-copy">
+                    <strong>{t("Meine Spielerkarte")}</strong>
+                    <small>{t("Statistiken & Verlauf")}</small>
+                  </span>
+                  <span className="settings-chevron"><ChevronIcon /></span>
+                </button>
+              )}
             </section>
 
             <section className="settings-card language-settings-card settings-compact-card">
