@@ -2,6 +2,7 @@ import type {
   HistoryResponse,
   NightAdjustmentInput,
   NightInput,
+  PlayerProfile,
   PokerNight,
   PreparedPaymentApp,
   SettlementPaymentInput,
@@ -41,6 +42,21 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return response.json() as Promise<T>;
+}
+
+export async function loadPlayers() {
+  const data = await api<{ players: PlayerProfile[] }>("/api/players");
+  return data.players;
+}
+
+export function updatePlayerProfilePhoto(playerId: string, profilePhoto: string | null) {
+  return api<{ playerId: string; profilePhoto: string | null }>(
+    "/api/players/" + encodeURIComponent(playerId),
+    {
+      method: "PATCH",
+      body: JSON.stringify({ profilePhoto }),
+    },
+  );
 }
 
 export async function loadNights() {
