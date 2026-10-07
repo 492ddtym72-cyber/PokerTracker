@@ -211,6 +211,7 @@ const ENGLISH: Record<string, string> = {
   "gezahlt": "paid",
   "erhalten": "received",
   "Dieses Gerät": "This device",
+  "Profil auf diesem Gerät": "Profile on this device",
   "Wer benutzt PokerTracker auf diesem Gerät?": "Who uses PokerTracker on this device?",
   "Keine Person ausgewählt": "No person selected",
   "Diese Auswahl wird nur lokal auf diesem Gerät gespeichert und verändert keine Pokerergebnisse.": "This choice is stored only on this device and does not change poker results.",
