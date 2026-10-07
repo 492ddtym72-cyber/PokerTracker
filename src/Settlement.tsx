@@ -892,11 +892,7 @@ export function SettlementScreen({
                               disabled={paymentAppOpeningKey === paypalKey + ":paypal"}
                               onClick={() => openPaymentApp(suggestion, "paypal")}
                             >
-                              {paymentAppFallback?.app === "revolut" ? (
-                  <img className="revolut-fallback-logo" src={REVOLUT_WORDMARK_URL} alt="Revolut" />
-                ) : (
-                  <img src={PAYPAL_MARK_URL} alt="" aria-hidden="true" />
-                )}
+                              <img src={PAYPAL_MARK_URL} alt="" aria-hidden="true" />
                               <span>
                                 {paymentAppOpeningKey === paypalKey + ":paypal"
                                   ? "…"
@@ -943,7 +939,15 @@ export function SettlementScreen({
           {paymentAppFallback && (
             <section className="paypal-fallback-card">
               <div className="form-card-title">
-                <img src={PAYPAL_MARK_URL} alt="" aria-hidden="true" />
+                {paymentAppFallback.app === "revolut" ? (
+                  <img
+                    className="revolut-fallback-logo"
+                    src={REVOLUT_WORDMARK_URL}
+                    alt="Revolut"
+                  />
+                ) : (
+                  <img src={PAYPAL_MARK_URL} alt="" aria-hidden="true" />
+                )}
                 <h2>{t("Zahlungs-App vorbereiten")}</h2>
               </div>
               <p>
@@ -951,7 +955,9 @@ export function SettlementScreen({
                   .replace("{name}", paymentAppFallback.toPlayerName)
                   .replace("{amount}", formatMoney(paymentAppFallback.amountCents))}
               </p>
-              <p>{t("Der Betrag konnte nicht automatisch kopiert werden. Tippe erneut, um ihn zu kopieren und PayPal zu öffnen.")}</p>
+              <p>
+                {t("Der Betrag konnte nicht automatisch kopiert werden. Tippe erneut, um ihn zu kopieren und die Zahlungs-App zu öffnen.")}
+              </p>
               <div className="payment-editor-actions">
                 <button
                   type="button"
