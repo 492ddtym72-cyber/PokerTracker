@@ -230,34 +230,26 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   width: 23px;
   height: 23px;
   flex: 0 0 23px;
-  position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 50%;
   background: #173127;
   color: var(--gold);
-  font-size: 0;
-  line-height: 0;
 }
 
-.cta-plus::before,
-.cta-plus::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: calc(50% - 2px);
-  background: var(--gold);
-  border-radius: 1px;
-  transform: translate(-50%, -50%);
+.cta-plus svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+  overflow: visible;
 }
 
-.cta-plus::before {
-  width: 11px;
-  height: 3px;
-}
-
-.cta-plus::after {
-  width: 3px;
-  height: 11px;
+.cta-plus path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.5;
+  stroke-linecap: round;
 }
 
 .screen-section { margin-top: 27px; }
