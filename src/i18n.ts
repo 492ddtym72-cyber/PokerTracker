@@ -232,7 +232,21 @@ const ENGLISH: Record<string, string> = {
   "Betrag kopieren": "Copy amount",
   "Betrag kopiert": "Amount copied",
   "{amount} in die Zwischenablage kopiert": "{amount} copied to clipboard",
-  "Betrag konnte nicht aktualisiert werden.": "The amount could not be refreshed."
+  "Betrag konnte nicht aktualisiert werden.": "The amount could not be refreshed.",
+  "Spielerprofil": "Player profile",
+  "Rang": "Rank",
+  "Gewinnquote": "Win rate",
+  "Ø pro Abend": "Avg per night",
+  "Beste Serie": "Best streak",
+  "Aktuelle Serie": "Current streak",
+  "Bester Abend": "Best night",
+  "Schlechtester Abend": "Worst night",
+  "Bester Monat": "Best month",
+  "Bilanzverlauf": "Balance trend",
+  "Gewinnabende in Folge": "winning nights in a row",
+  "Meine Spielerkarte": "My player card",
+  "Statistiken & Verlauf": "Stats & trend",
+  "Noch keine Pokerabende": "No poker nights yet"
 };
 
 export function getLanguage(): Language {
