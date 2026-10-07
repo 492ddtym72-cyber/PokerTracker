@@ -3,6 +3,8 @@ import type {
   NightAdjustmentInput,
   NightInput,
   PokerNight,
+  SettlementPaymentInput,
+  SettlementResponse,
 } from "../types";
 import { t } from "../i18n";
 
@@ -83,4 +85,22 @@ export function loadHistory(offset = 0, limit = 40) {
   });
 
   return api<HistoryResponse>("/api/history?" + params.toString());
+}
+
+
+export function loadSettlements() {
+  return api<SettlementResponse>("/api/settlements");
+}
+
+export function createSettlementPayment(input: SettlementPaymentInput) {
+  return api<SettlementResponse>("/api/settlements", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function voidSettlementPayment(id: string) {
+  return api<SettlementResponse>("/api/settlements/" + encodeURIComponent(id), {
+    method: "DELETE",
+  });
 }
