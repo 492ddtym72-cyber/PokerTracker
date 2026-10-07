@@ -28,6 +28,12 @@ interface PaymentRow {
   voided_at: string | null;
 }
 
+interface PaymentTotalRow {
+  player_id: string;
+  paid_out_cents: number;
+  received_cents: number;
+}
+
 export interface SettlementPlayer {
   id: string;
   name: string;
@@ -143,7 +149,7 @@ export function validateSettlementPaymentInput(value: unknown): SettlementPaymen
 }
 
 export async function loadSettlementSnapshot(env: Env) {
-  const [balanceQuery, paymentQuery] = await Promise.all([
+  const [balanceQuery, paymentTotalsQuery, paymentQuery] = await Promise.all([
     env.DB.prepare(
       `SELECT
          p.id AS player_id,
@@ -158,6 +164,30 @@ export async function loadSettlementSnapshot(env: Env) {
        GROUP BY p.id, p.name
        ORDER BY p.name COLLATE NOCASE ASC`,
     ).all<BalanceRow>(),
+    env.DB.prepare(
+      `SELECT
+         player_id,
+         SUM(paid_out_cents) AS paid_out_cents,
+         SUM(received_cents) AS received_cents
+       FROM (
+         SELECT
+           from_player_id AS player_id,
+           amount_cents AS paid_out_cents,
+           0 AS received_cents
+         FROM settlement_payments
+         WHERE voided_at IS NULL
+
+         UNION ALL
+
+         SELECT
+           to_player_id AS player_id,
+           0 AS paid_out_cents,
+           amount_cents AS received_cents
+         FROM settlement_payments
+         WHERE voided_at IS NULL
+       )
+       GROUP BY player_id`,
+    ).all<PaymentTotalRow>(),
     env.DB.prepare(
       `SELECT
          sp.id,
@@ -189,21 +219,14 @@ export async function loadSettlementSnapshot(env: Env) {
 
   const byId = new Map(players.map((player) => [player.id, player]));
 
-  for (const payment of paymentQuery.results) {
-    if (payment.voided_at) continue;
+  for (const totals of paymentTotalsQuery.results) {
+    const player = byId.get(totals.player_id);
+    if (!player) continue;
 
-    const payer = byId.get(payment.from_player_id);
-    const receiver = byId.get(payment.to_player_id);
-
-    if (payer) {
-      payer.paidOutCents += payment.amount_cents;
-      payer.openBalanceCents += payment.amount_cents;
-    }
-
-    if (receiver) {
-      receiver.receivedCents += payment.amount_cents;
-      receiver.openBalanceCents -= payment.amount_cents;
-    }
+    player.paidOutCents = Number(totals.paid_out_cents) || 0;
+    player.receivedCents = Number(totals.received_cents) || 0;
+    player.openBalanceCents =
+      player.pokerBalanceCents + player.paidOutCents - player.receivedCents;
   }
 
   const suggestions = buildSuggestions(players);
