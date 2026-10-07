@@ -1073,7 +1073,12 @@ export default function App() {
             </section>
 
             <button className="gold-cta" type="button" onClick={startNew}>
-              <span className="cta-plus">+</span> {t("Neuer Pokerabend")}
+              <span className="cta-plus" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </span>
+              {t("Neuer Pokerabend")}
             </button>
 
             <section className="screen-section">
