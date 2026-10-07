@@ -485,88 +485,110 @@ function AnimatedPokerChip() {
       const safeRx = Math.max(rx, 0.02);
       const top = center - radius;
       const bottom = center + radius;
-
-      context.beginPath();
-      context.moveTo(leftCenter, top);
-      context.lineTo(rightCenter, top);
-      context.ellipse(
-        rightCenter,
-        center,
-        safeRx,
-        radius,
-        0,
-        -Math.PI / 2,
-        Math.PI / 2,
-      );
-      context.lineTo(leftCenter, bottom);
-      context.ellipse(
-        leftCenter,
-        center,
-        safeRx,
-        radius,
-        0,
-        Math.PI / 2,
-        (Math.PI * 3) / 2,
-      );
-      context.closePath();
-
       const left = leftCenter - safeRx;
       const right = rightCenter + safeRx;
-      const sideGradient = context.createLinearGradient(left, 0, right, 0);
-      sideGradient.addColorStop(0, "#40351f");
-      sideGradient.addColorStop(0.15, "#927840");
-      sideGradient.addColorStop(0.34, "#17372a");
-      sideGradient.addColorStop(0.5, "#c0a25a");
-      sideGradient.addColorStop(0.67, "#17372a");
-      sideGradient.addColorStop(0.86, "#8d743d");
-      sideGradient.addColorStop(1, "#352d1c");
 
+      // Recreate the side contour for EACH canvas operation. The previous
+      // version accidentally stroked the last groove outside the clip.
+      const traceHullPath = () => {
+        context.beginPath();
+        context.moveTo(leftCenter, top);
+        context.lineTo(rightCenter, top);
+        context.ellipse(
+          rightCenter, center, safeRx, radius, 0,
+          -Math.PI / 2, Math.PI / 2,
+        );
+        context.lineTo(leftCenter, bottom);
+        context.ellipse(
+          leftCenter, center, safeRx, radius, 0,
+          Math.PI / 2, (Math.PI * 3) / 2,
+        );
+        context.closePath();
+      };
+
+      const sideGradient = context.createLinearGradient(left, 0, right, 0);
+      sideGradient.addColorStop(0, "#3b311d");
+      sideGradient.addColorStop(0.14, "#8d743d");
+      sideGradient.addColorStop(0.32, "#17372a");
+      sideGradient.addColorStop(0.50, "#c4a65c");
+      sideGradient.addColorStop(0.68, "#17372a");
+      sideGradient.addColorStop(0.86, "#886f3b");
+      sideGradient.addColorStop(1, "#332b1b");
+
+      // An opaque body remains visible when the projected face is edge-on.
       context.save();
-      context.shadowColor = "rgba(0,0,0,.45)";
-      context.shadowBlur = 3.2;
-      context.shadowOffsetY = 1.2;
+      traceHullPath();
+      context.globalAlpha = 1;
+      context.shadowColor = "rgba(0,0,0,.44)";
+      context.shadowBlur = 2.4;
+      context.shadowOffsetY = 1.1;
       context.fillStyle = sideGradient;
       context.fill();
       context.restore();
 
       context.save();
+      traceHullPath();
       context.clip();
-      context.globalAlpha = 0.18 + sideVisibility * 0.36;
-      context.strokeStyle = "#e3c778";
-      context.lineWidth = 1;
 
-      for (let y = center - 10; y <= center + 10; y += 5) {
+      // Grooves stay well inside the projected edge, including at 90 degrees.
+      context.strokeStyle = "rgba(233,202,119,.42)";
+      context.lineWidth = 0.8;
+      context.globalAlpha = 0.20 + sideVisibility * 0.16;
+
+      for (let y = center - 9; y <= center + 9; y += 4.8) {
+        if (right - left <= 2.5) break;
         context.beginPath();
-        context.moveTo(left - 1, y);
-        context.lineTo(right + 1, y);
+        context.moveTo(left + 1.25, y);
+        context.lineTo(right - 1.25, y);
         context.stroke();
       }
 
+      // Small, restrained specular highlight: solid metal, not glass.
       const shine = context.createLinearGradient(left, 0, right, 0);
       shine.addColorStop(0, "rgba(255,255,255,0)");
-      shine.addColorStop(0.48, "rgba(255,241,192,.22)");
-      shine.addColorStop(0.58, "rgba(255,255,255,.08)");
+      shine.addColorStop(0.42, "rgba(255,241,192,.12)");
+      shine.addColorStop(0.52, "rgba(255,255,255,.05)");
+      shine.addColorStop(0.62, "rgba(255,241,192,.10)");
       shine.addColorStop(1, "rgba(255,255,255,0)");
-      context.globalAlpha = 0.45 + sideVisibility * 0.3;
+
+      context.globalAlpha = 0.22 + sideVisibility * 0.10;
       context.fillStyle = shine;
-      context.fillRect(left, center - radius, right - left, radius * 2);
+      context.fillRect(left, top, right - left, bottom - top);
+
+      const innerShade = context.createLinearGradient(left, 0, right, 0);
+      innerShade.addColorStop(0, "rgba(0,0,0,.16)");
+      innerShade.addColorStop(0.18, "rgba(0,0,0,.05)");
+      innerShade.addColorStop(0.50, "rgba(0,0,0,0)");
+      innerShade.addColorStop(0.82, "rgba(0,0,0,.05)");
+      innerShade.addColorStop(1, "rgba(0,0,0,.16)");
+
+      context.globalAlpha = 0.9;
+      context.fillStyle = innerShade;
+      context.fillRect(left, top, right - left, bottom - top);
       context.restore();
 
+      // Draw the actual silhouette last, never the previous groove path.
+      context.save();
+      traceHullPath();
+      context.globalAlpha = 1;
       context.strokeStyle = "rgba(226,195,111,.30)";
       context.lineWidth = 0.8;
       context.stroke();
+      context.restore();
     };
 
     const drawFace = (
       faceCenterX: number,
       faceScale: number,
       suit: ChipSuit,
-      detailAlpha: number,
+      faceAlpha: number,
       lightAmount: number,
     ) => {
       context.save();
       context.translate(faceCenterX, center);
       context.scale(Math.max(faceScale, 0.026), 1);
+      // Fade the entire surface, including the glyph and outline, together.
+      context.globalAlpha = faceAlpha;
 
       const faceGradient = context.createRadialGradient(
         -radius * 0.28,
@@ -587,8 +609,6 @@ function AnimatedPokerChip() {
       context.strokeStyle = "#b99d57";
       context.lineWidth = 1.15;
       context.stroke();
-
-      context.globalAlpha = detailAlpha;
 
       context.beginPath();
       context.arc(0, 0, radius - 3, 0, Math.PI * 2);
@@ -652,19 +672,23 @@ function AnimatedPokerChip() {
       const nearFaceSign = cosine >= 0 ? 1 : -1;
       const nearFaceCenter =
         center + nearFaceSign * halfThickness * sine;
-      const detailAlpha = Math.max(
+      const faceAlpha = Math.max(
         0,
-        Math.min(1, (faceScale - 0.12) / 0.34),
+        Math.min(1, (faceScale - 0.18) / 0.42),
       );
       const lightAmount = 0.88 + faceScale * 0.12;
 
-      drawFace(
-        nearFaceCenter,
-        faceScale,
-        suit,
-        detailAlpha,
-        lightAmount,
-      );
+      // No symbol or front rings should be painted over the solid sidewall
+      // when the disk is almost perfectly edge-on.
+      if (faceScale > 0.08 && faceAlpha > 0.01) {
+        drawFace(
+          nearFaceCenter,
+          faceScale,
+          suit,
+          faceAlpha,
+          lightAmount,
+        );
+      }
     };
 
     let disposed = false;
