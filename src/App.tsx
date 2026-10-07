@@ -979,11 +979,11 @@ export default function App() {
         const profit = playerResultCents(player);
         existing.name = player.name;
         existing.profitCents += profit;
+        existing.stakeCents += player.stakeCents;
+        existing.cashOutCents += player.cashOutCents;
 
         if (countsAsSession) {
           existing.nights += 1;
-          existing.stakeCents += player.stakeCents;
-          existing.cashOutCents += player.cashOutCents;
           if (profit > 0) existing.wins += 1;
         }
 
@@ -1031,18 +1031,13 @@ export default function App() {
     [nights],
   );
 
-  const baselineRecords = useMemo(
-    () => nights.filter((night) => night.recordType === "baseline"),
-    [nights],
-  );
-
   const totalStakeAllTime = useMemo(
-    () => sessionNights.reduce(
+    () => nights.reduce(
       (nightTotal, night) =>
         nightTotal + night.players.reduce((sum, player) => sum + player.stakeCents, 0),
       0,
     ),
-    [sessionNights],
+    [nights],
   );
 
   const detailNight = useMemo(
@@ -2196,11 +2191,11 @@ export default function App() {
             <section className="hero-ledger">
               <span>{t("Einsätze gesamt")}</span>
               <strong>{formatMoney(totalStakeAllTime)}</strong>
-              <small>{sessionNights.length} {t("Pokerabende")}</small>
+              <small>{nights.length} {t("Pokerabende")}</small>
             </section>
 
             <section className="quick-stats">
-              <div><strong>{sessionNights.length}</strong><span>{t("Abende")}</span></div>
+              <div><strong>{nights.length}</strong><span>{t("Abende")}</span></div>
               <div><strong>{stats.length}</strong><span>{t("Spieler")}</span></div>
               <div><strong>{stats[0]?.name ?? "—"}</strong><span>{t("Führung")}</span></div>
             </section>
@@ -2243,19 +2238,19 @@ export default function App() {
             <section className="screen-section">
               <div className="section-title-row">
                 <h2>{t("Letzte Abende")}</h2>
-                <span>{sessionNights.length} {t("gesamt")}</span>
+                <span>{nights.length} {t("gesamt")}</span>
               </div>
 
               {loading ? (
                 <div className="empty-card">{t("Lädt …")}</div>
-              ) : sessionNights.length === 0 ? (
+              ) : nights.length === 0 ? (
                 <div className="empty-card">
                   <strong>{t("Noch kein Pokerabend")}</strong>
                   <p>{t("Nach dem ersten Abend erscheint hier die Übersicht.")}</p>
                 </div>
               ) : (
                 <div className="compact-night-list">
-                  {sessionNights.map((night) => {
+                  {nights.map((night) => {
                     const totals = nightTotals(night);
                     const leader = [...night.players].sort(
                       (a, b) => playerResultCents(b) - playerResultCents(a),
@@ -2286,34 +2281,6 @@ export default function App() {
               )}
             </section>
 
-            {baselineRecords.length > 0 && (
-              <section className="screen-section historical-balance-section">
-                <div className="section-title-row">
-                  <h2>{t("Historischer Ausgangsstand")}</h2>
-                  <span>{t("Nicht als Pokerabend gewertet")}</span>
-                </div>
-                <div className="compact-night-list">
-                  {baselineRecords.map((night) => (
-                    <button
-                      className="compact-night-card historical-balance-card"
-                      type="button"
-                      key={night.id}
-                      onClick={() => openNight(night)}
-                    >
-                      <div className="date-tile historical-balance-icon" aria-hidden="true">∑</div>
-                      <div className="compact-night-copy">
-                        <strong>{night.title}</strong>
-                        <span>
-                          {formatDate(night.playedAt)} · {t("In Gesamtbilanz enthalten")}
-                        </span>
-                      </div>
-                      <span className="historical-balance-tag">{t("Ausgangsstand")}</span>
-                      <span className="chevron">›</span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
           </>
         )}
 
