@@ -511,6 +511,7 @@ export default function App() {
     () => storedCurrentPlayerId(),
   );
   const [screen, setScreen] = useState<Screen>("home");
+  const [profileSwitcherOpen, setProfileSwitcherOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [detailNightId, setDetailNightId] = useState<string | null>(null);
   const [nights, setNights] = useState<PokerNight[]>([]);
@@ -677,6 +678,24 @@ export default function App() {
       differenceCents: cashOutCents - stakeCents,
     };
   }, [players]);
+
+  useEffect(() => {
+    if (!profileSwitcherOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setProfileSwitcherOpen(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [profileSwitcherOpen]);
 
   function changeLanguage(next: Language) {
     setLanguagePreference(next);
@@ -1009,10 +1028,12 @@ export default function App() {
     if (!currentPlayer) return null;
 
     return (
-      <div
+      <button
+        type="button"
         className="current-profile-badge"
-        aria-label={t("Profil auf diesem Gerät") + ": " + currentPlayer.name}
-        title={currentPlayer.name}
+        aria-label={t("Profil wechseln") + ": " + currentPlayer.name}
+        title={t("Profil wechseln")}
+        onClick={() => setProfileSwitcherOpen(true)}
       >
         <PlayerAvatar
           className="current-profile-avatar"
@@ -1020,6 +1041,84 @@ export default function App() {
           photo={profilePhotoFor(currentPlayer.id)}
         />
         <strong>{currentPlayer.name}</strong>
+      </button>
+    );
+  }
+
+  function ProfileSwitcherDialog() {
+    if (!profileSwitcherOpen) return null;
+
+    return (
+      <div
+        className="profile-switcher-overlay"
+        role="presentation"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setProfileSwitcherOpen(false);
+        }}
+      >
+        <section
+          className="profile-switcher-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="profile-switcher-title"
+        >
+          <div className="profile-switcher-header">
+            <div>
+              <h2 id="profile-switcher-title">{t("Profil wechseln")}</h2>
+              <p>{t("Wer verwendet PokerTracker auf diesem Gerät?")}</p>
+            </div>
+            <button
+              type="button"
+              className="profile-switcher-close"
+              aria-label={t("Schließen")}
+              onClick={() => setProfileSwitcherOpen(false)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="profile-switcher-list">
+            {knownPlayers.map((player) => {
+              const active = player.id === currentPlayerId;
+
+              return (
+                <button
+                  key={player.id}
+                  type="button"
+                  className={"profile-switcher-option" + (active ? " is-active" : "")}
+                  aria-pressed={active}
+                  onClick={() => {
+                    changeCurrentPlayer(player.id);
+                    setProfileSwitcherOpen(false);
+                  }}
+                >
+                  <PlayerAvatar
+                    className="profile-switcher-avatar"
+                    name={player.name}
+                    photo={profilePhotoFor(player.id)}
+                  />
+                  <strong>{player.name}</strong>
+                  <span className="profile-switcher-check" aria-hidden="true">
+                    {active && <CheckIcon />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            className="profile-switcher-none"
+            onClick={() => {
+              changeCurrentPlayer(null);
+              setProfileSwitcherOpen(false);
+            }}
+          >
+            {t("Kein Profil verwenden")}
+          </button>
+        </section>
       </div>
     );
   }
@@ -1052,7 +1151,7 @@ export default function App() {
           <span>♣</span><small>{t("Spieler")}</small>
         </button>
         <button className={screen === "more" ? "active" : ""} onClick={() => navigate("more")}>
-          <span>•••</span><small>{t("Mehr")}</small>
+          <span>•••</span><small>{t("Einstellungen")}</small>
         </button>
       </nav>
     );
@@ -1225,6 +1324,7 @@ export default function App() {
             </button>
           </form>
         </div>
+        <ProfileSwitcherDialog />
       </main>
     );
   }
@@ -1483,6 +1583,7 @@ export default function App() {
 
           {error && <p className="error-banner">{error}</p>}
         </div>
+        <ProfileSwitcherDialog />
       </main>
     );
   }
@@ -1735,7 +1836,7 @@ export default function App() {
         {screen === "more" && (
           <>
             <div className="screen-heading settings-screen-heading">
-              <h1>{t("Mehr")}</h1>
+              <h1>{t("Einstellungen")}</h1>
             </div>
 
             <section className="settings-card identity-settings-card settings-compact-card">
@@ -1878,6 +1979,7 @@ export default function App() {
       </div>
 
       <BottomNav />
+      <ProfileSwitcherDialog />
     </main>
   );
 }
