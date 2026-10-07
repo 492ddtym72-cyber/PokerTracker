@@ -168,7 +168,18 @@ const ENGLISH: Record<string, string> = {
   "Der Zahler hat aktuell keine offene Schuld.": "The payer currently has no outstanding debt.",
   "Der Empfänger hat aktuell keinen offenen Gewinn.": "The recipient currently has no outstanding winnings.",
   "Die Zahlung ist größer als der aktuell offene Betrag.": "The payment is larger than the current outstanding amount.",
-  "Zahlung nicht gefunden.": "Payment not found."
+  "Zahlung nicht gefunden.": "Payment not found.",
+  "Zahlt": "Pays",
+  "Erhält": "Receives",
+  "Mit PayPal zahlen": "Pay with PayPal",
+  "PayPal einrichten": "Set up PayPal",
+  "PayPal.Me für {name}": "PayPal.Me for {name}",
+  "Nur den Namen hinter paypal.me/ eintragen.": "Enter only the name after paypal.me/.",
+  "PayPal speichern": "Save PayPal",
+  "PayPal öffnet die Zahlung mit dem Betrag. PokerTracker markiert sie erst nach dem Eintragen als bezahlt.": "PayPal opens the payment with the amount prefilled. PokerTracker only marks it as paid after you record the payment.",
+  "PayPal.Me konnte nicht gespeichert werden.": "PayPal.Me could not be saved.",
+  "Ungültiger PayPal.Me-Link.": "Invalid PayPal.Me link.",
+  "PayPal.Me darf nur aus Buchstaben und Zahlen mit maximal 20 Zeichen bestehen.": "PayPal.Me can only contain letters and numbers, up to 20 characters."
 };
 
 export function getLanguage(): Language {
