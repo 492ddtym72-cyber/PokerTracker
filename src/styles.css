@@ -1750,15 +1750,146 @@ select:focus {
 }
 
 
-.language-settings-card {
+.settings-screen-heading {
+  margin-bottom: 14px;
+}
+
+.settings-compact-card {
+  padding: 15px;
+}
+
+.settings-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-bottom: 12px;
 }
 
-.settings-description {
-  margin: -5px 0 13px;
-  color: var(--muted);
+.settings-card-title h2 {
+  margin: 0;
+  color: #eef1ed;
+  font-size: 14px;
+  letter-spacing: -.015em;
+}
+
+.settings-title-icon,
+.settings-action-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  flex: 0 0 32px;
+  place-items: center;
+  border: 1px solid rgba(231,198,117,.17);
+  border-radius: 10px;
+  background: rgba(231,198,117,.07);
+  color: #d8ba71;
+}
+
+.settings-title-icon svg,
+.settings-action-icon svg,
+.settings-chevron svg,
+.language-state svg,
+.profile-avatar svg {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.settings-title-icon svg,
+.settings-action-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.device-player-setting {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.identity-settings-card .profile-avatar {
+  width: 42px;
+  height: 42px;
+  font-size: 13px;
+}
+
+.profile-avatar svg {
+  width: 19px;
+  height: 19px;
+  color: #b9c7bf;
+}
+
+.profile-select-shell {
+  min-width: 0;
+  min-height: 46px;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 12px;
+  background: #061812;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.profile-select-shell:focus-within {
+  border-color: rgba(231,198,117,.5);
+  background: #081d16;
+}
+
+.profile-select-shell strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #eef1ee;
   font-size: 12px;
-  line-height: 1.45;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-select-shell select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  background-image: none;
+  opacity: .001;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.settings-chevron {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  color: #6f8378;
+}
+
+.settings-chevron svg {
+  width: 16px;
+  height: 16px;
+}
+
+.language-settings-card {
+  margin-bottom: 12px;
 }
 
 .language-picker {
@@ -1769,50 +1900,119 @@ select:focus {
 
 .language-picker button {
   min-width: 0;
-  min-height: 52px;
-  display: flex;
+  min-height: 50px;
+  display: grid;
+  grid-template-columns: 31px minmax(0, 1fr) 18px;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 0 14px;
+  gap: 9px;
+  padding: 0 11px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: #081b15;
+  background: #071a14;
   color: #dce4df;
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.language-picker button:active {
+  transform: scale(.985);
 }
 
 .language-picker button strong {
+  min-width: 0;
   overflow: hidden;
+  font-size: 12px;
+  font-weight: 780;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
-}
-
-.language-picker button small {
-  flex: 0 0 auto;
-  color: var(--muted);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: .09em;
 }
 
 .language-picker button.active {
-  border-color: rgba(231,198,117,.62);
-  background: rgba(231,198,117,.09);
-  color: #f6e4b5;
-  box-shadow: inset 0 0 0 1px rgba(231,198,117,.12);
+  border-color: rgba(231,198,117,.58);
+  background: rgba(231,198,117,.085);
+  color: #f4e5bd;
+  box-shadow: inset 0 0 0 1px rgba(231,198,117,.08);
 }
 
-.language-picker button.active small {
-  color: var(--gold);
+.language-flag-shell {
+  width: 30px;
+  height: 21px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 5px;
+  background: #07110d;
+  box-shadow: 0 2px 6px rgba(0,0,0,.14);
 }
 
-.settings-note {
+.language-flag {
+  width: 100%;
+  height: 100%;
   display: block;
-  margin-top: 10px;
-  color: #73867c;
-  font-size: 10px;
-  line-height: 1.4;
+}
+
+.language-state {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #e0c274;
+}
+
+.language-state svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.2;
+}
+
+.logout-settings-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.logout-settings-card form {
+  margin: 0;
+}
+
+.settings-logout-button {
+  width: 100%;
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 15px;
+  border: 0;
+  background: transparent;
+  color: #d99690;
+  text-align: left;
+  transition: background 160ms ease;
+}
+
+.settings-logout-button:active {
+  background: rgba(236,113,107,.05);
+}
+
+.settings-logout-button .settings-action-icon {
+  width: 34px;
+  height: 34px;
+  border-color: rgba(236,113,107,.16);
+  background: rgba(236,113,107,.055);
+  color: #d98d86;
+}
+
+.settings-logout-button strong {
+  font-size: 13px;
+  font-weight: 780;
+}
+
+.settings-logout-button .settings-chevron {
+  color: #765f5b;
 }
 
 
@@ -2550,7 +2750,6 @@ select:focus {
 }
 
 .identity-nudge select,
-.device-player-setting select,
 .settlement-profile-nudge select {
   width: 100%;
   min-height: 38px;
@@ -2560,19 +2759,6 @@ select:focus {
   background: #061812;
   color: #eef1ee;
   outline: none;
-}
-
-.device-player-setting {
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  margin: 10px 0 2px;
-}
-
-.identity-settings-card .avatar {
-  width: 38px;
-  height: 38px;
 }
 
 .my-settlement-card {
