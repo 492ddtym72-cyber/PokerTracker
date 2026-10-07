@@ -7,7 +7,9 @@ import {
 } from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
 import { getLocale, t } from "./i18n";
+import { PlayerAvatar, playerInitials } from "./PlayerAvatar";
 import type {
+  PlayerProfile,
   SettlementPaymentInput,
   SettlementResponse,
   SettlementSuggestion,
@@ -55,11 +57,6 @@ function formatPaymentDate(value: string) {
     month: "short",
     year: "numeric",
   });
-}
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? "?") + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
 function personLabel(id: string, name: string, currentPlayerId: string | null) {
@@ -115,10 +112,12 @@ function suggestionDraft(suggestion: SettlementSuggestion): PaymentDraft {
 function SettlementFlow({
   suggestions,
   currentPlayerId,
+  profilePhotoFor,
   onSelect,
 }: {
   suggestions: SettlementSuggestion[];
   currentPlayerId: string | null;
+  profilePhotoFor: (playerId: string) => string | null;
   onSelect: (suggestion: SettlementSuggestion) => void;
 }) {
   type FlowPerson = {
@@ -264,6 +263,22 @@ function SettlementFlow({
           >
             <path d="M0,0 L7,3.5 L0,7 Z" className="settlement-network-arrowhead" />
           </marker>
+          {payers.map((player) => {
+            const y = payerY.get(player.id) ?? height / 2;
+            return (
+              <clipPath id={`settlement-payer-avatar-${player.id}`} key={`payer-clip-${player.id}`}>
+                <circle cx="68" cy={y} r="25.5" />
+              </clipPath>
+            );
+          })}
+          {receivers.map((player) => {
+            const y = receiverY.get(player.id) ?? height / 2;
+            return (
+              <clipPath id={`settlement-receiver-avatar-${player.id}`} key={`receiver-clip-${player.id}`}>
+                <circle cx="652" cy={y} r="25.5" />
+              </clipPath>
+            );
+          })}
         </defs>
 
         {suggestions.map((suggestion, index) => {
@@ -326,12 +341,25 @@ function SettlementFlow({
         {payers.map((player) => {
           const y = payerY.get(player.id) ?? height / 2;
           const isMe = player.id === currentPlayerId;
+          const photo = profilePhotoFor(player.id);
           return (
             <g key={player.id} className={isMe ? "settlement-network-node is-me" : "settlement-network-node"}>
               <circle cx="68" cy={y} r="28" className="settlement-network-node-circle payer" />
-              <text x="68" y={y + 5} textAnchor="middle" className="settlement-network-initials">
-                {initials(player.name)}
-              </text>
+              {photo ? (
+                <image
+                  href={photo}
+                  x="42.5"
+                  y={y - 25.5}
+                  width="51"
+                  height="51"
+                  preserveAspectRatio="xMidYMid slice"
+                  clipPath={`url(#settlement-payer-avatar-${player.id})`}
+                />
+              ) : (
+                <text x="68" y={y + 5} textAnchor="middle" className="settlement-network-initials">
+                  {playerInitials(player.name)}
+                </text>
+              )}
               <text x="68" y={y + 42} textAnchor="middle" className="settlement-network-name">
                 {personLabel(player.id, player.name, currentPlayerId)}
               </text>
@@ -342,12 +370,25 @@ function SettlementFlow({
         {receivers.map((player) => {
           const y = receiverY.get(player.id) ?? height / 2;
           const isMe = player.id === currentPlayerId;
+          const photo = profilePhotoFor(player.id);
           return (
             <g key={player.id} className={isMe ? "settlement-network-node is-me" : "settlement-network-node"}>
               <circle cx="652" cy={y} r="28" className="settlement-network-node-circle receiver" />
-              <text x="652" y={y + 5} textAnchor="middle" className="settlement-network-initials">
-                {initials(player.name)}
-              </text>
+              {photo ? (
+                <image
+                  href={photo}
+                  x="626.5"
+                  y={y - 25.5}
+                  width="51"
+                  height="51"
+                  preserveAspectRatio="xMidYMid slice"
+                  clipPath={`url(#settlement-receiver-avatar-${player.id})`}
+                />
+              ) : (
+                <text x="652" y={y + 5} textAnchor="middle" className="settlement-network-initials">
+                  {playerInitials(player.name)}
+                </text>
+              )}
               <text x="652" y={y + 42} textAnchor="middle" className="settlement-network-name">
                 {personLabel(player.id, player.name, currentPlayerId)}
               </text>
@@ -426,10 +467,12 @@ export function SettlementScreen({
   onClose,
   currentPlayerId,
   onCurrentPlayerChange,
+  playerProfiles,
 }: {
   onClose: () => void;
   currentPlayerId: string | null;
   onCurrentPlayerChange: (playerId: string | null) => void;
+  playerProfiles: PlayerProfile[];
 }) {
   const [data, setData] = useState<SettlementResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -445,6 +488,15 @@ export function SettlementScreen({
   const [copyingTransferKey, setCopyingTransferKey] = useState<string | null>(null);
   const [copiedTransferKey, setCopiedTransferKey] = useState<string | null>(null);
   const [error, setError] = useState("");
+
+  const profilePhotoByPlayer = useMemo(
+    () => new Map(playerProfiles.map((player) => [player.id, player.profilePhoto])),
+    [playerProfiles],
+  );
+
+  function profilePhotoFor(playerId: string) {
+    return profilePhotoByPlayer.get(playerId) ?? null;
+  }
 
   async function refresh() {
     const response = await loadSettlements();
@@ -826,6 +878,7 @@ export function SettlementScreen({
               <SettlementFlow
                 suggestions={suggestions}
                 currentPlayerId={currentPlayerId}
+                profilePhotoFor={profilePhotoFor}
                 onSelect={openSuggestedPayment}
               />
             ) : (
@@ -853,12 +906,14 @@ export function SettlementScreen({
                     >
                       <div className="settlement-payment-flow">
                         <div className="settlement-flow-player">
-                          <span className={
-                            "settlement-flow-avatar settlement-flow-avatar-payer" +
-                            (suggestion.fromPlayerId === currentPlayerId ? " is-me" : "")
-                          }>
-                            {initials(suggestion.fromPlayerName)}
-                          </span>
+                          <PlayerAvatar
+                            className={
+                              "settlement-flow-avatar settlement-flow-avatar-payer" +
+                              (suggestion.fromPlayerId === currentPlayerId ? " is-me" : "")
+                            }
+                            name={suggestion.fromPlayerName}
+                            photo={profilePhotoFor(suggestion.fromPlayerId)}
+                          />
                           <strong>
                             {personLabel(
                               suggestion.fromPlayerId,
@@ -874,12 +929,14 @@ export function SettlementScreen({
                         </div>
 
                         <div className="settlement-flow-player">
-                          <span className={
-                            "settlement-flow-avatar settlement-flow-avatar-receiver" +
-                            (suggestion.toPlayerId === currentPlayerId ? " is-me" : "")
-                          }>
-                            {initials(suggestion.toPlayerName)}
-                          </span>
+                          <PlayerAvatar
+                            className={
+                              "settlement-flow-avatar settlement-flow-avatar-receiver" +
+                              (suggestion.toPlayerId === currentPlayerId ? " is-me" : "")
+                            }
+                            name={suggestion.toPlayerName}
+                            photo={profilePhotoFor(suggestion.toPlayerId)}
+                          />
                           <strong>
                             {personLabel(
                               suggestion.toPlayerId,
@@ -1024,11 +1081,10 @@ export function SettlementScreen({
               <form onSubmit={submitPayment}>
                 <div className="payment-editor-route">
                   <div>
-                    <span className="avatar">
-                      {initials(
-                        data.players.find((player) => player.id === draft.fromPlayerId)?.name ?? "?",
-                      )}
-                    </span>
+                    <PlayerAvatar
+                      name={data.players.find((player) => player.id === draft.fromPlayerId)?.name ?? "?"}
+                      photo={profilePhotoFor(draft.fromPlayerId)}
+                    />
                     <strong>
                       {personLabel(
                         draft.fromPlayerId,
@@ -1039,11 +1095,10 @@ export function SettlementScreen({
                   </div>
                   <span className="payment-editor-route-arrow" aria-hidden="true">→</span>
                   <div>
-                    <span className="avatar">
-                      {initials(
-                        data.players.find((player) => player.id === draft.toPlayerId)?.name ?? "?",
-                      )}
-                    </span>
+                    <PlayerAvatar
+                      name={data.players.find((player) => player.id === draft.toPlayerId)?.name ?? "?"}
+                      photo={profilePhotoFor(draft.toPlayerId)}
+                    />
                     <strong>
                       {personLabel(
                         draft.toPlayerId,
@@ -1124,7 +1179,7 @@ export function SettlementScreen({
                 )
                 .map((player) => (
                   <article className={player.id === currentPlayerId ? "is-current-player" : ""} key={player.id}>
-                    <span className="avatar">{initials(player.name)}</span>
+                    <PlayerAvatar name={player.name} photo={profilePhotoFor(player.id)} />
                     <div>
                       <strong>{personLabel(player.id, player.name, currentPlayerId)}</strong>
                       <small>
