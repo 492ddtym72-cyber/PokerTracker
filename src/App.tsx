@@ -424,6 +424,25 @@ function AnimatedPokerChip() {
     if (!motionEnabled || document.visibilityState !== "visible") return;
 
     setSpinning(true);
+
+    // Prepare the face that is currently pointing away from the viewer BEFORE
+    // the rotation starts. This makes the next symbol behave like artwork on
+    // the physical reverse side of the chip: the visible face never changes
+    // while it is facing the viewer, and the new suit can only appear after
+    // the chip has passed through its edge-on position.
+    setChip((current) => {
+      const halfTurns = Math.round(current.rotation / 180);
+      const frontVisible = halfTurns % 2 === 0;
+      const visibleSuit = frontVisible ? current.frontSuit : current.backSuit;
+      const nextSuit = (visibleSuit + 1) % CHIP_SUITS.length;
+
+      return frontVisible
+        ? { ...current, backSuit: nextSuit }
+        : { ...current, frontSuit: nextSuit };
+    });
+
+    // Give React a paint with the hidden face prepared before moving the chip.
+    // Two frames avoid a one-frame compositor flash at exactly 0° / 180°.
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         setChip((current) => ({
@@ -465,25 +484,10 @@ function AnimatedPokerChip() {
   }, [motionEnabled]);
 
   function handleTurnFinished() {
-    // At this point one face is fully visible and the opposite face is
-    // completely hidden. Only the hidden face is changed, then the next
-    // 180° turn begins. The visible symbol therefore never swaps on-screen.
-    setChip((current) => {
-      const halfTurns = Math.round(current.rotation / 180);
-      const frontVisible = halfTurns % 2 === 0;
-      const visibleSuit = frontVisible ? current.frontSuit : current.backSuit;
-      const nextSuit = (visibleSuit + 1) % CHIP_SUITS.length;
-
-      return frontVisible
-        ? { ...current, backSuit: nextSuit }
-        : { ...current, frontSuit: nextSuit };
-    });
-
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        startNextHalfTurn();
-      });
-    });
+    // Do not change either symbol at the end of a turn. At this moment a face
+    // is fully visible, so changing artwork here can look like a fake swap.
+    // The next hidden face is prepared by startNextHalfTurn instead.
+    startNextHalfTurn();
   }
 
   return (
