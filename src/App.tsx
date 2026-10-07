@@ -519,11 +519,8 @@ function UnitedKingdomFlag() {
 }
 
 function AnimatedPokerChip() {
-  const [suitIndex, setSuitIndex] = useState(0);
   const [motionEnabled, setMotionEnabled] = useState(true);
-  const chipRef = useRef<HTMLSpanElement | null>(null);
-  const faceRef = useRef<HTMLSpanElement | null>(null);
-  const sidewallRef = useRef<HTMLSpanElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -536,235 +533,339 @@ function AnimatedPokerChip() {
   }, []);
 
   useEffect(() => {
-    const chip = chipRef.current;
-    const face = faceRef.current;
-    const sidewall = sidewallRef.current;
-    if (!chip || !face || !sidewall || !motionEnabled) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    let disposed = false;
-    let timer: number | undefined;
-    let running = false;
+    const size = 32;
+    const center = size / 2;
+    const radius = 13.75;
+    const halfThickness = 2.65;
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const context = canvas.getContext("2d");
+    if (!context) return;
 
-    const waitForPaint = () =>
-      new Promise<void>((resolve) => {
-        window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(() => resolve());
-        });
-      });
+    canvas.width = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+    canvas.style.width = `${size}px`;
+    canvas.style.height = `${size}px`;
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const runAnimation = async (
-      target: HTMLElement,
-      keyframes: Keyframe[],
-      options: KeyframeAnimationOptions,
+    const suitGlyphs: Record<ChipSuit, string> = {
+      spade: "♠",
+      heart: "♥",
+      diamond: "♦",
+      club: "♣",
+    };
+
+    const drawHull = (
+      leftCenter: number,
+      rightCenter: number,
+      rx: number,
+      sideVisibility: number,
     ) => {
-      const animation = target.animate(keyframes, options);
+      const safeRx = Math.max(rx, 0.02);
+      const top = center - radius;
+      const bottom = center + radius;
 
-      try {
-        await animation.finished;
-      } catch {
-        // Cancellation is expected when the app is backgrounded or unmounted.
+      context.beginPath();
+      context.moveTo(leftCenter, top);
+      context.lineTo(rightCenter, top);
+      context.ellipse(
+        rightCenter,
+        center,
+        safeRx,
+        radius,
+        0,
+        -Math.PI / 2,
+        Math.PI / 2,
+      );
+      context.lineTo(leftCenter, bottom);
+      context.ellipse(
+        leftCenter,
+        center,
+        safeRx,
+        radius,
+        0,
+        Math.PI / 2,
+        (Math.PI * 3) / 2,
+      );
+      context.closePath();
+
+      const left = leftCenter - safeRx;
+      const right = rightCenter + safeRx;
+      const sideGradient = context.createLinearGradient(left, 0, right, 0);
+      sideGradient.addColorStop(0, "#40351f");
+      sideGradient.addColorStop(0.15, "#927840");
+      sideGradient.addColorStop(0.34, "#17372a");
+      sideGradient.addColorStop(0.5, "#c0a25a");
+      sideGradient.addColorStop(0.67, "#17372a");
+      sideGradient.addColorStop(0.86, "#8d743d");
+      sideGradient.addColorStop(1, "#352d1c");
+
+      context.save();
+      context.shadowColor = "rgba(0,0,0,.45)";
+      context.shadowBlur = 3.2;
+      context.shadowOffsetY = 1.2;
+      context.fillStyle = sideGradient;
+      context.fill();
+      context.restore();
+
+      context.save();
+      context.clip();
+      context.globalAlpha = 0.18 + sideVisibility * 0.36;
+      context.strokeStyle = "#e3c778";
+      context.lineWidth = 1;
+
+      for (let y = center - 10; y <= center + 10; y += 5) {
+        context.beginPath();
+        context.moveTo(left - 1, y);
+        context.lineTo(right + 1, y);
+        context.stroke();
       }
 
-      return animation;
+      const shine = context.createLinearGradient(left, 0, right, 0);
+      shine.addColorStop(0, "rgba(255,255,255,0)");
+      shine.addColorStop(0.48, "rgba(255,241,192,.22)");
+      shine.addColorStop(0.58, "rgba(255,255,255,.08)");
+      shine.addColorStop(1, "rgba(255,255,255,0)");
+      context.globalAlpha = 0.45 + sideVisibility * 0.3;
+      context.fillStyle = shine;
+      context.fillRect(left, center - radius, right - left, radius * 2);
+      context.restore();
+
+      context.strokeStyle = "rgba(226,195,111,.30)";
+      context.lineWidth = 0.8;
+      context.stroke();
     };
 
-    const cancelAll = () => {
-      face.getAnimations().forEach((animation) => animation.cancel());
-      sidewall.getAnimations().forEach((animation) => animation.cancel());
-      chip.classList.remove("is-turning");
-      running = false;
+    const drawFace = (
+      faceCenterX: number,
+      faceScale: number,
+      suit: ChipSuit,
+      detailAlpha: number,
+      lightAmount: number,
+    ) => {
+      context.save();
+      context.translate(faceCenterX, center);
+      context.scale(Math.max(faceScale, 0.026), 1);
+
+      const faceGradient = context.createRadialGradient(
+        -radius * 0.28,
+        -radius * 0.34,
+        1,
+        0,
+        0,
+        radius,
+      );
+      faceGradient.addColorStop(0, `rgba(30,76,59,${lightAmount})`);
+      faceGradient.addColorStop(0.56, "#12382b");
+      faceGradient.addColorStop(1, "#09261d");
+
+      context.beginPath();
+      context.arc(0, 0, radius, 0, Math.PI * 2);
+      context.fillStyle = faceGradient;
+      context.fill();
+      context.strokeStyle = "#b99d57";
+      context.lineWidth = 1.15;
+      context.stroke();
+
+      context.globalAlpha = detailAlpha;
+
+      context.beginPath();
+      context.arc(0, 0, radius - 3, 0, Math.PI * 2);
+      context.strokeStyle = "rgba(231,198,117,.48)";
+      context.lineWidth = 1;
+      context.stroke();
+
+      context.beginPath();
+      context.arc(0, 0, radius - 6.1, 0, Math.PI * 2);
+      context.strokeStyle = "rgba(231,198,117,.22)";
+      context.lineWidth = 0.8;
+      context.stroke();
+
+      context.strokeStyle = "#dfc174";
+      context.lineWidth = 2.35;
+      context.lineCap = "butt";
+
+      for (let index = 0; index < 8; index += 1) {
+        const angle = (Math.PI * 2 * index) / 8;
+        const inner = radius - 2.8;
+        const outer = radius - 0.25;
+        context.beginPath();
+        context.moveTo(
+          Math.cos(angle) * inner,
+          Math.sin(angle) * inner,
+        );
+        context.lineTo(
+          Math.cos(angle) * outer,
+          Math.sin(angle) * outer,
+        );
+        context.stroke();
+      }
+
+      const isRed = suit === "heart" || suit === "diamond";
+      context.fillStyle = isRed ? "#cf6b65" : "#f1dfac";
+      context.shadowColor = "rgba(0,0,0,.34)";
+      context.shadowBlur = 1.2;
+      context.shadowOffsetY = 0.7;
+      context.font = '700 14px Georgia, "Times New Roman", serif';
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(suitGlyphs[suit], 0, 0.65);
+
+      context.restore();
     };
 
-    const schedule = (delay = 900) => {
-      if (disposed || document.visibilityState !== "visible") return;
+    const drawChip = (angle: number, suit: ChipSuit) => {
+      context.clearRect(0, 0, size, size);
+
+      const cosine = Math.cos(angle);
+      const sine = Math.sin(angle);
+      const faceScale = Math.abs(cosine);
+      const sideVisibility = Math.abs(sine);
+      const faceRx = radius * faceScale;
+      const projectedHalfThickness = halfThickness * sideVisibility;
+      const leftCenter = center - projectedHalfThickness;
+      const rightCenter = center + projectedHalfThickness;
+
+      drawHull(leftCenter, rightCenter, faceRx, sideVisibility);
+
+      const nearFaceSign = cosine >= 0 ? 1 : -1;
+      const nearFaceCenter =
+        center + nearFaceSign * halfThickness * sine;
+      const detailAlpha = Math.max(
+        0,
+        Math.min(1, (faceScale - 0.12) / 0.34),
+      );
+      const lightAmount = 0.88 + faceScale * 0.12;
+
+      drawFace(
+        nearFaceCenter,
+        faceScale,
+        suit,
+        detailAlpha,
+        lightAmount,
+      );
+    };
+
+    let disposed = false;
+    let frame: number | undefined;
+    let timer: number | undefined;
+    let suitIndex = 0;
+    let restingAngle = 0;
+    let turnStartAngle = 0;
+    let turning = false;
+
+    const cancelScheduledWork = () => {
+      if (frame !== undefined) {
+        window.cancelAnimationFrame(frame);
+        frame = undefined;
+      }
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+        timer = undefined;
+      }
+    };
+
+    const scheduleNextTurn = (delay = 950) => {
+      if (
+        disposed ||
+        !motionEnabled ||
+        document.visibilityState !== "visible"
+      ) {
+        return;
+      }
 
       if (timer !== undefined) window.clearTimeout(timer);
       timer = window.setTimeout(() => {
         timer = undefined;
-        void turn();
+        startTurn();
       }, delay);
     };
 
-    const turn = async () => {
-      if (disposed || running || document.visibilityState !== "visible") return;
-
-      running = true;
-      chip.classList.add("is-turning");
-
-      // The face and the physical edge are two separate layers. As the face
-      // turns away, the sidewall becomes increasingly visible instead of the
-      // whole chip collapsing into a 2D line.
-      await Promise.all([
-        runAnimation(
-          face,
-          [
-            {
-              transform: "perspective(480px) rotateY(0deg) scaleX(1)",
-              filter: "brightness(1) saturate(1)",
-            },
-            {
-              offset: 0.56,
-              transform: "perspective(480px) rotateY(48deg) scaleX(.66)",
-              filter: "brightness(.91) saturate(.97)",
-            },
-            {
-              offset: 0.82,
-              transform: "perspective(480px) rotateY(72deg) scaleX(.31)",
-              filter: "brightness(.77) saturate(.91)",
-            },
-            {
-              transform: "perspective(480px) rotateY(87deg) scaleX(.07)",
-              filter: "brightness(.62) saturate(.84)",
-            },
-          ],
-          {
-            duration: 900,
-            easing: "cubic-bezier(.45, 0, .55, 1)",
-            fill: "forwards",
-          },
-        ),
-        runAnimation(
-          sidewall,
-          [
-            {
-              opacity: 0.2,
-              transform: "translate(-50%, -50%) scaleX(.58)",
-              filter: "brightness(.82)",
-            },
-            {
-              offset: 0.55,
-              opacity: 0.62,
-              transform: "translate(-50%, -50%) scaleX(.82)",
-              filter: "brightness(.92)",
-            },
-            {
-              opacity: 1,
-              transform: "translate(-50%, -50%) scaleX(1.08)",
-              filter: "brightness(1.08)",
-            },
-          ],
-          {
-            duration: 900,
-            easing: "cubic-bezier(.45, 0, .55, 1)",
-            fill: "forwards",
-          },
-        ),
-      ]);
-
-      if (disposed || document.visibilityState !== "visible") {
-        cancelAll();
+    const startTurn = () => {
+      if (
+        disposed ||
+        turning ||
+        !motionEnabled ||
+        document.visibilityState !== "visible"
+      ) {
         return;
       }
 
-      // The symbol changes only while the front artwork is hidden behind the
-      // visible sidewall, so the viewer sees a real-looking chip edge here.
-      setSuitIndex((current) => (current + 1) % CHIP_SUITS.length);
-      await waitForPaint();
+      turning = true;
+      turnStartAngle = restingAngle;
+      const startedAt = performance.now();
+      const duration = 1900;
+      const currentSuit = CHIP_SUITS[suitIndex];
+      const nextSuit =
+        CHIP_SUITS[(suitIndex + 1) % CHIP_SUITS.length];
 
-      if (disposed || document.visibilityState !== "visible") {
-        cancelAll();
-        return;
-      }
+      const animate = (now: number) => {
+        if (
+          disposed ||
+          !motionEnabled ||
+          document.visibilityState !== "visible"
+        ) {
+          turning = false;
+          restingAngle = turnStartAngle;
+          drawChip(restingAngle, currentSuit);
+          return;
+        }
 
-      await Promise.all([
-        runAnimation(
-          face,
-          [
-            {
-              transform: "perspective(480px) rotateY(-87deg) scaleX(.07)",
-              filter: "brightness(.62) saturate(.84)",
-            },
-            {
-              offset: 0.18,
-              transform: "perspective(480px) rotateY(-72deg) scaleX(.31)",
-              filter: "brightness(.77) saturate(.91)",
-            },
-            {
-              offset: 0.44,
-              transform: "perspective(480px) rotateY(-48deg) scaleX(.66)",
-              filter: "brightness(.91) saturate(.97)",
-            },
-            {
-              transform: "perspective(480px) rotateY(0deg) scaleX(1)",
-              filter: "brightness(1) saturate(1)",
-            },
-          ],
-          {
-            duration: 900,
-            easing: "cubic-bezier(.45, 0, .55, 1)",
-            fill: "forwards",
-          },
-        ),
-        runAnimation(
-          sidewall,
-          [
-            {
-              opacity: 1,
-              transform: "translate(-50%, -50%) scaleX(1.08)",
-              filter: "brightness(1.08)",
-            },
-            {
-              offset: 0.45,
-              opacity: 0.62,
-              transform: "translate(-50%, -50%) scaleX(.82)",
-              filter: "brightness(.92)",
-            },
-            {
-              opacity: 0.2,
-              transform: "translate(-50%, -50%) scaleX(.58)",
-              filter: "brightness(.82)",
-            },
-          ],
-          {
-            duration: 900,
-            easing: "cubic-bezier(.45, 0, .55, 1)",
-            fill: "forwards",
-          },
-        ),
-      ]);
+        const progress = Math.min(1, (now - startedAt) / duration);
+        // One continuous curve for the entire 180° turn. There is no DOM
+        // hand-off or second animation at 90°, so every flip has identical
+        // timing and there is nothing for Safari to glitch between.
+        const eased = 0.5 - 0.5 * Math.cos(Math.PI * progress);
+        const angle = turnStartAngle + Math.PI * eased;
+        const visibleSuit = progress < 0.5 ? currentSuit : nextSuit;
 
-      face.getAnimations().forEach((animation) => animation.cancel());
-      sidewall.getAnimations().forEach((animation) => animation.cancel());
-      chip.classList.remove("is-turning");
-      running = false;
+        drawChip(angle, visibleSuit);
 
-      if (!disposed && document.visibilityState === "visible") {
-        schedule(950);
-      }
+        if (progress < 1) {
+          frame = window.requestAnimationFrame(animate);
+          return;
+        }
+
+        frame = undefined;
+        suitIndex = (suitIndex + 1) % CHIP_SUITS.length;
+        restingAngle = turnStartAngle + Math.PI;
+        turning = false;
+        drawChip(restingAngle, CHIP_SUITS[suitIndex]);
+        scheduleNextTurn(1000);
+      };
+
+      frame = window.requestAnimationFrame(animate);
     };
 
     const handleVisibility = () => {
-      if (document.visibilityState !== "visible") {
-        if (timer !== undefined) {
-          window.clearTimeout(timer);
-          timer = undefined;
-        }
-        cancelAll();
-        return;
-      }
+      cancelScheduledWork();
+      turning = false;
 
-      schedule(500);
+      if (document.visibilityState === "visible") {
+        drawChip(restingAngle, CHIP_SUITS[suitIndex]);
+        scheduleNextTurn(500);
+      }
     };
 
-    schedule(650);
-    document.addEventListener("visibilitychange", handleVisibility);
+    drawChip(restingAngle, CHIP_SUITS[suitIndex]);
+
+    if (motionEnabled) {
+      scheduleNextTurn(650);
+      document.addEventListener("visibilitychange", handleVisibility);
+    }
 
     return () => {
       disposed = true;
-      if (timer !== undefined) window.clearTimeout(timer);
+      cancelScheduledWork();
       document.removeEventListener("visibilitychange", handleVisibility);
-      cancelAll();
     };
   }, [motionEnabled]);
 
   return (
     <span className="brand-chip-scene" aria-hidden="true">
-      <span ref={chipRef} className="brand-chip">
-        <span ref={sidewallRef} className="brand-chip-sidewall" />
-        <span ref={faceRef} className="brand-chip-face brand-chip-face-front">
-          <ChipSuitIcon suit={CHIP_SUITS[suitIndex]} />
-        </span>
-      </span>
+      <canvas ref={canvasRef} className="brand-chip-canvas" />
     </span>
   );
 }
