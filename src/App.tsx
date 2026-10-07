@@ -28,6 +28,13 @@ import type {
 type Screen = "home" | "history" | "players" | "settlement" | "more";
 type ReconcileMode = "all" | "selected" | "custom";
 
+const CURRENT_PLAYER_KEY = "pokertracker-current-player-id";
+
+function storedCurrentPlayerId() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(CURRENT_PLAYER_KEY);
+}
+
 type DraftPlayer = {
   key: string;
   playerId: string;
@@ -311,6 +318,9 @@ function AnimatedPokerChip() {
 
 export default function App() {
   const [language, setLanguage] = useState<Language>(() => getLanguage());
+  const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(
+    () => storedCurrentPlayerId(),
+  );
   const [screen, setScreen] = useState<Screen>("home");
   const [editorOpen, setEditorOpen] = useState(false);
   const [detailNightId, setDetailNightId] = useState<string | null>(null);
@@ -457,6 +467,18 @@ export default function App() {
   function changeLanguage(next: Language) {
     setLanguagePreference(next);
     setLanguage(next);
+    setError("");
+  }
+
+  function changeCurrentPlayer(playerId: string | null) {
+    setCurrentPlayerId(playerId);
+
+    if (playerId) {
+      window.localStorage.setItem(CURRENT_PLAYER_KEY, playerId);
+    } else {
+      window.localStorage.removeItem(CURRENT_PLAYER_KEY);
+    }
+
     setError("");
   }
 
@@ -1203,6 +1225,30 @@ export default function App() {
               <div><strong>{stats[0]?.name ?? "—"}</strong><span>{t("Führung")}</span></div>
             </section>
 
+            {!loading && knownPlayers.length > 0 && !currentPlayerId && (
+              <section className="identity-nudge">
+                <div className="identity-nudge-copy">
+                  <span className="identity-nudge-icon" aria-hidden="true">◎</span>
+                  <div>
+                    <strong>{t("PokerTracker personalisieren")}</strong>
+                    <small>{t("Wer bist du? Die Auswahl bleibt nur auf diesem Gerät.")}</small>
+                  </div>
+                </div>
+                <select
+                  aria-label={t("Wer bist du?")}
+                  defaultValue=""
+                  onChange={(event) => {
+                    if (event.target.value) changeCurrentPlayer(event.target.value);
+                  }}
+                >
+                  <option value="">{t("Spieler wählen")}</option>
+                  {knownPlayers.map((player) => (
+                    <option key={player.id} value={player.id}>{player.name}</option>
+                  ))}
+                </select>
+              </section>
+            )}
+
             <SettlementSummary onOpen={() => navigate("settlement")} />
 
             <button className="gold-cta" type="button" onClick={startNew}>
@@ -1263,7 +1309,11 @@ export default function App() {
         )}
 
         {screen === "settlement" && (
-          <SettlementScreen onClose={() => navigate("home")} />
+          <SettlementScreen
+            onClose={() => navigate("home")}
+            currentPlayerId={currentPlayerId}
+            onCurrentPlayerChange={changeCurrentPlayer}
+          />
         )}
 
         {screen === "history" && (
@@ -1399,6 +1449,31 @@ export default function App() {
               <h1>{t("Mehr")}</h1>
               <p>{t("Einstellungen für eure Runde.")}</p>
             </div>
+
+            <section className="settings-card identity-settings-card">
+              <div className="form-card-title"><span>◎</span><h2>{t("Dieses Gerät")}</h2></div>
+              <p className="settings-description">{t("Wer benutzt PokerTracker auf diesem Gerät?")}</p>
+              <div className="device-player-setting">
+                <span className="avatar">
+                  {initials(
+                    knownPlayers.find((player) => player.id === currentPlayerId)?.name ?? "?",
+                  )}
+                </span>
+                <select
+                  value={currentPlayerId ?? ""}
+                  aria-label={t("Dieses Gerät")}
+                  onChange={(event) => changeCurrentPlayer(event.target.value || null)}
+                >
+                  <option value="">{t("Keine Person ausgewählt")}</option>
+                  {knownPlayers.map((player) => (
+                    <option key={player.id} value={player.id}>{player.name}</option>
+                  ))}
+                </select>
+              </div>
+              <small className="settings-note">
+                {t("Diese Auswahl wird nur lokal auf diesem Gerät gespeichert und verändert keine Pokerergebnisse.")}
+              </small>
+            </section>
 
             <section className="settings-card language-settings-card">
               <div className="form-card-title"><span>🌐</span><h2>{t("Sprache")}</h2></div>
