@@ -511,6 +511,8 @@ function AnimatedPokerChip() {
   const [suitIndex, setSuitIndex] = useState(0);
   const [motionEnabled, setMotionEnabled] = useState(true);
   const chipRef = useRef<HTMLSpanElement | null>(null);
+  const faceRef = useRef<HTMLSpanElement | null>(null);
+  const sidewallRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -523,8 +525,10 @@ function AnimatedPokerChip() {
   }, []);
 
   useEffect(() => {
-    const element = chipRef.current;
-    if (!element || !motionEnabled) return;
+    const chip = chipRef.current;
+    const face = faceRef.current;
+    const sidewall = sidewallRef.current;
+    if (!chip || !face || !sidewall || !motionEnabled) return;
 
     let disposed = false;
     let timer: number | undefined;
@@ -538,22 +542,29 @@ function AnimatedPokerChip() {
       });
 
     const runAnimation = async (
+      target: HTMLElement,
       keyframes: Keyframe[],
       options: KeyframeAnimationOptions,
     ) => {
-      const animation = element.animate(keyframes, options);
+      const animation = target.animate(keyframes, options);
 
       try {
         await animation.finished;
       } catch {
-        // Animation cancellation is expected when the app is backgrounded,
-        // unmounted, or a newer cycle takes over.
+        // Cancellation is expected when the app is backgrounded or unmounted.
       }
 
       return animation;
     };
 
-    const schedule = (delay = 950) => {
+    const cancelAll = () => {
+      face.getAnimations().forEach((animation) => animation.cancel());
+      sidewall.getAnimations().forEach((animation) => animation.cancel());
+      chip.classList.remove("is-turning");
+      running = false;
+    };
+
+    const schedule = (delay = 900) => {
       if (disposed || document.visibilityState !== "visible") return;
 
       if (timer !== undefined) window.clearTimeout(timer);
@@ -564,89 +575,146 @@ function AnimatedPokerChip() {
     };
 
     const turn = async () => {
-      if (
-        disposed ||
-        running ||
-        document.visibilityState !== "visible"
-      ) {
-        return;
-      }
+      if (disposed || running || document.visibilityState !== "visible") return;
 
       running = true;
-      element.classList.add("is-turning");
+      chip.classList.add("is-turning");
 
-      // Phase 1: compress the complete chip to a near-invisible edge. This
-      // avoids Safari's inconsistent backface compositing while preserving
-      // the visual impression of a real 3D half-turn.
-      await runAnimation(
-        [
+      // The face and the physical edge are two separate layers. As the face
+      // turns away, the sidewall becomes increasingly visible instead of the
+      // whole chip collapsing into a 2D line.
+      await Promise.all([
+        runAnimation(
+          face,
+          [
+            {
+              transform: "perspective(480px) rotateY(0deg) scaleX(1)",
+              filter: "brightness(1) saturate(1)",
+            },
+            {
+              offset: 0.56,
+              transform: "perspective(480px) rotateY(48deg) scaleX(.66)",
+              filter: "brightness(.91) saturate(.97)",
+            },
+            {
+              offset: 0.82,
+              transform: "perspective(480px) rotateY(72deg) scaleX(.31)",
+              filter: "brightness(.77) saturate(.91)",
+            },
+            {
+              transform: "perspective(480px) rotateY(87deg) scaleX(.07)",
+              filter: "brightness(.62) saturate(.84)",
+            },
+          ],
           {
-            transform: "perspective(480px) rotateY(0deg) scaleX(1)",
-            filter: "brightness(1) saturate(1)",
+            duration: 900,
+            easing: "cubic-bezier(.45, 0, .55, 1)",
+            fill: "forwards",
           },
+        ),
+        runAnimation(
+          sidewall,
+          [
+            {
+              opacity: 0.2,
+              transform: "translate(-50%, -50%) scaleX(.58)",
+              filter: "brightness(.82)",
+            },
+            {
+              offset: 0.55,
+              opacity: 0.62,
+              transform: "translate(-50%, -50%) scaleX(.82)",
+              filter: "brightness(.92)",
+            },
+            {
+              opacity: 1,
+              transform: "translate(-50%, -50%) scaleX(1.08)",
+              filter: "brightness(1.08)",
+            },
+          ],
           {
-            offset: 0.72,
-            transform: "perspective(480px) rotateY(58deg) scaleX(.34)",
-            filter: "brightness(.84) saturate(.94)",
+            duration: 900,
+            easing: "cubic-bezier(.45, 0, .55, 1)",
+            fill: "forwards",
           },
-          {
-            transform: "perspective(480px) rotateY(88deg) scaleX(.035)",
-            filter: "brightness(.62) saturate(.82)",
-          },
-        ],
-        {
-          duration: 950,
-          easing: "cubic-bezier(.42, 0, .58, 1)",
-          fill: "forwards",
-        },
-      );
+        ),
+      ]);
 
       if (disposed || document.visibilityState !== "visible") {
-        running = false;
-        element.classList.remove("is-turning");
-        element.getAnimations().forEach((animation) => animation.cancel());
+        cancelAll();
         return;
       }
 
-      // This is the only point where the symbol changes. At scaleX .035 the
-      // artwork is visually hidden inside the chip edge.
+      // The symbol changes only while the front artwork is hidden behind the
+      // visible sidewall, so the viewer sees a real-looking chip edge here.
       setSuitIndex((current) => (current + 1) % CHIP_SUITS.length);
       await waitForPaint();
 
       if (disposed || document.visibilityState !== "visible") {
-        running = false;
-        element.classList.remove("is-turning");
-        element.getAnimations().forEach((animation) => animation.cancel());
+        cancelAll();
         return;
       }
 
-      // Phase 2: the new side emerges from the opposite edge. Starting from
-      // -88deg makes the midpoint hand-off invisible but keeps motion smooth.
-      await runAnimation(
-        [
+      await Promise.all([
+        runAnimation(
+          face,
+          [
+            {
+              transform: "perspective(480px) rotateY(-87deg) scaleX(.07)",
+              filter: "brightness(.62) saturate(.84)",
+            },
+            {
+              offset: 0.18,
+              transform: "perspective(480px) rotateY(-72deg) scaleX(.31)",
+              filter: "brightness(.77) saturate(.91)",
+            },
+            {
+              offset: 0.44,
+              transform: "perspective(480px) rotateY(-48deg) scaleX(.66)",
+              filter: "brightness(.91) saturate(.97)",
+            },
+            {
+              transform: "perspective(480px) rotateY(0deg) scaleX(1)",
+              filter: "brightness(1) saturate(1)",
+            },
+          ],
           {
-            transform: "perspective(480px) rotateY(-88deg) scaleX(.035)",
-            filter: "brightness(.62) saturate(.82)",
+            duration: 900,
+            easing: "cubic-bezier(.45, 0, .55, 1)",
+            fill: "forwards",
           },
+        ),
+        runAnimation(
+          sidewall,
+          [
+            {
+              opacity: 1,
+              transform: "translate(-50%, -50%) scaleX(1.08)",
+              filter: "brightness(1.08)",
+            },
+            {
+              offset: 0.45,
+              opacity: 0.62,
+              transform: "translate(-50%, -50%) scaleX(.82)",
+              filter: "brightness(.92)",
+            },
+            {
+              opacity: 0.2,
+              transform: "translate(-50%, -50%) scaleX(.58)",
+              filter: "brightness(.82)",
+            },
+          ],
           {
-            offset: 0.28,
-            transform: "perspective(480px) rotateY(-58deg) scaleX(.34)",
-            filter: "brightness(.84) saturate(.94)",
+            duration: 900,
+            easing: "cubic-bezier(.45, 0, .55, 1)",
+            fill: "forwards",
           },
-          {
-            transform: "perspective(480px) rotateY(0deg) scaleX(1)",
-            filter: "brightness(1) saturate(1)",
-          },
-        ],
-        {
-          duration: 950,
-          easing: "cubic-bezier(.42, 0, .58, 1)",
-          fill: "forwards",
-        },
-      );
+        ),
+      ]);
 
-      element.getAnimations().forEach((animation) => animation.cancel());
-      element.classList.remove("is-turning");
+      face.getAnimations().forEach((animation) => animation.cancel());
+      sidewall.getAnimations().forEach((animation) => animation.cancel());
+      chip.classList.remove("is-turning");
       running = false;
 
       if (!disposed && document.visibilityState === "visible") {
@@ -660,10 +728,7 @@ function AnimatedPokerChip() {
           window.clearTimeout(timer);
           timer = undefined;
         }
-
-        element.getAnimations().forEach((animation) => animation.cancel());
-        element.classList.remove("is-turning");
-        running = false;
+        cancelAll();
         return;
       }
 
@@ -677,16 +742,15 @@ function AnimatedPokerChip() {
       disposed = true;
       if (timer !== undefined) window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", handleVisibility);
-      element.getAnimations().forEach((animation) => animation.cancel());
-      element.classList.remove("is-turning");
+      cancelAll();
     };
   }, [motionEnabled]);
 
   return (
     <span className="brand-chip-scene" aria-hidden="true">
       <span ref={chipRef} className="brand-chip">
-        <span className="brand-chip-edge" />
-        <span className="brand-chip-face brand-chip-face-front">
+        <span ref={sidewallRef} className="brand-chip-sidewall" />
+        <span ref={faceRef} className="brand-chip-face brand-chip-face-front">
           <ChipSuitIcon suit={CHIP_SUITS[suitIndex]} />
         </span>
       </span>
