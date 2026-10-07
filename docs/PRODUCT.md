@@ -28,8 +28,8 @@ For each night, PokerTracker compares total stakes with total cash-outs. A diffe
 - **History** — append-only audit trail for created, changed and deleted poker nights
 - **New poker night** — fast end-of-evening entry
 - **Players** — lifetime standings derived from saved nights
-- **More** — password and session settings
-- **Settle up** — current player balances, suggested transfers, partial payments and payment history
+- **More** — device-local identity, language, password and session settings
+- **Settle up** — current player balances, personalized suggested transfers, list/flow views, PayPal handoff, partial payments and payment history
 
 ## History rules
 
@@ -55,6 +55,9 @@ Poker results and real-world payments are separate ledgers.
 - Suggested transfers are recalculated from current open balances.
 - A payment cannot exceed either the payer's open debt or the recipient's open winnings.
 - Unresolved poker-night differences are shown separately because payments cannot make an imbalanced set of results sum to zero.
+- The optional "this device is..." player identity is stored only in localStorage and never changes settlement mathematics or permissions.
+- PayPal account identifiers are not stored. Before PayPal is opened, the server recalculates the currently valid suggested transfer; the current amount is copied to the clipboard and the user chooses the recipient in PayPal.
+- The flow view is a visualization of optimized settlement transfers, not a claim that one player directly owes another for a specific poker night.
 
 ## Explicitly out of scope
 

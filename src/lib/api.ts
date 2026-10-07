@@ -3,6 +3,7 @@ import type {
   NightAdjustmentInput,
   NightInput,
   PokerNight,
+  PreparedPayPalPayment,
   SettlementPaymentInput,
   SettlementResponse,
 } from "../types";
@@ -106,12 +107,8 @@ export function voidSettlementPayment(id: string) {
 }
 
 
-export function updatePlayerPayPalMe(id: string, paypalMe: string) {
-  return api<SettlementResponse>(
-    "/api/players/" + encodeURIComponent(id) + "/paypal",
-    {
-      method: "PUT",
-      body: JSON.stringify({ paypalMe }),
-    },
-  );
+
+export function preparePayPalPayment(fromPlayerId: string, toPlayerId: string) {
+  const params = new URLSearchParams({ fromPlayerId, toPlayerId });
+  return api<PreparedPayPalPayment>("/api/settlements/paypal?" + params.toString());
 }

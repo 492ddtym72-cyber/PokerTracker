@@ -92,7 +92,6 @@ export interface HistoryResponse {
 export interface SettlementPlayer {
   id: string;
   name: string;
-  paypalMe: string | null;
   pokerBalanceCents: number;
   paidOutCents: number;
   receivedCents: number;
@@ -135,4 +134,15 @@ export interface SettlementPaymentInput {
   paidAt: string;
   note?: string;
   clientToken: string;
+}
+
+
+export interface PreparedPayPalPayment {
+  fromPlayerId: string;
+  fromPlayerName: string;
+  toPlayerId: string;
+  toPlayerName: string;
+  amountCents: number;
+  currency: "EUR";
+  paypalUrl: string;
 }

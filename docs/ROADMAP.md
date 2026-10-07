@@ -35,6 +35,9 @@
 - [ ] Session filters
 - [x] Settlements / who owes whom
 - [x] Partial payment tracking and undo history
+- [x] Device-local player identity and personalized settlement view
+- [x] Visual settlement flow view
+- [x] PayPal handoff without stored PayPal identities
 
 ## Later only if genuinely useful
 - multiple currencies
