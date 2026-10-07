@@ -220,9 +220,13 @@ function ChipSuitIcon({ suit }: { suit: ChipSuit }) {
 }
 
 function AnimatedPokerChip() {
-  const [chip, setChip] = useState({ step: 0, frontSuit: 0, backSuit: 1 });
-  const [isTurning, setIsTurning] = useState(false);
+  const [chip, setChip] = useState({
+    rotation: 0,
+    frontSuit: 0,
+    backSuit: 1,
+  });
   const [motionEnabled, setMotionEnabled] = useState(true);
+  const [spinning, setSpinning] = useState(false);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -234,86 +238,78 @@ function AnimatedPokerChip() {
     return () => mediaQuery.removeEventListener?.("change", syncMotionPreference);
   }, []);
 
-  useEffect(() => {
-    if (!motionEnabled) return;
+  function startNextHalfTurn() {
+    if (!motionEnabled || document.visibilityState !== "visible") return;
 
-    let firstFlipTimer: number | undefined;
-    let intervalTimer: number | undefined;
-    let prepareTimer: number | undefined;
-    let settleTimer: number | undefined;
-
-    const primeHiddenFace = () => {
-      setChip((current) => {
-        const visibleSuit =
-          current.step % 2 === 0 ? current.frontSuit : current.backSuit;
-        const nextSuit = (visibleSuit + 1) % CHIP_SUITS.length;
-
-        return current.step % 2 === 0
-          ? { ...current, backSuit: nextSuit }
-          : { ...current, frontSuit: nextSuit };
+    setSpinning(true);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        setChip((current) => ({
+          ...current,
+          rotation: current.rotation + 180,
+        }));
       });
-    };
+    });
+  }
 
-    const flip = () => {
-      if (document.visibilityState !== "visible") return;
+  useEffect(() => {
+    if (!motionEnabled) {
+      setSpinning(false);
+      return;
+    }
 
-      // Prepare the hidden face first. The suit is already physically on the
-      // back of the chip before the 180° turn starts, so nothing swaps after
-      // the animation has finished.
-      primeHiddenFace();
-
-      window.clearTimeout(prepareTimer);
-      prepareTimer = window.setTimeout(() => {
-        if (document.visibilityState !== "visible") return;
-
-        setIsTurning(true);
-        setChip((current) => ({ ...current, step: current.step + 1 }));
-
-        window.clearTimeout(settleTimer);
-        settleTimer = window.setTimeout(() => {
-          setIsTurning(false);
-        }, 820);
-      }, 34);
-    };
+    let startTimer: number | undefined;
 
     const start = () => {
-      firstFlipTimer = window.setTimeout(() => {
-        flip();
-        intervalTimer = window.setInterval(flip, 3800);
-      }, 3000);
-    };
-
-    const stop = () => {
-      window.clearTimeout(firstFlipTimer);
-      window.clearInterval(intervalTimer);
-      window.clearTimeout(prepareTimer);
-      window.clearTimeout(settleTimer);
+      window.clearTimeout(startTimer);
+      startTimer = window.setTimeout(startNextHalfTurn, 500);
     };
 
     const handleVisibility = () => {
-      stop();
-      setIsTurning(false);
-      primeHiddenFace();
-
-      if (document.visibilityState === "visible") start();
+      if (document.visibilityState === "visible") {
+        start();
+      } else {
+        setSpinning(false);
+      }
     };
 
-    if (document.visibilityState === "visible") start();
+    start();
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
-      stop();
+      window.clearTimeout(startTimer);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [motionEnabled]);
 
-  const rotation = chip.step * 180;
+  function handleTurnFinished() {
+    // At this point one face is fully visible and the opposite face is
+    // completely hidden. Only the hidden face is changed, then the next
+    // 180° turn begins. The visible symbol therefore never swaps on-screen.
+    setChip((current) => {
+      const halfTurns = Math.round(current.rotation / 180);
+      const frontVisible = halfTurns % 2 === 0;
+      const visibleSuit = frontVisible ? current.frontSuit : current.backSuit;
+      const nextSuit = (visibleSuit + 1) % CHIP_SUITS.length;
+
+      return frontVisible
+        ? { ...current, backSuit: nextSuit }
+        : { ...current, frontSuit: nextSuit };
+    });
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        startNextHalfTurn();
+      });
+    });
+  }
 
   return (
     <span className="brand-chip-scene" aria-hidden="true">
       <span
-        className={`brand-chip${isTurning ? " is-turning" : ""}`}
-        style={{ transform: `rotateY(${rotation}deg)` }}
+        className={`brand-chip${spinning ? " is-turning" : ""}`}
+        style={{ transform: `rotateY(${chip.rotation}deg)` }}
+        onTransitionEnd={handleTurnFinished}
       >
         <span className="brand-chip-edge" />
         <span className="brand-chip-face brand-chip-face-front">
