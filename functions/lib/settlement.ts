@@ -12,7 +12,6 @@ export interface SettlementPaymentInput {
 interface BalanceRow {
   player_id: string;
   player_name: string;
-  paypal_me: string | null;
   poker_balance_cents: number;
 }
 
@@ -38,7 +37,6 @@ interface PaymentTotalRow {
 export interface SettlementPlayer {
   id: string;
   name: string;
-  paypalMe: string | null;
   pokerBalanceCents: number;
   paidOutCents: number;
   receivedCents: number;
@@ -156,7 +154,6 @@ export async function loadSettlementSnapshot(env: Env) {
       `SELECT
          p.id AS player_id,
          p.name AS player_name,
-         p.paypal_me,
          COALESCE(SUM(
            r.cash_out_cents - r.stake_cents + COALESCE(a.amount_cents, 0)
          ), 0) AS poker_balance_cents
@@ -164,7 +161,7 @@ export async function loadSettlementSnapshot(env: Env) {
        JOIN night_results r ON r.player_id = p.id
        LEFT JOIN night_adjustments a
          ON a.night_id = r.night_id AND a.player_id = r.player_id
-       GROUP BY p.id, p.name, p.paypal_me
+       GROUP BY p.id, p.name
        ORDER BY p.name COLLATE NOCASE ASC`,
     ).all<BalanceRow>(),
     env.DB.prepare(
@@ -214,7 +211,6 @@ export async function loadSettlementSnapshot(env: Env) {
   const players = balanceQuery.results.map<SettlementPlayer>((row) => ({
     id: row.player_id,
     name: row.player_name,
-    paypalMe: row.paypal_me,
     pokerBalanceCents: Number(row.poker_balance_cents) || 0,
     paidOutCents: 0,
     receivedCents: 0,
@@ -330,48 +326,3 @@ export async function voidSettlementPayment(env: Env, paymentId: string) {
   return loadSettlementSnapshot(env);
 }
 
-
-export function validatePayPalMeValue(value: unknown) {
-  if (typeof value !== "string") {
-    throw new Error("Ungültiger PayPal.Me-Link.");
-  }
-
-  let paypalMe = value.trim();
-
-  if (!paypalMe) return null;
-
-  paypalMe = paypalMe
-    .replace(/^https?:\/\/(?:www\.)?paypal\.me\//i, "")
-    .replace(/^paypal\.me\//i, "")
-    .replace(/\/+$/, "");
-
-  if (!/^[A-Za-z0-9]{1,20}$/.test(paypalMe)) {
-    throw new Error("PayPal.Me darf nur aus Buchstaben und Zahlen mit maximal 20 Zeichen bestehen.");
-  }
-
-  return paypalMe;
-}
-
-export async function writePlayerPayPalMe(
-  env: Env,
-  playerId: string,
-  paypalMe: string | null,
-) {
-  if (!isPlayerId(playerId)) {
-    throw new Error("Ungültige Spieler-ID.");
-  }
-
-  const player = await env.DB.prepare(
-    "SELECT id FROM players WHERE id = ? LIMIT 1",
-  ).bind(playerId).first<{ id: string }>();
-
-  if (!player?.id) {
-    throw new Error("Der ausgewählte Spieler existiert nicht.");
-  }
-
-  await env.DB.prepare(
-    "UPDATE players SET paypal_me = ? WHERE id = ?",
-  ).bind(paypalMe, playerId).run();
-
-  return loadSettlementSnapshot(env);
-}
