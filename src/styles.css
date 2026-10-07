@@ -1818,54 +1818,234 @@ select:focus {
   gap: 8px;
 }
 
-.settlement-suggestion {
+.settlement-payment-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px 10px;
-  align-items: center;
-  padding: 11px 12px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: rgba(8,31,23,.92);
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(231,198,117,.16);
+  border-radius: 18px;
+  background: #081f18;
 }
 
-.settlement-route {
-  min-width: 0;
-  display: flex;
+.settlement-payment-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 50px minmax(0, 1fr);
   align-items: center;
   gap: 9px;
 }
 
-.settlement-route div {
+.settlement-flow-player {
   min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
 }
 
-.settlement-route strong,
-.settlement-route small {
-  display: block;
+.settlement-flow-avatar {
+  width: 78px;
+  height: 78px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 50%;
+  color: #f2f4f1;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -.02em;
 }
 
-.settlement-route strong {
+.settlement-flow-avatar-payer {
+  background: linear-gradient(180deg, #365c75, #25465c);
+}
+
+.settlement-flow-avatar-receiver {
+  background: linear-gradient(180deg, #276c4b, #1a5138);
+}
+
+.settlement-flow-player strong {
+  max-width: 100%;
   overflow: hidden;
+  color: #f2eee5;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.settlement-flow-player small {
+  color: #7f9288;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.settlement-flow-direction {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  color: #d6b663;
+}
+
+.settlement-flow-line {
+  width: 34px;
+  height: 1px;
+  border-radius: 999px;
+  background: rgba(214,182,99,.38);
+}
+
+.settlement-flow-arrow {
+  margin-top: -10px;
+  padding-left: 19px;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.settlement-payment-amount {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid rgba(231,198,117,.18);
+  border-radius: 13px;
+  background: #061812;
+}
+
+.settlement-payment-amount > span {
+  width: 23px;
+  height: 23px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(231,198,117,.24);
+  border-radius: 50%;
+  color: #d8b966;
   font-size: 11px;
+  font-weight: 900;
 }
 
-.settlement-route small {
-  margin-top: 3px;
-  color: #7b8e84;
+.settlement-payment-amount strong {
+  color: #e7c675;
+  font-size: 23px;
+  letter-spacing: -.035em;
+}
+
+.settlement-payment-actions {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  gap: 8px;
+}
+
+.paypal-payment-button,
+.settlement-record-button {
+  min-height: 43px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 11px;
+  border-radius: 11px;
   font-size: 9px;
+  font-weight: 900;
+  text-decoration: none;
 }
 
-.settlement-suggestion > b {
-  color: #eee3c7;
-  font-size: 12px;
+.paypal-payment-button {
+  border: 1px solid rgba(255,255,255,.22);
+  background: #f5f7fb;
+  color: #003087;
 }
 
-.settlement-suggestion .balance-action {
-  grid-column: 1 / -1;
+.paypal-payment-button img {
+  width: 20px;
+  height: 20px;
+  display: block;
+  object-fit: contain;
+}
+
+.paypal-payment-button-setup {
   width: 100%;
+}
+
+.settlement-record-button {
+  border: 1px solid rgba(231,198,117,.28);
+  background: rgba(231,198,117,.08);
+  color: #edd79f;
+}
+
+.paypal-setup-form {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(0,112,186,.22);
+  border-radius: 13px;
+  background: #071b15;
+}
+
+.paypal-setup-form > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.paypal-setup-form strong {
+  font-size: 10px;
+}
+
+.paypal-setup-form > div:first-child span,
+.paypal-setup-form > small {
+  color: #7c8f85;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.paypal-setup-input-row {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #05140f;
+}
+
+.paypal-setup-input-row > span {
+  padding-left: 10px;
+  color: #71847a;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.paypal-setup-input-row input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px 0 2px;
+  border: 0;
+  background: transparent;
+  color: #eef1ee;
+  outline: none;
+}
+
+.paypal-setup-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.paypal-setup-actions .secondary-button,
+.paypal-save-button {
+  min-height: 39px;
+  margin: 0;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.paypal-save-button {
+  border: 1px solid #0070ba;
+  background: #0070ba;
+  color: white;
 }
 
 .settlement-manual-button {
@@ -2070,6 +2250,35 @@ select:focus {
 }
 
 @media (max-width: 460px) {
+  .settlement-flow-avatar {
+    width: 68px;
+    height: 68px;
+    font-size: 24px;
+  }
+
+  .settlement-payment-flow {
+    grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .settlement-flow-player strong {
+    font-size: 11px;
+  }
+
+  .settlement-payment-amount strong {
+    font-size: 20px;
+  }
+
+  .settlement-payment-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .paypal-payment-button,
+  .settlement-record-button {
+    padding: 0 8px;
+    font-size: 8px;
+  }
+
   .payment-editor-grid {
     grid-template-columns: 1fr;
   }
