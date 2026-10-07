@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import {
   createSettlementPayment,
   loadSettlements,
+  updatePlayerPayPalMe,
   voidSettlementPayment,
 } from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
@@ -29,6 +30,14 @@ function formatPaymentDate(value: string) {
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "?") + (parts[1]?.[0] ?? "")).toUpperCase();
+}
+
+const PAYPAL_MARK_URL =
+  "https://www.paypalobjects.com/paypal-ui/logos/svg/paypal-mark-color.svg";
+
+function paypalPaymentUrl(paypalMe: string, amountCents: number) {
+  const amount = (amountCents / 100).toFixed(2);
+  return `https://paypal.me/${encodeURIComponent(paypalMe)}/${amount}EUR`;
 }
 
 type PaymentDraft = {
@@ -110,6 +119,9 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
   const [saving, setSaving] = useState(false);
   const [voidingId, setVoidingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<PaymentDraft | null>(null);
+  const [paypalEditingPlayerId, setPaypalEditingPlayerId] = useState<string | null>(null);
+  const [paypalDraft, setPaypalDraft] = useState("");
+  const [paypalSaving, setPaypalSaving] = useState(false);
   const [error, setError] = useState("");
 
   async function refresh() {
@@ -148,6 +160,30 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
   function openSuggestedPayment(suggestion: SettlementSuggestion) {
     setDraft(suggestionDraft(suggestion));
     setError("");
+  }
+
+  function openPayPalSetup(playerId: string) {
+    const player = data?.players.find((candidate) => candidate.id === playerId);
+    setPaypalEditingPlayerId(playerId);
+    setPaypalDraft(player?.paypalMe ?? "");
+    setError("");
+  }
+
+  async function savePayPalMe(event: FormEvent, playerId: string) {
+    event.preventDefault();
+    setPaypalSaving(true);
+    setError("");
+
+    try {
+      const response = await updatePlayerPayPalMe(playerId, paypalDraft.trim());
+      setData(response);
+      setPaypalEditingPlayerId(null);
+      setPaypalDraft("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("PayPal.Me konnte nicht gespeichert werden."));
+    } finally {
+      setPaypalSaving(false);
+    }
   }
 
   async function submitPayment(event: FormEvent) {
@@ -251,27 +287,126 @@ export function SettlementScreen({ onClose }: { onClose: () => void }) {
               </div>
             ) : (
               <div className="settlement-suggestion-list">
-                {data.suggestions.map((suggestion, index) => (
-                  <article className="settlement-suggestion" key={
-                    suggestion.fromPlayerId + ":" + suggestion.toPlayerId + ":" + index
-                  }>
-                    <div className="settlement-route">
-                      <span className="avatar">{initials(suggestion.fromPlayerName)}</span>
-                      <div>
-                        <strong>{suggestion.fromPlayerName}</strong>
-                        <small>→ {suggestion.toPlayerName}</small>
+                {data.suggestions.map((suggestion, index) => {
+                  const receiver = data.players.find(
+                    (player) => player.id === suggestion.toPlayerId,
+                  );
+                  const paypalMe = receiver?.paypalMe ?? null;
+                  const paypalSetupOpen = paypalEditingPlayerId === suggestion.toPlayerId;
+
+                  return (
+                    <article className="settlement-payment-card" key={
+                      suggestion.fromPlayerId + ":" + suggestion.toPlayerId + ":" + index
+                    }>
+                      <div className="settlement-payment-flow">
+                        <div className="settlement-flow-player">
+                          <span className="settlement-flow-avatar settlement-flow-avatar-payer">
+                            {initials(suggestion.fromPlayerName)}
+                          </span>
+                          <strong>{suggestion.fromPlayerName}</strong>
+                          <small>{t("Zahlt")}</small>
+                        </div>
+
+                        <div className="settlement-flow-direction" aria-hidden="true">
+                          <span className="settlement-flow-line" />
+                          <span className="settlement-flow-arrow">→</span>
+                        </div>
+
+                        <div className="settlement-flow-player">
+                          <span className="settlement-flow-avatar settlement-flow-avatar-receiver">
+                            {initials(suggestion.toPlayerName)}
+                          </span>
+                          <strong>{suggestion.toPlayerName}</strong>
+                          <small>{t("Erhält")}</small>
+                        </div>
                       </div>
-                    </div>
-                    <b>{formatMoney(suggestion.amountCents)}</b>
-                    <button
-                      type="button"
-                      className="balance-action"
-                      onClick={() => openSuggestedPayment(suggestion)}
-                    >
-                      {t("Zahlung eintragen")}
-                    </button>
-                  </article>
-                ))}
+
+                      <div className="settlement-payment-amount">
+                        <span aria-hidden="true">€</span>
+                        <strong>{formatMoney(suggestion.amountCents)}</strong>
+                      </div>
+
+                      <div className="settlement-payment-actions">
+                        {paypalMe ? (
+                          <a
+                            className="paypal-payment-button"
+                            href={paypalPaymentUrl(paypalMe, suggestion.amountCents)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <img src={PAYPAL_MARK_URL} alt="" aria-hidden="true" />
+                            <span>{t("Mit PayPal zahlen")}</span>
+                          </a>
+                        ) : (
+                          <button
+                            className="paypal-payment-button paypal-payment-button-setup"
+                            type="button"
+                            onClick={() => openPayPalSetup(suggestion.toPlayerId)}
+                          >
+                            <img src={PAYPAL_MARK_URL} alt="" aria-hidden="true" />
+                            <span>{t("PayPal einrichten")}</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          className="settlement-record-button"
+                          onClick={() => openSuggestedPayment(suggestion)}
+                        >
+                          {t("Zahlung eintragen")}
+                        </button>
+                      </div>
+
+                      {paypalSetupOpen && (
+                        <form
+                          className="paypal-setup-form"
+                          onSubmit={(event) => savePayPalMe(event, suggestion.toPlayerId)}
+                        >
+                          <div>
+                            <strong>{t("PayPal.Me für {name}").replace("{name}", suggestion.toPlayerName)}</strong>
+                            <span>{t("Nur den Namen hinter paypal.me/ eintragen.")}</span>
+                          </div>
+                          <div className="paypal-setup-input-row">
+                            <span>paypal.me/</span>
+                            <input
+                              autoFocus
+                              inputMode="text"
+                              autoCapitalize="none"
+                              autoCorrect="off"
+                              maxLength={20}
+                              value={paypalDraft}
+                              onChange={(event) => setPaypalDraft(event.target.value)}
+                              placeholder={suggestion.toPlayerName.replace(/[^A-Za-z0-9]/g, "")}
+                            />
+                          </div>
+                          <div className="paypal-setup-actions">
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              disabled={paypalSaving}
+                              onClick={() => {
+                                setPaypalEditingPlayerId(null);
+                                setPaypalDraft("");
+                              }}
+                            >
+                              {t("Abbrechen")}
+                            </button>
+                            <button
+                              type="submit"
+                              className="paypal-save-button"
+                              disabled={paypalSaving}
+                            >
+                              {paypalSaving ? t("Speichert …") : t("PayPal speichern")}
+                            </button>
+                          </div>
+                          <small>
+                            {t("PayPal öffnet die Zahlung mit dem Betrag. PokerTracker markiert sie erst nach dem Eintragen als bezahlt.")}
+                          </small>
+                        </form>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             )}
 
