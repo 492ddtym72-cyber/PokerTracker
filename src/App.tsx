@@ -290,7 +290,7 @@ function eventLabel(event: AuditEvent) {
     case "night.deleted":
       return t("Pokerabend gelöscht");
     case "night.baseline":
-      return t("Ausgangsstand erfasst");
+      return t("Bilanz erfasst");
   }
 }
 
@@ -1544,14 +1544,6 @@ export default function App() {
             <strong className={details.profitCents >= 0 ? "positive" : "negative"}>
               {details.profitCents > 0 ? "+" : ""}{formatMoney(details.profitCents)}
             </strong>
-            {details.baselineCents !== 0 && (
-              <small className="player-card-baseline-note">
-                {t("Historischer Ausgangsstand")}{" "}
-                <b className={details.baselineCents >= 0 ? "positive" : "negative"}>
-                  {details.baselineCents > 0 ? "+" : ""}{formatMoney(details.baselineCents)}
-                </b>
-              </small>
-            )}
           </div>
 
           <div className="player-card-quick-stats">
@@ -1854,13 +1846,6 @@ export default function App() {
             </div>
             <CurrentProfileBadge />
           </header>
-
-          {detailNight.recordType === "baseline" && (
-            <section className="historical-detail-note">
-              <strong>{t("Historischer Ausgangsstand")}</strong>
-              <span>{t("Dieser Datensatz zählt zur Gesamtbilanz, aber nicht zu den Session-Statistiken.")}</span>
-            </section>
-          )}
 
           <section className="detail-summary">
             <div>
