@@ -4,8 +4,10 @@ import {
   deleteNight,
   loadHistory,
   loadNights,
+  loadPlayers,
   updateNight,
   updateNightAdjustments,
+  updatePlayerProfilePhoto,
 } from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
 import {
@@ -22,6 +24,7 @@ import type {
   AuditEvent,
   HistoryResponse,
   NightInput,
+  PlayerProfile,
   PokerNight,
 } from "./types";
 
@@ -76,6 +79,108 @@ function emptyPlayer(): DraftPlayer {
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "?") + (parts[1]?.[0] ?? "")).toUpperCase();
+}
+
+function PlayerAvatar({
+  name,
+  photo,
+  className = "avatar",
+}: {
+  name: string;
+  photo?: string | null;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`${className} player-photo${photo ? " has-photo" : ""}`}
+      style={photo ? { backgroundImage: `url("${photo}")` } : undefined}
+      aria-hidden="true"
+    >
+      {photo ? "" : initials(name)}
+    </span>
+  );
+}
+
+function readBlobAsDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error(t("Profilfoto konnte nicht verarbeitet werden.")));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function prepareProfilePhoto(file: File) {
+  if (!file.type.startsWith("image/")) {
+    throw new Error(t("Profilfoto konnte nicht verarbeitet werden."));
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const candidate = new Image();
+      candidate.onload = () => resolve(candidate);
+      candidate.onerror = () => reject(new Error(t("Profilfoto konnte nicht verarbeitet werden.")));
+      candidate.src = objectUrl;
+    });
+
+    const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
+    if (!sourceSize) {
+      throw new Error(t("Profilfoto konnte nicht verarbeitet werden."));
+    }
+
+    const sourceX = Math.max(0, (image.naturalWidth - sourceSize) / 2);
+    const sourceY = Math.max(0, (image.naturalHeight - sourceSize) / 2);
+    const targetSize = 320;
+    const canvas = document.createElement("canvas");
+    canvas.width = targetSize;
+    canvas.height = targetSize;
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error(t("Profilfoto konnte nicht verarbeitet werden."));
+    }
+
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(
+      image,
+      sourceX,
+      sourceY,
+      sourceSize,
+      sourceSize,
+      0,
+      0,
+      targetSize,
+      targetSize,
+    );
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/webp", 0.82);
+    });
+
+    if (!blob) {
+      throw new Error(t("Profilfoto konnte nicht verarbeitet werden."));
+    }
+
+    const dataUrl = await readBlobAsDataUrl(blob);
+    if (dataUrl.length > 250_000) {
+      const smallerBlob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, "image/webp", 0.64);
+      });
+
+      if (!smallerBlob) {
+        throw new Error(t("Profilfoto konnte nicht verarbeitet werden."));
+      }
+
+      return readBlobAsDataUrl(smallerBlob);
+    }
+
+    return dataUrl;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
 function leaderboardFrame(rank: number) {
@@ -227,6 +332,15 @@ function ProfileSwitchIcon() {
       <path d="M3.75 18.25c.55-3.15 2.38-5.05 5.25-5.05 1.55 0 2.8.53 3.72 1.5" />
       <path d="M15.35 8.2h4.7m-2.05-2.05 2.05 2.05L18 10.25" />
       <path d="M20.25 15.8h-4.7m2.05 2.05-2.05-2.05 2.05-2.05" />
+    </svg>
+  );
+}
+
+function CameraIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4.75 7.75h2.1l1.2-2h7.9l1.2 2h2.1A1.75 1.75 0 0 1 21 9.5v8A1.75 1.75 0 0 1 19.25 19h-14A1.75 1.75 0 0 1 3.5 17.5v-8a1.75 1.75 0 0 1 1.25-1.75Z" />
+      <circle cx="12.25" cy="13" r="3.35" />
     </svg>
   );
 }
@@ -400,6 +514,7 @@ export default function App() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [detailNightId, setDetailNightId] = useState<string | null>(null);
   const [nights, setNights] = useState<PokerNight[]>([]);
+  const [playerProfiles, setPlayerProfiles] = useState<PlayerProfile[]>([]);
   const [history, setHistory] = useState<AuditEvent[]>([]);
   const [historyMeta, setHistoryMeta] = useState<HistoryResponse["pagination"]>({
     offset: 0,
@@ -419,11 +534,18 @@ export default function App() {
   const [reconcileSelected, setReconcileSelected] = useState<string[]>([]);
   const [reconcileCustom, setReconcileCustom] = useState<Record<string, string>>({});
   const [reconcileSaving, setReconcileSaving] = useState(false);
+  const [profilePhotoSaving, setProfilePhotoSaving] = useState(false);
   const [error, setError] = useState("");
 
   async function refreshNights() {
     const data = await loadNights();
     setNights(data);
+    return data;
+  }
+
+  async function refreshPlayers() {
+    const data = await loadPlayers();
+    setPlayerProfiles(data);
     return data;
   }
 
@@ -441,7 +563,7 @@ export default function App() {
   }
 
   async function refreshAfterMutation() {
-    await refreshNights();
+    await Promise.all([refreshNights(), refreshPlayers()]);
 
     try {
       await refreshHistory(true);
@@ -457,6 +579,7 @@ export default function App() {
   useEffect(() => {
     Promise.all([
       refreshNights(),
+      refreshPlayers(),
       refreshHistory(true),
     ])
       .catch((err: unknown) => {
@@ -504,10 +627,26 @@ export default function App() {
     [stats],
   );
 
-  const knownPlayers = useMemo(
-    () => [...stats].sort((a, b) => a.name.localeCompare(b.name)),
-    [stats],
+  const knownPlayers = useMemo<Array<{ id: string; name: string }>>(
+    () => {
+      const source = playerProfiles.length > 0
+        ? playerProfiles.map(({ id, name }) => ({ id, name }))
+        : stats.map(({ id, name }) => ({ id, name }));
+
+      return source.sort((a, b) => a.name.localeCompare(b.name));
+    },
+    [playerProfiles, stats],
   );
+
+  const profilePhotoByPlayer = useMemo(
+    () => new Map(playerProfiles.map((player) => [player.id, player.profilePhoto])),
+    [playerProfiles],
+  );
+
+  function profilePhotoFor(playerId: string | null | undefined) {
+    if (!playerId) return null;
+    return profilePhotoByPlayer.get(playerId) ?? null;
+  }
 
   const totalStakeAllTime = useMemo(
     () => nights.reduce(
@@ -555,6 +694,47 @@ export default function App() {
     }
 
     setError("");
+  }
+
+  async function saveProfilePhoto(file: File) {
+    if (!currentPlayerId) return;
+
+    setProfilePhotoSaving(true);
+    setError("");
+
+    try {
+      const profilePhoto = await prepareProfilePhoto(file);
+      await updatePlayerProfilePhoto(currentPlayerId, profilePhoto);
+      await refreshPlayers();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : t("Profilfoto konnte nicht gespeichert werden."),
+      );
+    } finally {
+      setProfilePhotoSaving(false);
+    }
+  }
+
+  async function removeProfilePhoto() {
+    if (!currentPlayerId) return;
+
+    setProfilePhotoSaving(true);
+    setError("");
+
+    try {
+      await updatePlayerProfilePhoto(currentPlayerId, null);
+      await refreshPlayers();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : t("Profilfoto konnte nicht gespeichert werden."),
+      );
+    } finally {
+      setProfilePhotoSaving(false);
+    }
   }
 
   function navigate(next: Screen) {
@@ -834,9 +1014,11 @@ export default function App() {
         aria-label={t("Profil auf diesem Gerät") + ": " + currentPlayer.name}
         title={currentPlayer.name}
       >
-        <span className="current-profile-avatar" aria-hidden="true">
-          {initials(currentPlayer.name)}
-        </span>
+        <PlayerAvatar
+          className="current-profile-avatar"
+          name={currentPlayer.name}
+          photo={profilePhotoFor(currentPlayer.id)}
+        />
         <strong>{currentPlayer.name}</strong>
       </div>
     );
@@ -934,7 +1116,10 @@ export default function App() {
                   return (
                     <div className="editor-player" key={player.key}>
                       <div className="player-identity">
-                        <span className="avatar">{initials(player.name || "?")}</span>
+                        <PlayerAvatar
+                          name={player.name || "?"}
+                          photo={profilePhotoFor(player.playerId)}
+                        />
                         <select
                           aria-label={t("Spieler auswählen")}
                           value={player.isNew ? "__new__" : player.playerId}
@@ -1172,7 +1357,7 @@ export default function App() {
                               : [...current, player.id]
                           )}
                         />
-                        <span className="avatar">{initials(player.name)}</span>
+                        <PlayerAvatar name={player.name} photo={profilePhotoFor(player.id)} />
                         <strong>{player.name}</strong>
                       </label>
                     );
@@ -1268,7 +1453,7 @@ export default function App() {
               return (
                 <div className="result-row" key={player.id}>
                   <span className={"rank-badge rank-" + (index + 1)}>{index + 1}</span>
-                  <span className="avatar">{initials(player.name)}</span>
+                  <PlayerAvatar name={player.name} photo={profilePhotoFor(player.id)} />
                   <div className="result-name">
                     <strong>{player.name}</strong>
                     <span>{formatMoney(player.stakeCents)} → {formatMoney(player.cashOutCents)}</span>
@@ -1481,7 +1666,11 @@ export default function App() {
                       {player ? (
                         <>
                           <div className={"framed-avatar podium-avatar frame-rank-" + rank}>
-                            <span className="framed-avatar-core">{initials(player.name)}</span>
+                            <PlayerAvatar
+                              className="framed-avatar-core"
+                              name={player.name}
+                              photo={profilePhotoFor(player.id)}
+                            />
                             <img src={leaderboardFrame(rank)} alt="" aria-hidden="true" />
                           </div>
                           <strong className="podium-player-name">{player.name}</strong>
@@ -1514,7 +1703,11 @@ export default function App() {
                       <article className="leaderboard-row" key={player.id}>
                         <span className={"leaderboard-rank leaderboard-place-" + rank}>{rank}</span>
                         <div className={"framed-avatar leaderboard-mini-avatar " + (rank <= 3 ? "frame-rank-" + rank : "frame-neutral")}>
-                          <span className="framed-avatar-core">{initials(player.name)}</span>
+                          <PlayerAvatar
+                            className="framed-avatar-core"
+                            name={player.name}
+                            photo={profilePhotoFor(player.id)}
+                          />
                           <img src={leaderboardFrame(rank)} alt="" aria-hidden="true" />
                         </div>
                         <div className="leaderboard-copy">
@@ -1552,13 +1745,17 @@ export default function App() {
               </div>
 
               <div className="device-player-setting">
-                <span className="avatar profile-avatar">
-                  {currentPlayerId
-                    ? initials(
-                        knownPlayers.find((player) => player.id === currentPlayerId)?.name ?? "?",
-                      )
-                    : <ProfileSwitchIcon />}
-                </span>
+                {currentPlayerId ? (
+                  <PlayerAvatar
+                    className="avatar profile-avatar"
+                    name={knownPlayers.find((player) => player.id === currentPlayerId)?.name ?? "?"}
+                    photo={profilePhotoFor(currentPlayerId)}
+                  />
+                ) : (
+                  <span className="avatar profile-avatar">
+                    <ProfileSwitchIcon />
+                  </span>
+                )}
 
                 <div className="profile-select-shell">
                   <strong>
@@ -1578,6 +1775,59 @@ export default function App() {
                   </select>
                 </div>
               </div>
+
+              {currentPlayerId && (
+                <div className="profile-photo-setting">
+                  <div className="profile-photo-setting-copy">
+                    <strong>{t("Profilbild")}</strong>
+                    <span>
+                      {knownPlayers.find((player) => player.id === currentPlayerId)?.name ?? ""}
+                    </span>
+                  </div>
+
+                  <div className="profile-photo-actions">
+                    <label
+                      className={
+                        "profile-photo-button" +
+                        (profilePhotoSaving ? " is-disabled" : "")
+                      }
+                    >
+                      <CameraIcon />
+                      {profilePhotoFor(currentPlayerId)
+                        ? t("Foto ändern")
+                        : t("Foto auswählen")}
+                      <input
+                        className="profile-photo-input"
+                        type="file"
+                        accept="image/*"
+                        disabled={profilePhotoSaving}
+                        onChange={(event) => {
+                          const file = event.currentTarget.files?.[0];
+                          event.currentTarget.value = "";
+                          if (file) void saveProfilePhoto(file);
+                        }}
+                      />
+                    </label>
+
+                    {profilePhotoFor(currentPlayerId) && (
+                      <button
+                        className="profile-photo-remove"
+                        type="button"
+                        disabled={profilePhotoSaving}
+                        onClick={() => void removeProfilePhoto()}
+                      >
+                        {t("Foto entfernen")}
+                      </button>
+                    )}
+
+                    {profilePhotoSaving && (
+                      <span className="profile-photo-saving">
+                        {t("Foto wird gespeichert …")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </section>
 
             <section className="settings-card language-settings-card settings-compact-card">
