@@ -1514,22 +1514,6 @@ export default function App() {
           maximumFractionDigits: 0,
         }).format(details.winRate)
       : "—";
-    const highlight = details.nights === 0
-      ? { label: t("Spielerprofil"), value: t("Noch keine Pokerabende") }
-      : details.currentWinStreak >= 2
-        ? {
-            label: t("Aktuelle Serie"),
-            value: `${details.currentWinStreak} ${t("Gewinnabende in Folge")}`,
-          }
-        : details.bestWinStreak >= 2
-          ? {
-              label: t("Beste Serie"),
-              value: `${details.bestWinStreak} ${t("Gewinnabende in Folge")}`,
-            }
-          : {
-              label: t("Bester Abend"),
-              value: (details.bestResultCents > 0 ? "+" : "") + formatMoney(details.bestResultCents),
-            };
 
     return (
       <div
@@ -1546,9 +1530,11 @@ export default function App() {
           aria-labelledby="player-card-name"
         >
           <div className="player-card-corner player-card-corner-top" aria-hidden="true">
+            {details.rank !== null && <strong>{details.rank}</strong>}
             <span>{suit}</span>
           </div>
           <div className="player-card-corner player-card-corner-bottom" aria-hidden="true">
+            {details.rank !== null && <strong>{details.rank}</strong>}
             <span>{suit}</span>
           </div>
 
@@ -1564,23 +1550,28 @@ export default function App() {
           </button>
 
           <div className="player-card-identity">
-            <div className="player-card-avatar-shell">
+            <div
+              className={
+                "framed-avatar player-card-avatar-frame " +
+                (details.rank !== null && details.rank <= 3
+                  ? "frame-rank-" + details.rank
+                  : "frame-neutral")
+              }
+            >
               <PlayerAvatar
-                className="player-card-avatar"
+                className="framed-avatar-core"
                 name={player.name}
                 photo={profilePhotoFor(player.id)}
               />
-              <span className="player-card-suit-badge" aria-hidden="true">{suit}</span>
+              <img src={leaderboardFrame(details.rank ?? 4)} alt="" aria-hidden="true" />
             </div>
-            <span className="player-card-eyebrow">{t("Spielerprofil")}</span>
             <h2 id="player-card-name">{player.name}</h2>
-            {details.rank && (
-              <span className="player-card-rank">{t("Rang")} #{details.rank}</span>
+            {details.rank !== null && (
+              <span className="player-card-visually-hidden">{t("Rang")} {details.rank}</span>
             )}
           </div>
 
           <div className="player-card-balance">
-            <span>{t("Gesamtbilanz")}</span>
             <strong className={details.profitCents >= 0 ? "positive" : "negative"}>
               {details.profitCents > 0 ? "+" : ""}{formatMoney(details.profitCents)}
             </strong>
@@ -1600,18 +1591,6 @@ export default function App() {
                 ? (details.averageProfitCents > 0 ? "+" : "") + formatMoney(details.averageProfitCents)
                 : "—"}</strong>
               <span>{t("Ø pro Abend")}</span>
-            </div>
-            <div>
-              <strong>{details.bestWinStreak || "—"}</strong>
-              <span>{t("Beste Serie")}</span>
-            </div>
-          </div>
-
-          <div className="player-card-highlight">
-            <span className="player-card-highlight-suit" aria-hidden="true">{suit}</span>
-            <div>
-              <span>{highlight.label}</span>
-              <strong>{highlight.value}</strong>
             </div>
           </div>
 
@@ -1646,9 +1625,6 @@ export default function App() {
           <div className="player-card-trend">
             <div className="player-card-trend-heading">
               <span>{t("Bilanzverlauf")}</span>
-              <strong className={details.profitCents >= 0 ? "positive" : "negative"}>
-                {details.profitCents > 0 ? "+" : ""}{formatMoney(details.profitCents)}
-              </strong>
             </div>
             <PlayerTrendChart values={details.trend} />
           </div>
