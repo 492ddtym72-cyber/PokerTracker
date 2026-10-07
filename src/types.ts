@@ -18,6 +18,7 @@ export interface PokerNight {
   playedAt: string;
   createdAt: string;
   updatedAt: string;
+  recordType: "session" | "baseline";
   players: PlayerResult[];
 }
 
