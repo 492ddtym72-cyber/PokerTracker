@@ -1,0 +1,134 @@
+.player-photo {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.player-photo.has-photo {
+  color: transparent;
+  text-shadow: none;
+}
+
+.profile-photo-setting {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.profile-photo-setting-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.profile-photo-setting-copy strong {
+  color: #eef1ed;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.profile-photo-setting-copy span {
+  color: #7c8e84;
+  font-size: 11px;
+}
+
+.profile-photo-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.profile-photo-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.profile-photo-button,
+.profile-photo-remove {
+  min-height: 34px;
+  border-radius: 10px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.profile-photo-button {
+  border: 1px solid rgba(209, 176, 92, 0.36);
+  background: rgba(209, 176, 92, 0.1);
+  color: #ead59e;
+}
+
+.profile-photo-remove {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.035);
+  color: #aeb8b1;
+}
+
+.profile-photo-button:hover,
+.profile-photo-remove:hover {
+  transform: translateY(-1px);
+}
+
+.profile-photo-button:focus-visible,
+.profile-photo-remove:focus-visible {
+  outline: 2px solid rgba(232, 201, 119, 0.7);
+  outline-offset: 2px;
+}
+
+.profile-photo-button.is-disabled,
+.profile-photo-remove:disabled {
+  opacity: 0.52;
+  cursor: default;
+  transform: none;
+}
+
+.profile-photo-button svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.profile-photo-saving {
+  color: #93a29a;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.identity-settings-card .profile-avatar.player-photo.has-photo,
+.current-profile-avatar.player-photo.has-photo,
+.avatar.player-photo.has-photo,
+.framed-avatar-core.player-photo.has-photo {
+  overflow: hidden;
+}
+
+@media (max-width: 520px) {
+  .profile-photo-setting {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .profile-photo-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
