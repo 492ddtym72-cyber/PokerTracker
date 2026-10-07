@@ -824,6 +824,24 @@ export default function App() {
     }
   }
 
+  function CurrentProfileBadge() {
+    const currentPlayer = knownPlayers.find((player) => player.id === currentPlayerId);
+    if (!currentPlayer) return null;
+
+    return (
+      <div
+        className="current-profile-badge"
+        aria-label={t("Profil auf diesem Gerät") + ": " + currentPlayer.name}
+        title={currentPlayer.name}
+      >
+        <span className="current-profile-avatar" aria-hidden="true">
+          {initials(currentPlayer.name)}
+        </span>
+        <strong>{currentPlayer.name}</strong>
+      </div>
+    );
+  }
+
   function Header() {
     return (
       <header className="app-header">
@@ -831,6 +849,7 @@ export default function App() {
           <AnimatedPokerChip />
           <strong>PokerTracker</strong>
         </button>
+        <CurrentProfileBadge />
       </header>
     );
   }
@@ -864,6 +883,7 @@ export default function App() {
           <header className="page-header">
             <button className="back-button" type="button" onClick={() => setEditorOpen(false)}>←</button>
             <h1>{editingId ? t("Pokerabend bearbeiten") : t("Pokerabend anlegen")}</h1>
+            <CurrentProfileBadge />
           </header>
 
           <form className="editor-form" onSubmit={saveNight}>
@@ -1041,10 +1061,11 @@ export default function App() {
         <div className="app-frame">
           <header className="page-header">
             <button className="back-button" type="button" onClick={() => setDetailNightId(null)}>←</button>
-            <div>
+            <div className="page-header-copy">
               <h1>{detailNight.title}</h1>
               <p>{formatDate(detailNight.playedAt)}</p>
             </div>
+            <CurrentProfileBadge />
           </header>
 
           <section className="detail-summary">
