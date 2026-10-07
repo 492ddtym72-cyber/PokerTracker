@@ -30,7 +30,6 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         toPlayerName: suggestion.toPlayerName,
         amountCents: suggestion.amountCents,
         currency: "EUR",
-        paypalUrl: "https://www.paypal.com/myaccount/transfer/homepage",
       },
       {
         headers: {
@@ -43,7 +42,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     return apiError(
       error instanceof Error
         ? error.message
-        : "PayPal-Zahlung konnte nicht vorbereitet werden.",
+        : "Zahlungs-App konnte nicht vorbereitet werden.",
       400,
     );
   }

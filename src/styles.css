@@ -2002,22 +2002,12 @@ select:focus {
 
 .settlement-flow-direction {
   display: grid;
-  justify-items: center;
-  gap: 3px;
+  place-items: center;
   color: #d6b663;
 }
 
-.settlement-flow-line {
-  width: 34px;
-  height: 1px;
-  border-radius: 999px;
-  background: rgba(214,182,99,.38);
-}
-
 .settlement-flow-arrow {
-  margin-top: -10px;
-  padding-left: 19px;
-  font-size: 24px;
+  font-size: 27px;
   line-height: 1;
 }
 
@@ -2026,23 +2016,10 @@ select:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   padding: 0 14px;
   border: 1px solid rgba(231,198,117,.18);
   border-radius: 13px;
   background: #061812;
-}
-
-.settlement-payment-amount > span {
-  width: 23px;
-  height: 23px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(231,198,117,.24);
-  border-radius: 50%;
-  color: #d8b966;
-  font-size: 11px;
-  font-weight: 900;
 }
 
 .settlement-payment-amount strong {
@@ -2053,11 +2030,18 @@ select:focus {
 
 .settlement-payment-actions {
   display: grid;
-  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.settlement-wallet-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
 .paypal-payment-button,
+.revolut-payment-button,
 .settlement-record-button {
   min-height: 43px;
   display: inline-flex;
@@ -2071,9 +2055,13 @@ select:focus {
   text-decoration: none;
 }
 
-.paypal-payment-button {
+.paypal-payment-button,
+.revolut-payment-button {
   border: 1px solid rgba(255,255,255,.22);
-  background: #f5f7fb;
+  background: #f6f7f9;
+}
+
+.paypal-payment-button {
   color: #003087;
 }
 
@@ -2084,11 +2072,20 @@ select:focus {
   object-fit: contain;
 }
 
-.paypal-payment-button-setup {
-  width: 100%;
+.revolut-payment-button {
+  color: #111;
+}
+
+.revolut-payment-button img {
+  width: 66px;
+  max-width: 100%;
+  height: 19px;
+  display: block;
+  object-fit: contain;
 }
 
 .settlement-record-button {
+  width: 100%;
   border: 1px solid rgba(231,198,117,.28);
   background: rgba(231,198,117,.08);
   color: #edd79f;
@@ -2661,6 +2658,11 @@ select:focus {
   object-fit: contain;
 }
 
+.paypal-fallback-card .form-card-title .revolut-fallback-logo {
+  width: 76px;
+  height: 22px;
+}
+
 .paypal-fallback-card p {
   margin: 0;
   color: #87998f;
@@ -2699,8 +2701,13 @@ select:focus {
 
 .settlement-network-line {
   fill: none;
-  stroke: rgba(215,183,98,.58);
+  stroke: rgba(215,183,98,.54);
   stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.settlement-network-arrowhead {
+  fill: rgba(215,183,98,.72);
 }
 
 .settlement-network-hitarea {
@@ -2714,13 +2721,17 @@ select:focus {
   stroke: rgba(231,198,117,.9);
 }
 
+.settlement-network-amount-pill {
+  fill: #0a2119;
+  stroke: rgba(231,198,117,.20);
+  stroke-width: 1px;
+}
+
 .settlement-network-amount {
   fill: #e7c675;
-  stroke: #071b15;
-  stroke-width: 8px;
-  paint-order: stroke;
-  font-size: 15px;
-  font-weight: 850;
+  font-size: 12px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
 }
 
 .settlement-network-node-circle {
