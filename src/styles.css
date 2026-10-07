@@ -219,6 +219,65 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   gap: 13px;
 }
 
+.page-header > h1,
+.page-header-copy {
+  min-width: 0;
+}
+
+.page-header > h1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-header-copy {
+  flex: 1 1 auto;
+}
+
+.current-profile-badge {
+  max-width: 118px;
+  min-height: 32px;
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  padding: 3px 9px 3px 4px;
+  border: 1px solid rgba(231,198,117,.14);
+  border-radius: 999px;
+  background: rgba(8,31,23,.72);
+  color: #c9d3cd;
+  box-shadow: inset 0 1px rgba(255,255,255,.025);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.current-profile-avatar {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  flex: 0 0 24px;
+  place-items: center;
+  border: 1px solid rgba(231,198,117,.18);
+  border-radius: 50%;
+  background: linear-gradient(180deg, #173a2d, #0d2a20);
+  color: #e7c675;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: -.015em;
+}
+
+.current-profile-badge strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #cbd5cf;
+  font-size: 9px;
+  font-weight: 780;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .page-header h1,
 .screen-heading h1 {
   margin: 0;
@@ -1684,6 +1743,27 @@ select:focus {
 
 @media (max-width: 520px) {
   .app-frame { padding-inline: 11px; }
+
+  .current-profile-badge {
+    max-width: 96px;
+    min-height: 30px;
+    gap: 6px;
+    padding-right: 8px;
+  }
+
+  .current-profile-avatar {
+    width: 22px;
+    height: 22px;
+    flex-basis: 22px;
+  }
+
+  .current-profile-badge strong {
+    font-size: 8.5px;
+  }
+
+  .page-header .current-profile-badge {
+    max-width: 84px;
+  }
 
   .quick-stats strong { font-size: 13px; }
 
