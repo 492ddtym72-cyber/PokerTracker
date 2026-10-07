@@ -87,3 +87,51 @@ export interface HistoryResponse {
     hasMore: boolean;
   };
 }
+
+
+export interface SettlementPlayer {
+  id: string;
+  name: string;
+  pokerBalanceCents: number;
+  paidOutCents: number;
+  receivedCents: number;
+  openBalanceCents: number;
+}
+
+export interface SettlementSuggestion {
+  fromPlayerId: string;
+  fromPlayerName: string;
+  toPlayerId: string;
+  toPlayerName: string;
+  amountCents: number;
+}
+
+export interface SettlementPayment {
+  id: string;
+  fromPlayerId: string;
+  fromPlayerName: string;
+  toPlayerId: string;
+  toPlayerName: string;
+  amountCents: number;
+  paidAt: string;
+  note: string | null;
+  createdAt: string;
+  voidedAt: string | null;
+}
+
+export interface SettlementResponse {
+  players: SettlementPlayer[];
+  suggestions: SettlementSuggestion[];
+  payments: SettlementPayment[];
+  totalOutstandingCents: number;
+  groupDifferenceCents: number;
+}
+
+export interface SettlementPaymentInput {
+  fromPlayerId: string;
+  toPlayerId: string;
+  amountCents: number;
+  paidAt: string;
+  note?: string;
+  clientToken: string;
+}
