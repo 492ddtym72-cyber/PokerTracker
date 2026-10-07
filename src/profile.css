@@ -1342,12 +1342,18 @@
 
 .profile-crop-actions {
   display: grid;
-  grid-template-columns: 1fr 1.35fr;
-  gap: 9px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .profile-crop-actions button {
-  min-height: 43px;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 0;
+  padding-inline: 12px;
+  border-radius: 13px;
+  font-size: 11px;
+  line-height: 1.15;
 }
 
 @media (max-width: 420px) {
