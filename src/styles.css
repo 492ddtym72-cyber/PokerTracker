@@ -1308,25 +1308,29 @@ select:focus {
 }
 
 .frame-rank-1 .framed-avatar-core {
-  width: 38%;
-  height: 38%;
+  width: 46%;
+  height: 46%;
 }
 
 .frame-rank-2 .framed-avatar-core,
-.frame-rank-3 .framed-avatar-core,
+.frame-rank-3 .framed-avatar-core {
+  width: 57%;
+  height: 57%;
+}
+
 .frame-neutral .framed-avatar-core {
-  width: 49%;
-  height: 49%;
+  width: 64%;
+  height: 64%;
 }
 
 .podium-avatar {
-  width: 92px;
-  height: 92px;
+  width: 102px;
+  height: 102px;
 }
 
 .podium-rank-1 .podium-avatar {
-  width: 116px;
-  height: 116px;
+  width: 126px;
+  height: 126px;
 }
 
 .podium-avatar .framed-avatar-core {
@@ -1421,11 +1425,11 @@ select:focus {
 }
 
 .leaderboard-row {
-  min-height: 63px;
+  min-height: 72px;
   display: grid;
-  grid-template-columns: 22px 47px minmax(0, 1fr) auto;
+  grid-template-columns: 22px 58px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   padding: 8px 12px;
   border-bottom: 1px solid var(--line);
 }
@@ -1447,12 +1451,12 @@ select:focus {
 .leaderboard-rank.leaderboard-place-3 { color: #c4875e; }
 
 .leaderboard-mini-avatar {
-  width: 46px;
-  height: 46px;
+  width: 56px;
+  height: 56px;
 }
 
 .leaderboard-mini-avatar .framed-avatar-core {
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .leaderboard-copy {
