@@ -532,15 +532,9 @@ function UnitedKingdomFlag() {
 }
 
 function AnimatedPokerChip() {
-  const [chip, setChip] = useState({
-    rotation: 0,
-    frontSuit: 0,
-    backSuit: 1,
-  });
+  const [suitIndex, setSuitIndex] = useState(0);
   const [motionEnabled, setMotionEnabled] = useState(true);
-  const [spinning, setSpinning] = useState(false);
-  const phaseRef = useRef<"idle" | "to-edge" | "from-edge">("idle");
-  const nextTurnTimerRef = useRef<number | undefined>(undefined);
+  const chipRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -552,134 +546,172 @@ function AnimatedPokerChip() {
     return () => mediaQuery.removeEventListener?.("change", syncMotionPreference);
   }, []);
 
-  function clearNextTurnTimer() {
-    if (nextTurnTimerRef.current !== undefined) {
-      window.clearTimeout(nextTurnTimerRef.current);
-      nextTurnTimerRef.current = undefined;
-    }
-  }
-
-  function scheduleNextTurn(delay = 600) {
-    clearNextTurnTimer();
-
-    nextTurnTimerRef.current = window.setTimeout(() => {
-      nextTurnTimerRef.current = undefined;
-      startNextHalfTurn();
-    }, delay);
-  }
-
-  function startNextHalfTurn() {
-    if (
-      !motionEnabled ||
-      document.visibilityState !== "visible" ||
-      phaseRef.current !== "idle"
-    ) {
-      return;
-    }
-
-    phaseRef.current = "to-edge";
-    setSpinning(true);
-
-    // First rotate only to the exact 90° edge-on position. No suit changes
-    // before or after a fully visible face anymore.
-    window.requestAnimationFrame(() => {
-      setChip((current) => ({
-        ...current,
-        rotation: current.rotation + 90,
-      }));
-    });
-  }
-
   useEffect(() => {
-    if (!motionEnabled) {
-      clearNextTurnTimer();
-      phaseRef.current = "idle";
-      setSpinning(false);
-      return;
-    }
+    const element = chipRef.current;
+    if (!element || !motionEnabled) return;
 
-    scheduleNextTurn(600);
+    let disposed = false;
+    let timer: number | undefined;
+    let running = false;
 
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible" && phaseRef.current === "idle") {
-        scheduleNextTurn(600);
-      } else if (document.visibilityState !== "visible") {
-        clearNextTurnTimer();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibility);
-
-    return () => {
-      clearNextTurnTimer();
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
-  }, [motionEnabled]);
-
-  function handleTurnTransitionEnd(event: React.TransitionEvent<HTMLSpanElement>) {
-    if (
-      event.target !== event.currentTarget ||
-      event.propertyName !== "transform"
-    ) {
-      return;
-    }
-
-    if (phaseRef.current === "to-edge") {
-      // The chip is now exactly edge-on. This is the ONLY moment at which a
-      // suit is changed. The face that is about to emerge is invisible here,
-      // so the swap cannot be seen by the user.
-      setChip((current) => {
-        const emergingFront =
-          Math.round((current.rotation + 90) / 180) % 2 === 0;
-        const departingSuit = emergingFront
-          ? current.backSuit
-          : current.frontSuit;
-        const nextSuit = (departingSuit + 1) % CHIP_SUITS.length;
-
-        return emergingFront
-          ? { ...current, frontSuit: nextSuit }
-          : { ...current, backSuit: nextSuit };
-      });
-
-      phaseRef.current = "from-edge";
-
-      // Make sure the edge-on frame with the new hidden artwork is actually
-      // painted before the second quarter-turn begins. This avoids Safari/iOS
-      // compositing the suit change on a visible face.
-      window.requestAnimationFrame(() => {
+    const waitForPaint = () =>
+      new Promise<void>((resolve) => {
         window.requestAnimationFrame(() => {
-          setChip((current) => ({
-            ...current,
-            rotation: current.rotation + 90,
-          }));
+          window.requestAnimationFrame(() => resolve());
         });
       });
 
-      return;
-    }
+    const runAnimation = async (
+      keyframes: Keyframe[],
+      options: KeyframeAnimationOptions,
+    ) => {
+      const animation = element.animate(keyframes, options);
 
-    if (phaseRef.current === "from-edge") {
-      // A new face is now fully visible. Leave its symbol completely untouched
-      // and pause briefly before starting the next 180° flip.
-      phaseRef.current = "idle";
-      setSpinning(false);
-      scheduleNextTurn(600);
-    }
-  }
+      try {
+        await animation.finished;
+      } catch {
+        // Animation cancellation is expected when the app is backgrounded,
+        // unmounted, or a newer cycle takes over.
+      }
+
+      return animation;
+    };
+
+    const schedule = (delay = 950) => {
+      if (disposed || document.visibilityState !== "visible") return;
+
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        timer = undefined;
+        void turn();
+      }, delay);
+    };
+
+    const turn = async () => {
+      if (
+        disposed ||
+        running ||
+        document.visibilityState !== "visible"
+      ) {
+        return;
+      }
+
+      running = true;
+      element.classList.add("is-turning");
+
+      // Phase 1: compress the complete chip to a near-invisible edge. This
+      // avoids Safari's inconsistent backface compositing while preserving
+      // the visual impression of a real 3D half-turn.
+      await runAnimation(
+        [
+          {
+            transform: "perspective(480px) rotateY(0deg) scaleX(1)",
+            filter: "brightness(1) saturate(1)",
+          },
+          {
+            offset: 0.72,
+            transform: "perspective(480px) rotateY(58deg) scaleX(.34)",
+            filter: "brightness(.84) saturate(.94)",
+          },
+          {
+            transform: "perspective(480px) rotateY(88deg) scaleX(.035)",
+            filter: "brightness(.62) saturate(.82)",
+          },
+        ],
+        {
+          duration: 950,
+          easing: "cubic-bezier(.42, 0, .58, 1)",
+          fill: "forwards",
+        },
+      );
+
+      if (disposed || document.visibilityState !== "visible") {
+        running = false;
+        element.classList.remove("is-turning");
+        element.getAnimations().forEach((animation) => animation.cancel());
+        return;
+      }
+
+      // This is the only point where the symbol changes. At scaleX .035 the
+      // artwork is visually hidden inside the chip edge.
+      setSuitIndex((current) => (current + 1) % CHIP_SUITS.length);
+      await waitForPaint();
+
+      if (disposed || document.visibilityState !== "visible") {
+        running = false;
+        element.classList.remove("is-turning");
+        element.getAnimations().forEach((animation) => animation.cancel());
+        return;
+      }
+
+      // Phase 2: the new side emerges from the opposite edge. Starting from
+      // -88deg makes the midpoint hand-off invisible but keeps motion smooth.
+      await runAnimation(
+        [
+          {
+            transform: "perspective(480px) rotateY(-88deg) scaleX(.035)",
+            filter: "brightness(.62) saturate(.82)",
+          },
+          {
+            offset: 0.28,
+            transform: "perspective(480px) rotateY(-58deg) scaleX(.34)",
+            filter: "brightness(.84) saturate(.94)",
+          },
+          {
+            transform: "perspective(480px) rotateY(0deg) scaleX(1)",
+            filter: "brightness(1) saturate(1)",
+          },
+        ],
+        {
+          duration: 950,
+          easing: "cubic-bezier(.42, 0, .58, 1)",
+          fill: "forwards",
+        },
+      );
+
+      element.getAnimations().forEach((animation) => animation.cancel());
+      element.classList.remove("is-turning");
+      running = false;
+
+      if (!disposed && document.visibilityState === "visible") {
+        schedule(950);
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") {
+        if (timer !== undefined) {
+          window.clearTimeout(timer);
+          timer = undefined;
+        }
+
+        element.getAnimations().forEach((animation) => animation.cancel());
+        element.classList.remove("is-turning");
+        running = false;
+        return;
+      }
+
+      schedule(500);
+    };
+
+    schedule(650);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      disposed = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      element.getAnimations().forEach((animation) => animation.cancel());
+      element.classList.remove("is-turning");
+    };
+  }, [motionEnabled]);
 
   return (
     <span className="brand-chip-scene" aria-hidden="true">
-      <span
-        className={`brand-chip${spinning ? " is-turning" : ""}`}
-        style={{ transform: `rotateY(${chip.rotation}deg)` }}
-        onTransitionEnd={handleTurnTransitionEnd}
-      >
+      <span ref={chipRef} className="brand-chip">
         <span className="brand-chip-edge" />
         <span className="brand-chip-face brand-chip-face-front">
-          <ChipSuitIcon suit={CHIP_SUITS[chip.frontSuit]} />
-        </span>
-        <span className="brand-chip-face brand-chip-face-back">
-          <ChipSuitIcon suit={CHIP_SUITS[chip.backSuit]} />
+          <ChipSuitIcon suit={CHIP_SUITS[suitIndex]} />
         </span>
       </span>
     </span>
