@@ -6,7 +6,7 @@ const ENGLISH: Record<string, string> = {
   "Pokerabend erstellt": "Poker night created",
   "Pokerabend geändert": "Poker night updated",
   "Pokerabend gelöscht": "Poker night deleted",
-  "Ausgangsstand erfasst": "Baseline recorded",
+  "Bilanz erfasst": "Balance recorded",
   "Name": "Name",
   "Datum": "Date",
   "hinzugefügt": "added",
@@ -255,12 +255,7 @@ const ENGLISH: Record<string, string> = {
   "Gewinnabende in Folge": "winning nights in a row",
   "Meine Spielerkarte": "My player card",
   "Statistiken & Verlauf": "Stats & trend",
-  "Noch keine Pokerabende": "No poker nights yet",
-  "Historischer Ausgangsstand": "Historical starting balance",
-  "Nicht als Pokerabend gewertet": "Not counted as a poker night",
-  "In Gesamtbilanz enthalten": "Included in overall balance",
-  "Ausgangsstand": "Starting balance",
-  "Dieser Datensatz zählt zur Gesamtbilanz, aber nicht zu den Session-Statistiken.": "This record is included in the overall balance but not in session statistics."
+  "Noch keine Pokerabende": "No poker nights yet"
 };
 
 export function getLanguage(): Language {
