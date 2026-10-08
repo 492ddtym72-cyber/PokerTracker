@@ -12,7 +12,7 @@
   --green: #52d780;
   --red: #ec716b;
   /* Consistent emerald treatment for all dashboard cards. */
-  --home-card-surface: linear-gradient(115deg, #103629 0%, #0b2f24 54%, #08271e 100%);
+  --home-card-surface: linear-gradient(110deg, #0c3024 0%, #08291f 60%, #07251c 100%);
   --home-card-border: rgba(214, 187, 118, .29);
   --home-card-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 8px 22px rgba(0,0,0,.12);
   --home-icon-surface: radial-gradient(circle at 30% 16%, #174535 0%, #0b3024 55%, #062219 100%);
