@@ -2302,27 +2302,34 @@ select:focus {
 
 
 /* Settlement ledger */
+/* Shared home actions: compact, deliberately quieter than the main ledger. */
 .dashboard-action-card {
   width: 100%;
-  min-height: 96px;
+  min-height: 82px;
   display: grid;
-  grid-template-columns: 56px 1px minmax(0, 1fr) 36px;
+  grid-template-columns: 46px minmax(0, 1fr) 28px;
   align-items: center;
-  gap: 12px;
-  margin: 0 0 12px;
-  padding: 14px;
-  border: 1px solid rgba(195, 183, 126, .38);
-  border-radius: 22px;
-  background: linear-gradient(115deg, #103b2c 0%, #082c21 52%, #06271d 100%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 12px 28px rgba(0,0,0,.12);
-  color: #f3f0e8;
+  gap: 13px;
+  margin: 0 0 10px;
+  padding: 12px 15px;
+  border: 1px solid rgba(185, 182, 127, .22);
+  border-radius: 18px;
+  background: linear-gradient(110deg, #0c3024 0%, #08291f 60%, #07251c 100%);
+  box-shadow: inset 0 1px rgba(255,255,255,.035), 0 8px 22px rgba(0,0,0,.1);
+  color: #f2efe7;
   text-align: left;
   cursor: pointer;
-  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.dashboard-action-card--primary {
+  border-color: rgba(219, 192, 112, .35);
+  background: linear-gradient(110deg, #103629 0%, #092c21 62%, #08271d 100%);
 }
 
 .dashboard-action-card:hover {
-  border-color: rgba(231, 198, 117, .6);
+  border-color: rgba(231, 198, 117, .55);
 }
 
 .dashboard-action-card:focus-visible {
@@ -2330,70 +2337,62 @@ select:focus {
   outline-offset: 3px;
 }
 
-.dashboard-action-card:active { transform: scale(.99); }
+.dashboard-action-card:active {
+  transform: scale(.99);
+}
 
 .dashboard-action-icon {
-  width: 56px;
-  height: 56px;
+  width: 46px;
+  height: 46px;
   display: grid;
   place-items: center;
-  border: 1.5px solid #d8b865;
+  border: 1px solid rgba(231, 198, 117, .4);
   border-radius: 50%;
-  background: linear-gradient(145deg, rgba(13,50,37,.96), rgba(2,28,21,.96));
-  color: #f0c66f;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+  background: rgba(1, 22, 16, .32);
+  color: #e8c475;
 }
 
 .dashboard-action-icon svg {
-  width: 34px;
-  height: 34px;
+  width: 27px;
+  height: 27px;
   display: block;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.4;
+  stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.dashboard-action-divider {
-  width: 1px;
-  height: 48px;
-  background: rgba(218, 194, 124, .22);
 }
 
 .dashboard-action-copy {
   min-width: 0;
   display: grid;
   align-content: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .dashboard-action-copy strong {
-  color: #f2f0e9;
-  font-size: clamp(15px, 4.2vw, 19px);
-  font-weight: 800;
-  line-height: 1.2;
+  color: #eeeae2;
+  font-size: clamp(15px, 4.1vw, 17px);
+  font-weight: 760;
+  line-height: 1.22;
   letter-spacing: -.025em;
 }
 
 .dashboard-action-arrow {
-  width: 36px;
+  width: 28px;
   height: 36px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(102, 166, 123, .23);
-  border-radius: 50%;
-  color: #e5c476;
-  background: rgba(0, 24, 18, .2);
+  color: rgba(221, 195, 126, .74);
 }
 
 .dashboard-action-arrow svg {
-  width: 19px;
-  height: 19px;
+  width: 17px;
+  height: 17px;
   display: block;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.8;
+  stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -2401,8 +2400,8 @@ select:focus {
 .settlement-summary-copy small,
 .settlement-summary-copy em {
   display: block;
-  color: #93aaa0;
-  font-size: 12px;
+  color: #91a79d;
+  font-size: 11px;
   font-style: normal;
   line-height: 1.25;
 }
@@ -2414,9 +2413,9 @@ select:focus {
 
 .settlement-summary-amount {
   display: block;
-  color: #f0c66f;
-  font-size: clamp(20px, 5.4vw, 24px);
-  font-weight: 850;
+  color: #ecc576;
+  font-size: clamp(19px, 5.1vw, 22px);
+  font-weight: 780;
   line-height: 1.1;
   letter-spacing: -.025em;
   font-variant-numeric: tabular-nums;
@@ -2424,17 +2423,17 @@ select:focus {
 
 @media (max-width: 370px) {
   .dashboard-action-card {
-    min-height: 88px;
-    grid-template-columns: 46px 1px minmax(0, 1fr) 30px;
+    min-height: 78px;
+    grid-template-columns: 40px minmax(0, 1fr) 22px;
     gap: 9px;
-    padding: 11px;
-    border-radius: 18px;
+    padding: 11px 12px;
+    border-radius: 16px;
   }
-  .dashboard-action-icon { width: 46px; height: 46px; }
-  .dashboard-action-icon svg { width: 28px; height: 28px; }
-  .dashboard-action-divider { height: 40px; }
-  .dashboard-action-arrow { width: 30px; height: 30px; }
+  .dashboard-action-icon { width: 40px; height: 40px; }
+  .dashboard-action-icon svg { width: 24px; height: 24px; }
+  .dashboard-action-arrow { width: 22px; }
   .dashboard-action-copy strong { font-size: 14px; }
+  .settlement-summary-amount { font-size: 19px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
