@@ -804,43 +804,78 @@ export function SettlementScreen({
         <div className="empty-card">{t("Lädt …")}</div>
       ) : data ? (
         <>
-          <section className="settlement-total-card">
-            <span>{t("Noch auszugleichen")}</span>
-            <strong>{formatMoney(data.totalOutstandingCents)}</strong>
-            <small>
-              {data.totalOutstandingCents === 0 && data.groupDifferenceCents === 0
-                ? "✓ " + t("Alles ausgeglichen")
-                : t("Zahlungen verändern die Pokerbilanz nicht.")}
-            </small>
+          <section className="settlement-overview-card">
+            <div className="settlement-overview-copy">
+              {currentPlayer && (
+                <span className="settlement-overview-name">{currentPlayer.name}</span>
+              )}
+              <strong
+                className={
+                  "settlement-overview-value" +
+                  (currentPlayer
+                    ? currentPlayer.openBalanceCents > 0
+                      ? " positive"
+                      : currentPlayer.openBalanceCents < 0
+                        ? " negative"
+                        : ""
+                    : data.totalOutstandingCents > 0
+                      ? " positive"
+                      : "")
+                }
+                aria-hidden={Boolean(currentPlayer)}
+              >
+                {currentPlayer
+                  ? (currentPlayer.openBalanceCents > 0
+                      ? "+"
+                      : currentPlayer.openBalanceCents < 0
+                        ? "−"
+                        : "") + formatMoney(Math.abs(currentPlayer.openBalanceCents))
+                  : formatMoney(data.totalOutstandingCents)}
+              </strong>
+              <small className="settlement-overview-total">
+                {currentPlayer
+                  ? `${formatMoney(data.totalOutstandingCents)} ${t("gesamt")}`
+                  : data.totalOutstandingCents === 0 && data.groupDifferenceCents === 0
+                    ? t("Alles ausgeglichen")
+                    : t("gesamt")}
+              </small>
+              {currentPlayer && (
+                <span className="settlement-overview-accessible">
+                  {currentPlayer.openBalanceCents > 0
+                    ? t("Du bekommst noch {amount}").replace(
+                        "{amount}", formatMoney(currentPlayer.openBalanceCents),
+                      )
+                    : currentPlayer.openBalanceCents < 0
+                      ? t("Du zahlst noch {amount}").replace(
+                          "{amount}", formatMoney(Math.abs(currentPlayer.openBalanceCents)),
+                        )
+                      : t("Du bist ausgeglichen")}
+                </span>
+              )}
+            </div>
+            <svg
+              className="settlement-overview-chip"
+              viewBox="0 0 120 120"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <circle cx="60" cy="60" r="53" fill="#071b15" stroke="#315942" strokeWidth="5" />
+              <circle cx="60" cy="60" r="47" fill="#103b2a" stroke="#528768" strokeWidth="1.5" />
+              <g stroke="#8adaaa" strokeWidth="9" opacity=".6">
+                <path d="M60 10v13M60 97v13M10 60h13M97 60h13M24 24l9 9M87 87l9 9M24 96l9-9M87 33l9-9" />
+              </g>
+              <circle cx="60" cy="60" r="34" fill="#092b1f" stroke="#45765b" strokeWidth="2" />
+              <circle cx="60" cy="60" r="29" fill="none" stroke="#194b34" strokeWidth="2" />
+              <g fill="#82d69d">
+                <circle cx="60" cy="47" r="8" />
+                <circle cx="51" cy="59" r="8" />
+                <circle cx="69" cy="59" r="8" />
+                <path d="M57.7 61h4.6c.1 10 2 15 7 19H50.7c5-4 7-9 7-19Z" />
+              </g>
+            </svg>
           </section>
 
-          {currentPlayer ? (
-            <section className="my-settlement-card">
-              <div>
-                <span>{t("Dein Ausgleich")}</span>
-                <strong>{currentPlayer.name}</strong>
-              </div>
-              <b className={
-                currentPlayer.openBalanceCents > 0
-                  ? "positive"
-                  : currentPlayer.openBalanceCents < 0
-                    ? "negative"
-                    : ""
-              }>
-                {currentPlayer.openBalanceCents > 0
-                  ? t("Du bekommst noch {amount}").replace(
-                      "{amount}",
-                      formatMoney(currentPlayer.openBalanceCents),
-                    )
-                  : currentPlayer.openBalanceCents < 0
-                    ? t("Du zahlst noch {amount}").replace(
-                        "{amount}",
-                        formatMoney(Math.abs(currentPlayer.openBalanceCents)),
-                      )
-                    : t("Du bist ausgeglichen")}
-              </b>
-            </section>
-          ) : (
+          {!currentPlayer && (
             <section className="settlement-profile-nudge">
               <div>
                 <strong>{t("PokerTracker personalisieren")}</strong>
