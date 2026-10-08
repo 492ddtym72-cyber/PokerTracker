@@ -47,7 +47,20 @@ function isPlayerId(value: string) {
   return /^player_[a-f0-9]{24}$/.test(value);
 }
 
-function buildSuggestions(players: SettlementPlayer[]) {
+interface RoutePriorityRow {
+  from_player_id: string;
+  to_player_id: string;
+}
+
+interface NightSnapshotRow {
+  night_count: number;
+  latest_update: string | null;
+}
+
+function buildSuggestions(
+  players: SettlementPlayer[],
+  preferredRoutes: RoutePriorityRow[] = [],
+) {
   const debtors = players
     .filter((player) => player.openBalanceCents < 0)
     .map((player) => ({
@@ -74,25 +87,40 @@ function buildSuggestions(players: SettlementPlayer[]) {
     amountCents: number;
   }> = [];
 
+  function allocate(
+    debtor: (typeof debtors)[number],
+    creditor: (typeof creditors)[number],
+  ) {
+    const amountCents = Math.min(debtor.remaining, creditor.remaining);
+    if (amountCents <= 0) return;
+
+    suggestions.push({
+      fromPlayerId: debtor.id,
+      fromPlayerName: debtor.name,
+      toPlayerId: creditor.id,
+      toPlayerName: creditor.name,
+      amountCents,
+    });
+    debtor.remaining -= amountCents;
+    creditor.remaining -= amountCents;
+  }
+
+  const debtorById = new Map(debtors.map((player) => [player.id, player]));
+  const creditorById = new Map(creditors.map((player) => [player.id, player]));
+
+  for (const route of preferredRoutes) {
+    const debtor = debtorById.get(route.from_player_id);
+    const creditor = creditorById.get(route.to_player_id);
+    if (debtor && creditor) allocate(debtor, creditor);
+  }
+
   let debtorIndex = 0;
   let creditorIndex = 0;
 
   while (debtorIndex < debtors.length && creditorIndex < creditors.length) {
     const debtor = debtors[debtorIndex];
     const creditor = creditors[creditorIndex];
-    const amountCents = Math.min(debtor.remaining, creditor.remaining);
-
-    if (amountCents > 0) {
-      suggestions.push({
-        fromPlayerId: debtor.id,
-        fromPlayerName: debtor.name,
-        toPlayerId: creditor.id,
-        toPlayerName: creditor.name,
-        amountCents,
-      });
-      debtor.remaining -= amountCents;
-      creditor.remaining -= amountCents;
-    }
+    allocate(debtor, creditor);
 
     if (debtor.remaining === 0) debtorIndex += 1;
     if (creditor.remaining === 0) creditorIndex += 1;
@@ -149,7 +177,7 @@ export function validateSettlementPaymentInput(value: unknown): SettlementPaymen
 }
 
 export async function loadSettlementSnapshot(env: Env) {
-  const [balanceQuery, paymentTotalsQuery, paymentQuery] = await Promise.all([
+  const [balanceQuery, paymentTotalsQuery, paymentQuery, nightSnapshot] = await Promise.all([
     env.DB.prepare(
       `SELECT
          p.id AS player_id,
@@ -206,6 +234,9 @@ export async function loadSettlementSnapshot(env: Env) {
        ORDER BY sp.paid_at DESC, sp.created_at DESC
        LIMIT 200`,
     ).all<PaymentRow>(),
+    env.DB.prepare(
+      "SELECT COUNT(*) AS night_count, MAX(updated_at) AS latest_update FROM poker_nights",
+    ).first<NightSnapshotRow>(),
   ]);
 
   const players = balanceQuery.results.map<SettlementPlayer>((row) => ({
@@ -229,7 +260,15 @@ export async function loadSettlementSnapshot(env: Env) {
       player.pokerBalanceCents + player.paidOutCents - player.receivedCents;
   }
 
-  const suggestions = buildSuggestions(players);
+  const snapshotKey = `v1:${nightSnapshot?.night_count ?? 0}:${nightSnapshot?.latest_update ?? ""}`;
+  const routeQuery = await env.DB.prepare(
+    `SELECT from_player_id, to_player_id
+     FROM settlement_route_priorities
+     WHERE snapshot_key = ?
+     ORDER BY priority ASC, from_player_id ASC, to_player_id ASC`,
+  ).bind(snapshotKey).all<RoutePriorityRow>();
+
+  const suggestions = buildSuggestions(players, routeQuery.results);
   const groupDifferenceCents = players.reduce(
     (sum, player) => sum + player.openBalanceCents,
     0,
