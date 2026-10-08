@@ -590,6 +590,33 @@
   margin-bottom: 12px;
 }
 
+.profile-device-avatar-button {
+  display: grid;
+  place-items: center;
+  width: 106px;
+  height: 106px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.profile-device-avatar-button:focus-visible {
+  outline: 2px solid rgba(231,198,117,.75);
+  outline-offset: 4px;
+}
+
+.profile-device-avatar-button:disabled {
+  cursor: default;
+  opacity: .7;
+}
+
+.profile-device-avatar-button:not(:disabled):active {
+  transform: scale(.98);
+}
+
 .profile-device-avatar {
   width: 106px;
   height: 106px;
@@ -778,8 +805,13 @@
   }
 
   .profile-device-avatar-wrap,
+  .profile-device-avatar-button,
   .profile-device-avatar {
     width: 94px;
+    height: 94px;
+  }
+
+  .profile-device-avatar-button {
     height: 94px;
   }
 
