@@ -62,9 +62,10 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   margin-bottom: 27px;
 }
 
-/* Give the larger logo room without changing the other page headers. */
+/* Let the wordmark and both rotating chips fill the space beside the profile. */
 .app-header {
-  min-height: 64px;
+  min-height: 88px;
+  gap: 12px;
 }
 
 .brand-button,
@@ -76,26 +77,28 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 
 .brand-button {
   display: flex;
+  flex: 1 1 auto;
   min-width: 0;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: clamp(7px, 1.5vw, 15px);
   padding: 0;
 }
 
 .brand-button strong {
   color: #f0d9a7;
   font-family: "Manrope", "Avenir Next", Inter, system-ui, sans-serif;
-  font-size: clamp(25px, 7vw, 29px);
+  font-size: clamp(30px, 5vw, 42px);
   font-weight: 800;
-  line-height: 1.08;
+  line-height: 1.04;
   letter-spacing: -.052em;
   white-space: nowrap;
 }
 
 .brand-chip-scene {
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
+  width: clamp(50px, 8vw, 68px);
+  height: clamp(50px, 8vw, 68px);
+  flex: 0 0 clamp(50px, 8vw, 68px);
   display: block;
   position: relative;
 }
@@ -109,30 +112,37 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   filter: drop-shadow(0 2px 3px rgba(0,0,0,.18));
 }
 
-/* Both chips stay visible beside the name and the profile switcher. */
+/* Scale the trio as a unit; the profile keeps its own fixed width. */
 @media (max-width: 520px) {
-  .app-header { gap: 6px; }
+  .app-header {
+    min-height: 78px;
+    gap: 6px;
+  }
 
-  .brand-button { gap: 8px; }
+  .brand-button {
+    gap: 0;
+  }
 
   .brand-button strong {
-    font-size: clamp(21px, 6.35vw, 27px);
+    font-size: clamp(21px, 7.1vw, 36px);
   }
 
   .brand-chip-scene {
-    width: clamp(34px, 10vw, 40px);
-    height: clamp(34px, 10vw, 40px);
-    flex: 0 0 clamp(34px, 10vw, 40px);
+    width: clamp(34px, 11.3vw, 56px);
+    height: clamp(34px, 11.3vw, 56px);
+    flex-basis: clamp(34px, 11.3vw, 56px);
   }
 }
 
 @media (max-width: 370px) {
-  .brand-button { gap: 6px; }
+  .brand-button strong {
+    font-size: clamp(20px, 6.9vw, 25px);
+  }
 
   .brand-chip-scene {
-    width: clamp(32px, 10vw, 37px);
-    height: clamp(32px, 10vw, 37px);
-    flex-basis: clamp(32px, 10vw, 37px);
+    width: clamp(33px, 10.7vw, 40px);
+    height: clamp(33px, 10.7vw, 40px);
+    flex-basis: clamp(33px, 10.7vw, 40px);
   }
 
   .app-header .current-profile-badge {
@@ -142,7 +152,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   }
 }
 
-/* Keep the name visible on narrow phones without crowding the logo. */
+/* Keep the profile name readable even on the narrowest supported phones. */
 @media (max-width: 340px) {
   .app-header .current-profile-badge {
     width: 48px;
