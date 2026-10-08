@@ -735,13 +735,6 @@ export function SettlementScreen({
                 }>
                   {formatMoney(Math.abs(currentPlayer.openBalanceCents))}
                 </strong>
-                {currentPlayer.openBalanceCents !== 0 && (
-                  <small className="settlement-overview-context">
-                    {currentPlayer.openBalanceCents > 0
-                      ? t("vom Gesamtgewinn")
-                      : t("vom Gesamtverlust")}
-                  </small>
-                )}
               </div>
             <svg
               className="settlement-overview-chip"
