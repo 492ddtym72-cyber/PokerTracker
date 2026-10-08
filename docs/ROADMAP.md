@@ -38,6 +38,7 @@
 - [x] Device-local player identity and personalized settlement view
 - [x] Visual settlement flow view
 - [x] PayPal handoff without stored PayPal identities
+- [x] In-app payment requests and inbox with optional message/link, reminders and payment confirmation
 
 ## Later only if genuinely useful
 - multiple currencies
