@@ -49,12 +49,22 @@ export async function loadPlayers() {
   return data.players;
 }
 
-export function updatePlayerProfilePhoto(playerId: string, profilePhoto: string | null) {
+export function loadPlayerProfilePhotoSource(playerId: string) {
+  return api<{ playerId: string; sourcePhoto: string | null }>(
+    "/api/players/" + encodeURIComponent(playerId),
+  );
+}
+
+export function updatePlayerProfilePhoto(
+  playerId: string,
+  profilePhoto: string | null,
+  sourcePhoto: string | null = null,
+) {
   return api<{ playerId: string; profilePhoto: string | null }>(
     "/api/players/" + encodeURIComponent(playerId),
     {
       method: "PATCH",
-      body: JSON.stringify({ profilePhoto }),
+      body: JSON.stringify({ profilePhoto, sourcePhoto }),
     },
   );
 }
