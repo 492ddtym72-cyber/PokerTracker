@@ -30,6 +30,7 @@ For each night, PokerTracker compares total stakes with total cash-outs. A diffe
 - **Players** — lifetime standings derived from saved nights
 - **More** — device-local identity, language, password and session settings
 - **Settle up** — current player balances, personalized suggested transfers, list/flow views, PayPal handoff, partial payments and payment history
+- **Payment inbox** — send settlement requests, reminders, optional HTTPS payment links, and report/confirm payments
 
 ## History rules
 
