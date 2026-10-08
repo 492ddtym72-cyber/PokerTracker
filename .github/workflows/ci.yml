@@ -26,5 +26,8 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Test settlement flow ordering
+        run: node --experimental-strip-types --test tests/settlement-flow.test.mjs
+
       - name: Test D1 payment-request schema
         run: python3 -m unittest discover -s tests -v
