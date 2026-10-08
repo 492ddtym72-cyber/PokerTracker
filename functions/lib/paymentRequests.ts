@@ -68,17 +68,22 @@ export async function loadPaymentRequests(env: Env, playerId: string) {
       FROM payment_requests pr
       JOIN players debtor ON debtor.id=pr.from_player_id
       JOIN players creditor ON creditor.id=pr.to_player_id
-      WHERE pr.from_player_id=? OR pr.to_player_id=?
+      WHERE pr.to_player_id=? OR (pr.from_player_id=? AND pr.cancelled_at IS NULL)
       ORDER BY pr.created_at DESC LIMIT 100`).bind(playerId, playerId).all<RequestRow>(),
     env.DB.prepare(`SELECT report.*, sp.voided_at
       FROM payment_reports report
       JOIN payment_requests pr ON pr.id=report.request_id
       LEFT JOIN settlement_payments sp ON sp.payment_report_id=report.id
-      WHERE pr.from_player_id=? OR pr.to_player_id=?
+      WHERE pr.to_player_id=? OR (pr.from_player_id=? AND pr.cancelled_at IS NULL)
       ORDER BY report.created_at DESC LIMIT 200`).bind(playerId,playerId).all<ReportRow>(),
-    env.DB.prepare(`SELECT id,request_id,kind,created_at,read_at
-      FROM payment_request_events WHERE to_player_id=?
-      ORDER BY created_at DESC LIMIT 200`).bind(playerId).all<EventRow>(),
+    // Keep cancelled requests (and their old notifications) out of the payer's inbox.
+    // The sender still retains the withdrawn request in their sent history.
+    env.DB.prepare(`SELECT event.id,event.request_id,event.kind,event.created_at,event.read_at
+      FROM payment_request_events event
+      JOIN payment_requests pr ON pr.id=event.request_id
+      WHERE event.to_player_id=?
+        AND (pr.from_player_id<>? OR pr.cancelled_at IS NULL)
+      ORDER BY event.created_at DESC LIMIT 200`).bind(playerId,playerId).all<EventRow>(),
     loadSettlementSnapshot(env),
   ]);
   return {
@@ -189,14 +194,11 @@ export async function cancelPaymentRequest(env: Env,id:string,actorPlayerId:unkn
   const request=await getRequest(env,id);
   if (player(actorPlayerId)!==request.to_player_id) throw new Error("Falsches Spielerprofil.");
   const at=now();
-  const results=await env.DB.batch([
-    env.DB.prepare("UPDATE payment_requests SET cancelled_at=? WHERE id=? AND cancelled_at IS NULL")
-      .bind(at,id),
-    env.DB.prepare(`INSERT INTO payment_request_events(id,request_id,to_player_id,kind,created_at)
-      SELECT ?,id,from_player_id,'cancelled',? FROM payment_requests WHERE id=? AND cancelled_at=?`)
-      .bind(crypto.randomUUID(),at,id,at),
-  ]);
-  if (results[0].meta.changes !== 1) throw new Error("Anforderung wurde bereits zurückgezogen.");
+  // Withdrawing a request must not create a new recipient notification.
+  const result=await env.DB.prepare(
+    "UPDATE payment_requests SET cancelled_at=? WHERE id=? AND cancelled_at IS NULL"
+  ).bind(at,id).run();
+  if (result.meta.changes !== 1) throw new Error("Anforderung wurde bereits zurückgezogen.");
   return {ok:true};
 }
 
