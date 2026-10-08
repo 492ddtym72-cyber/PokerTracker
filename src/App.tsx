@@ -457,7 +457,10 @@ function AnimatedPokerChip() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Preserve the chip's 32-unit geometry/animation, but render it at a
+    // higher resolution for the larger 44px header mark.
     const size = 32;
+    const displaySize = 44;
     const center = size / 2;
     const radius = 13.75;
     const halfThickness = 2.65;
@@ -465,11 +468,10 @@ function AnimatedPokerChip() {
     const context = canvas.getContext("2d");
     if (!context) return;
 
-    canvas.width = Math.round(size * dpr);
-    canvas.height = Math.round(size * dpr);
-    canvas.style.width = `${size}px`;
-    canvas.style.height = `${size}px`;
-    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    canvas.width = Math.round(displaySize * dpr);
+    canvas.height = Math.round(displaySize * dpr);
+    const scale = canvas.width / size;
+    context.setTransform(scale, 0, 0, scale, 0, 0);
 
     const suitGlyphs: Record<ChipSuit, string> = {
       spade: "♠",
