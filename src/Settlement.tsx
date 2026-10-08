@@ -6,6 +6,7 @@ import {
   voidSettlementPayment,
 } from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
+import { orderSettlementFlow } from "./lib/settlementFlowLayout";
 import { getLocale, t } from "./i18n";
 import { PlayerAvatar, playerInitials } from "./PlayerAvatar";
 import { PaymentRequestDialog } from "./PaymentRequestDialog";
@@ -121,97 +122,7 @@ function SettlementFlow({
   profilePhotoFor: (playerId: string) => string | null;
   onSelect: (suggestion: SettlementSuggestion) => void;
 }) {
-  type FlowPerson = {
-    id: string;
-    name: string;
-    totalCents: number;
-  };
-
-  const payerMap = new Map<string, FlowPerson>();
-  const receiverMap = new Map<string, FlowPerson>();
-
-  for (const suggestion of suggestions) {
-    const payer = payerMap.get(suggestion.fromPlayerId) ?? {
-      id: suggestion.fromPlayerId,
-      name: suggestion.fromPlayerName,
-      totalCents: 0,
-    };
-    payer.totalCents += suggestion.amountCents;
-    payerMap.set(payer.id, payer);
-
-    const receiver = receiverMap.get(suggestion.toPlayerId) ?? {
-      id: suggestion.toPlayerId,
-      name: suggestion.toPlayerName,
-      totalCents: 0,
-    };
-    receiver.totalCents += suggestion.amountCents;
-    receiverMap.set(receiver.id, receiver);
-  }
-
-  let payers = Array.from(payerMap.values()).sort(
-    (a, b) =>
-      b.totalCents - a.totalCents ||
-      a.name.localeCompare(b.name, getLocale()),
-  );
-  let receivers = Array.from(receiverMap.values()).sort(
-    (a, b) =>
-      b.totalCents - a.totalCents ||
-      a.name.localeCompare(b.name, getLocale()),
-  );
-
-  function weightedNeighborPosition(
-    personId: string,
-    side: "payer" | "receiver",
-    otherOrder: FlowPerson[],
-  ) {
-    const positions = new Map(otherOrder.map((person, index) => [person.id, index]));
-    let weighted = 0;
-    let total = 0;
-
-    for (const suggestion of suggestions) {
-      const belongs =
-        side === "payer"
-          ? suggestion.fromPlayerId === personId
-          : suggestion.toPlayerId === personId;
-      if (!belongs) continue;
-
-      const otherId =
-        side === "payer" ? suggestion.toPlayerId : suggestion.fromPlayerId;
-      const position = positions.get(otherId);
-      if (position === undefined) continue;
-
-      weighted += position * suggestion.amountCents;
-      total += suggestion.amountCents;
-    }
-
-    return total > 0 ? weighted / total : Number.MAX_SAFE_INTEGER;
-  }
-
-  // A few barycentric passes are enough for this small bipartite graph and
-  // greatly reduce crossings compared with alphabetical ordering.
-  for (let pass = 0; pass < 4; pass += 1) {
-    payers = payers.slice().sort((a, b) => {
-      const delta =
-        weightedNeighborPosition(a.id, "payer", receivers) -
-        weightedNeighborPosition(b.id, "payer", receivers);
-      return (
-        delta ||
-        b.totalCents - a.totalCents ||
-        a.name.localeCompare(b.name, getLocale())
-      );
-    });
-
-    receivers = receivers.slice().sort((a, b) => {
-      const delta =
-        weightedNeighborPosition(a.id, "receiver", payers) -
-        weightedNeighborPosition(b.id, "receiver", payers);
-      return (
-        delta ||
-        b.totalCents - a.totalCents ||
-        a.name.localeCompare(b.name, getLocale())
-      );
-    });
-  }
+  const { payers, receivers } = orderSettlementFlow(suggestions);
 
   const rowHeight = 84;
   const topPadding = 62;
