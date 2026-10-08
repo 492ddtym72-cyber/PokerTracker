@@ -22,6 +22,7 @@ import { GOLD_WREATH, SILVER_WREATH } from "./leaderboardFrames";
 import { SettlementScreen, SettlementSummary } from "./Settlement";
 import { ProfilePhotoCropper } from "./ProfilePhotoCropper";
 import { PlayerAvatar, playerInitials } from "./PlayerAvatar";
+import { InboxLauncher } from "./PaymentInbox";
 import type {
   AuditChange,
   AuditEvent,
@@ -1759,15 +1760,6 @@ export default function App() {
     );
   }
 
-  function Header() {
-    return (
-      <header className="app-header">
-        <AnimatedPokerChipPair onClick={() => navigate("home")} />
-        <CurrentProfileBadge showHint={screen === "home"} />
-      </header>
-    );
-  }
-
   function BottomNav() {
     return (
       <nav className="bottom-nav" aria-label={t("Navigation")}>
@@ -2224,7 +2216,13 @@ export default function App() {
   return (
     <main className="app-shell">
       <div className="app-frame">
-        <Header />
+        <header className="app-header">
+          <AnimatedPokerChipPair onClick={() => navigate("home")} />
+          <div className="header-actions">
+            <InboxLauncher currentPlayerId={currentPlayerId} playerProfiles={playerProfiles} />
+            <CurrentProfileBadge showHint={screen === "home"} />
+          </div>
+        </header>
 
         {screen === "home" && (
           <>
