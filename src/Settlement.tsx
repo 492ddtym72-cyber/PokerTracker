@@ -448,24 +448,31 @@ export function SettlementSummary({
   const balanced = data !== null && data.totalOutstandingCents === 0 && data.groupDifferenceCents === 0;
 
   return (
-    <button className="settlement-summary-card" type="button" onClick={onOpen}>
-      <span className="settlement-summary-icon" aria-hidden="true">↔</span>
-      <span className="settlement-summary-copy">
+    <button className="dashboard-action-card settlement-summary-card" type="button" onClick={onOpen}>
+      <span className="dashboard-action-icon" aria-hidden="true">
+        <svg viewBox="0 0 48 48" focusable="false">
+          <path d="M24 7v33M12 14h24M18 40h12M14 44h20" />
+          <path d="M12 14 5 29h14L12 14ZM36 14l-7 15h14l-7-15Z" />
+          <path d="M5 29c1 6 13 6 14 0M29 29c1 6 13 6 14 0" />
+        </svg>
+      </span>
+      <span className="dashboard-action-divider" aria-hidden="true" />
+      <span className="dashboard-action-copy settlement-summary-copy">
         <strong>{t("Ausgleichen")}</strong>
-        <small>
-          {!data
-            ? t("Lädt …")
-            : balanced
-              ? t("Alles ausgeglichen")
-              : t("Noch auszugleichen") + " " + formatMoney(data.totalOutstandingCents)}
-        </small>
+        {!data ? (
+          <small>{t("Lädt …")}</small>
+        ) : balanced ? (
+          <small>{t("Alles ausgeglichen")}</small>
+        ) : (
+          <span className="settlement-summary-amount">{formatMoney(data.totalOutstandingCents)}</span>
+        )}
         {data && data.groupDifferenceCents !== 0 && (
-          <em>
-            {t("Offene Session-Differenz")}: {formatMoney(data.groupDifferenceCents)}
-          </em>
+          <em>{t("Offene Session-Differenz")}: {formatMoney(data.groupDifferenceCents)}</em>
         )}
       </span>
-      <span className="chevron">›</span>
+      <span className="dashboard-action-arrow" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false"><path d="m9 5 7 7-7 7" /></svg>
+      </span>
     </button>
   );
 }
