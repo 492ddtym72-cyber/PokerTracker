@@ -2240,13 +2240,12 @@ export default function App() {
               <div><strong>{stats[0]?.name ?? "—"}</strong><span>{t("Führung")}</span></div>
             </section>
 
-            <button className="dashboard-action-card" type="button" onClick={startNew}>
+            <button className="dashboard-action-card dashboard-action-card--primary" type="button" onClick={startNew}>
               <span className="dashboard-action-icon" aria-hidden="true">
                 <svg viewBox="0 0 48 48" focusable="false">
                   <path d="M24 11v26M11 24h26" />
                 </svg>
               </span>
-              <span className="dashboard-action-divider" aria-hidden="true" />
               <span className="dashboard-action-copy">
                 <strong>{t("Neuer Pokerabend")}</strong>
               </span>
