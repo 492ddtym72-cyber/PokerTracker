@@ -22,6 +22,10 @@ Create a D1 database and bind it to the Pages project as:
 
 Apply all SQL files in `migrations/` to the database in numeric order. Existing installations should apply only migrations that have not yet been run.
 
+Before deploying payment requests, apply `migrations/0008_payment_requests.sql` to the existing D1 database **once**, after obtaining a backup or time-travel bookmark. This migration is additive, but must precede deploying its API code.
+
+The inbox is currently profile-filtered, **not access-controlled per person**: anyone with the shared group password can switch to any player profile. Use only within a trusted group until individual player authentication exists. External payment links are unverified and do not trigger automatic settlement.
+
 ## Authentication
 
 PokerTracker does not keep a plaintext password in GitHub or Pages environment variables.

@@ -138,3 +138,34 @@ export function preparePaymentApp(fromPlayerId: string, toPlayerId: string) {
   const params = new URLSearchParams({ fromPlayerId, toPlayerId });
   return api<PreparedPaymentApp>("/api/settlements/payment-app?" + params.toString());
 }
+
+export function loadPaymentInbox(playerId: string) {
+  return api<import("../types").PaymentInboxData>(
+    "/api/payment-requests?playerId=" + encodeURIComponent(playerId),
+  );
+}
+export function sendPaymentRequest(input: {
+  fromPlayerId: string;
+  toPlayerId: string;
+  actorPlayerId: string;
+  amountCents: number;
+  message: string;
+  paymentUrl: string;
+  clientToken: string;
+}) {
+  return api<{id:string}>("/api/payment-requests", {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
+export function paymentRequestAction(requestId:string, action:string, data:Record<string,unknown>) {
+  return api<{id?:string;ok?:boolean}>(
+    "/api/payment-requests/" + encodeURIComponent(requestId), {
+      method:"POST",body:JSON.stringify({action,...data}),
+    }
+  );
+}
+export function markPaymentEventsRead(playerId:string,ids:string[]) {
+  return api<{ok:boolean}>("/api/payment-requests/events",{
+    method:"POST",body:JSON.stringify({playerId,ids}),
+  });
+}

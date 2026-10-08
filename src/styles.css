@@ -3792,3 +3792,73 @@ select:focus {
     animation: none;
   }
 }
+
+
+/* Payment requests: lightweight inbox layered over the existing app. */
+.header-actions {display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:0;flex-shrink:0}
+.inbox-trigger {position:relative;width:44px;height:44px;flex:0 0 44px;display:grid;place-items:center;background:linear-gradient(145deg,#12362a,#092117);border:1px solid rgba(231,198,117,.18);border-radius:14px;color:#edddba;box-shadow:inset 0 1px rgba(255,255,255,.07)}
+.inbox-trigger svg {width:22px;height:22px}
+.inbox-trigger:focus-visible,.inbox-close:focus-visible,.inbox-tabs button:focus-visible,.inbox-actions button:focus-visible {outline:2px solid var(--gold);outline-offset:3px}
+.inbox-unread {position:absolute;right:-5px;top:-6px;min-width:20px;height:20px;display:grid;place-items:center;border-radius:12px;background:#f0c878;color:#162519;font-size:11px;font-weight:800;padding:0 4px;border:2px solid #092019}
+.inbox-backdrop,.request-dialog-backdrop {position:fixed;inset:0;z-index:1000;display:flex;align-items:flex-start;justify-content:center;background:rgba(0,8,6,.74);backdrop-filter:blur(7px);padding:clamp(12px,5vh,50px) 12px 20px;overflow:auto}
+.inbox-panel,.request-dialog {width:min(100%,510px);max-height:calc(100dvh - 36px);overflow:auto;background:linear-gradient(150deg,#0b2a21,#081b16 68%);border:1px solid rgba(231,198,117,.21);border-radius:24px;box-shadow:0 26px 80px rgba(0,0,0,.55);padding:22px}
+.inbox-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
+.inbox-heading h2 {font-size:25px;line-height:1.15;letter-spacing:-.045em;margin:4px 0 0;color:#f6ecd4}
+.inbox-eyebrow {font-size:11px;text-transform:uppercase;letter-spacing:.15em;font-weight:750;color:#c7ab71}
+.inbox-close {font-size:26px;color:#e6dcc9;background:#14382c;border:1px solid var(--line);border-radius:50%;width:36px;height:36px;line-height:1;display:grid;place-items:center;flex-shrink:0}
+.inbox-tabs {display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:4px;background:#061912;border-radius:13px;border:1px solid var(--line)}
+.inbox-tabs button {border:0;border-radius:10px;background:transparent;color:#a6b8aa;font-size:14px;font-weight:720;padding:11px;display:flex;justify-content:center;align-items:center;gap:9px}
+.inbox-tabs button.active {color:#f2d9a3;background:#1c4132;box-shadow:inset 0 1px rgba(255,255,255,.06)}
+.inbox-tabs button span {font-size:11px;padding:2px 7px;background:#375342;border-radius:10px}
+.inbox-privacy {margin:12px 0 18px;font-size:11px;line-height:1.55;color:#9fae9f}
+.inbox-list {display:grid;gap:12px;max-height:min(60dvh,620px);overflow-y:auto;overscroll-behavior:contain;padding:0 2px 3px}
+.inbox-request {padding:17px;border:1px solid rgba(231,198,117,.12);background:linear-gradient(135deg,#133429,#0d261e);border-radius:18px;display:grid;gap:13px}
+.inbox-request.is-closed {opacity:.73}
+.inbox-request-head {display:flex;align-items:center;gap:11px;min-width:0}
+.inbox-request-head .player-photo {width:43px;height:43px;flex:0 0 43px}
+.inbox-request-person {display:grid;gap:3px;min-width:0;flex:1}
+.inbox-request-person strong {font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inbox-request-person small {font-size:11px;color:#9bb0a2}
+.inbox-dot {display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--gold);margin-left:7px;vertical-align:middle}
+.inbox-request-amount {font-weight:800;font-size:19px;white-space:nowrap;color:#f0d69b;font-variant-numeric:tabular-nums}
+.inbox-request-message {font-size:14px;line-height:1.55;color:#e1e9df;margin:0;background:#081e17;border:1px solid rgba(255,255,255,.045);border-radius:11px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.inbox-pay-link {display:flex;gap:8px;align-items:center;justify-content:center;color:#eed7a5;background:#234d36;border:1px solid #436449;border-radius:11px;padding:10px;text-decoration:none;font-weight:700;font-size:13px;overflow-wrap:anywhere}
+.inbox-pay-link span {font-size:19px}
+.inbox-state {padding:10px;color:#f2d49e;background:#493d2038;border:1px solid #e7c67525;border-radius:10px;font-size:12px}
+.inbox-actions {display:flex;gap:9px;flex-wrap:wrap}
+.inbox-actions button {flex:1;border-radius:11px;padding:11px 10px;border:1px solid rgba(231,198,117,.19);font-weight:720;font-size:13px;min-width:110px;min-height:42px}
+.inbox-actions .inbox-primary {background:linear-gradient(135deg,#f1cf87,#d2ac63);color:#18271c;border-color:transparent}
+.inbox-actions .inbox-secondary {background:#17392b;color:#e8dfce}
+.inbox-actions .inbox-cancel {background:transparent;color:#c6b8a7}
+.inbox-payment-review {background:#081c16;border-radius:12px;padding:12px;display:grid;gap:12px}
+.inbox-payment-review>div:first-child {display:flex;justify-content:space-between;font-size:13px;color:#c1cabc}
+.inbox-payment-review strong {color:#f1d89f}
+.inbox-request-footnote {color:#a4b7a8;font-size:11px}
+.inbox-report-form {display:grid;gap:12px}
+.inbox-report-form label,.request-dialog-form label {display:grid;gap:7px;color:#e9e5d8;font-size:13px;font-weight:700}
+.inbox-report-form input,.request-dialog-form input,.request-dialog-form textarea {width:100%;min-width:0;color:#f5eee1;background:#061c14;border:1px solid #3a5847;border-radius:10px;padding:12px;outline:none;font:inherit}
+.inbox-report-form input:focus,.request-dialog-form input:focus,.request-dialog-form textarea:focus {border-color:var(--gold)}
+.inbox-empty {display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:34px 10px;color:#f0e3c9}
+.inbox-empty svg {width:42px;height:42px;color:#c8b481;margin-bottom:8px}
+.inbox-empty small {color:#a9b9aa;max-width:300px;line-height:1.5}
+.inbox-error {background:rgba(160,37,32,.15);border:1px solid #b64d4a70;border-radius:10px;color:#ffb4ac;padding:11px;font-size:13px;margin:8px 0}
+.request-dialog-player {display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:13px;padding:12px;margin-bottom:18px}
+.request-dialog-player .player-photo {width:45px;height:45px;flex:0 0 45px}
+.request-dialog-player>div {flex:1;display:grid;gap:3px}
+.request-dialog-player small {font-size:11px;color:#9caf9e}
+.request-dialog-player>strong {font-size:17px;color:var(--gold);font-variant-numeric:tabular-nums;white-space:nowrap}
+.request-dialog-form {display:grid;gap:15px}
+.request-dialog-form textarea {resize:vertical}
+.request-money {display:flex;align-items:center;gap:10px}
+.request-money span {font-weight:750;color:var(--gold)}
+.request-dialog-hint {font-size:11px;line-height:1.5;color:#9cac9d;margin:0}
+.settlement-request-button {border-radius:11px;border:1px solid #e7c67580;background:#273c28;color:#f4d99f;padding:11px 12px;font-weight:750;min-height:44px}
+@media(max-width:520px) {
+  .header-actions {gap:5px}
+  .inbox-trigger {width:39px;height:39px;flex-basis:39px;border-radius:12px}
+  .inbox-panel,.request-dialog {padding:18px;border-radius:20px}
+  .inbox-backdrop,.request-dialog-backdrop {padding:12px 8px}
+}
+
+/* Keep the request action full-width alongside the existing transfer controls. */
+.settlement-payment-actions .settlement-request-button {width:100%;font-size:13px}

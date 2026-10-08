@@ -152,3 +152,43 @@ export interface PreparedPaymentApp {
   amountCents: number;
   currency: "EUR";
 }
+
+export interface PaymentRequest {
+  id: string;
+  fromPlayerId: string;
+  toPlayerId: string;
+  fromPlayerName: string;
+  toPlayerName: string;
+  amountCents: number;
+  paidCents: number;
+  remainingCents: number;
+  stale: boolean;
+  message: string | null;
+  paymentUrl: string | null;
+  createdAt: string;
+  cancelledAt: string | null;
+  lastRemindedAt: string | null;
+}
+
+export interface PaymentReport {
+  id: string;
+  requestId: string;
+  amountCents: number;
+  status: "reported" | "confirmed" | "rejected";
+  createdAt: string;
+  decidedAt: string | null;
+  voidedAt: string | null;
+}
+
+export interface PaymentEvent {
+  id: string;
+  requestId: string;
+  kind: "request" | "reminder" | "reported" | "confirmed" | "rejected" | "cancelled";
+  createdAt: string;
+  readAt: string | null;
+}
+export interface PaymentInboxData {
+  requests: PaymentRequest[];
+  reports: PaymentReport[];
+  events: PaymentEvent[];
+}

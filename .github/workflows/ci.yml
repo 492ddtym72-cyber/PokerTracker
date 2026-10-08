@@ -25,3 +25,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Test D1 payment-request schema
+        run: python3 -m unittest discover -s tests -v
