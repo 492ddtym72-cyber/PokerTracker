@@ -961,17 +961,18 @@ export default function App() {
   // Keep the small indicator visible until the event is actually read.
   useEffect(() => {
     if (!currentPlayerId || inboxStatus.playerId !== currentPlayerId ||
-        !inboxStatus.latestUnreadId || inboxStatus.unread === 0) {
-      setShowInboxBubble(false);
-      return;
-    }
+        !inboxStatus.latestUnreadId) return;
     const eventKey = currentPlayerId + ":" + inboxStatus.latestUnreadId;
     if (notifiedInboxEvents.current.has(eventKey)) return;
     notifiedInboxEvents.current.add(eventKey);
     setShowInboxBubble(true);
     const hide = window.setTimeout(() => setShowInboxBubble(false), 6000);
     return () => window.clearTimeout(hide);
-  }, [currentPlayerId, inboxStatus.playerId, inboxStatus.latestUnreadId, inboxStatus.unread]);
+  }, [currentPlayerId, inboxStatus.playerId, inboxStatus.latestUnreadId]);
+
+  useEffect(() => {
+    if (unreadInboxCount === 0) setShowInboxBubble(false);
+  }, [unreadInboxCount]);
 
   function openInbox() {
     setProfileSwitcherOpen(false);
