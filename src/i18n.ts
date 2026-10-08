@@ -235,8 +235,6 @@ const ENGLISH: Record<string, string> = {
   "Du bist ausgeglichen": "You're settled",
   "Du bekommst": "You receive",
   "Du zahlst": "You pay",
-  "vom Gesamtgewinn": "from your total winnings",
-  "vom Gesamtverlust": "from your total losses",
   "PokerTracker personalisieren": "Personalize PokerTracker",
   "Wer bist du? Die Auswahl bleibt nur auf diesem Gerät.": "Who are you? This choice stays only on this device.",
   "Wer bist du?": "Who are you?",
