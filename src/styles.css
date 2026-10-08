@@ -2565,37 +2565,102 @@ select:focus {
   margin-top: 3px;
 }
 
-.settlement-total-card {
-  padding: 18px;
-  border: 1px solid rgba(82,215,128,.16);
-  border-radius: 18px;
-  background: rgba(8,31,23,.94);
+/* Compact, personal settlement overview. The decorative chip is pure SVG. */
+.settlement-overview-card {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  min-height: 168px;
+  overflow: hidden;
+  padding: 23px 25px;
+  border: 1px solid rgba(82, 215, 128, .24);
+  border-radius: 21px;
+  background:
+    radial-gradient(circle at 86% 35%, rgba(61, 155, 97, .19), transparent 50%),
+    linear-gradient(110deg, #0b3024 0%, #09271d 59%, #071f17 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 10px 26px rgba(0,0,0,.12);
 }
 
-.settlement-total-card span,
-.settlement-total-card strong,
-.settlement-total-card small {
+.settlement-overview-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.settlement-overview-name {
+  max-width: 100%;
+  overflow: hidden;
+  color: #f0f5ee;
+  font-size: 17px;
+  font-weight: 730;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settlement-overview-value {
   display: block;
-}
-
-.settlement-total-card span {
-  color: #a9b7b0;
-  font-size: 10px;
+  max-width: 100%;
+  color: #f0f5ee;
+  font-size: clamp(29px, 7.8vw, 51px);
   font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: .06em;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.055em;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 
-.settlement-total-card strong {
-  margin: 4px 0 3px;
-  color: var(--green);
-  font-size: 30px;
-  letter-spacing: -.035em;
+.settlement-overview-value.positive { color: var(--green) !important; }
+.settlement-overview-value.negative { color: var(--red) !important; }
+
+.settlement-overview-total {
+  margin-top: 4px;
+  color: #96aa9d;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
 }
 
-.settlement-total-card small {
-  color: #71847a;
-  font-size: 9px;
+.settlement-overview-chip {
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  right: 17px;
+  width: clamp(100px, 24%, 150px);
+  height: auto;
+  transform: translateY(-50%) rotate(-17deg);
+  opacity: .44;
+  pointer-events: none;
+}
+
+.settlement-overview-accessible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .settlement-overview-card {
+    min-height: 148px;
+    padding: 21px 19px;
+    border-radius: 19px;
+  }
+
+  .settlement-overview-chip {
+    right: -11px;
+    width: 112px;
+    opacity: .27;
+  }
+
+  .settlement-overview-total { font-size: 12px; }
 }
 
 .settlement-warning {
@@ -3202,41 +3267,6 @@ select:focus {
   outline: none;
 }
 
-.my-settlement-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-top: 10px;
-  padding: 13px 14px;
-  border: 1px solid rgba(231,198,117,.16);
-  border-radius: 14px;
-  background: #081f18;
-}
-
-.my-settlement-card > div {
-  display: grid;
-  gap: 3px;
-}
-
-.my-settlement-card span {
-  color: #83958b;
-  font-size: 8px;
-  font-weight: 850;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-}
-
-.my-settlement-card strong {
-  font-size: 12px;
-}
-
-.my-settlement-card b {
-  max-width: 56%;
-  text-align: right;
-  font-size: 11px;
-}
-
 .settlement-profile-nudge {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(140px, .58fr);
@@ -3581,15 +3611,6 @@ select:focus {
     grid-template-columns: 1fr;
   }
 
-  .my-settlement-card {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .my-settlement-card b {
-    max-width: 100%;
-    text-align: left;
-  }
 
   .settlement-network-amount {
     font-size: 13px;
