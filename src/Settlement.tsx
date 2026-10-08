@@ -792,10 +792,6 @@ export function SettlementScreen({
 
           <section className="settlement-section">
             <div className="settlement-section-head">
-              <div className="section-title-row">
-                <h2>{t("Zahlungsvorschläge")}</h2>
-                <span>{data.suggestions.length}</span>
-              </div>
               <div
                 className="settlement-view-toggle"
                 data-view={view}
