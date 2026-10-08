@@ -2234,10 +2234,34 @@ export default function App() {
               <small>{nights.length} {t("Pokerabende")}</small>
             </section>
 
-            <section className="quick-stats">
-              <div><strong>{nights.length}</strong><span>{t("Abende")}</span></div>
-              <div><strong>{stats.length}</strong><span>{t("Spieler")}</span></div>
-              <div><strong>{stats[0]?.name ?? "—"}</strong><span>{t("Führung")}</span></div>
+            <section className="quick-stats quick-stats--premium" aria-label={t("Statistik")}>
+              <div className="quick-stat">
+                <span className="quick-stat-icon" aria-hidden="true">
+                  <img src="/assets/stats-sessions.webp" width="96" height="96" alt="" />
+                </span>
+                <span className="quick-stat-copy">
+                  <strong>{nights.length}</strong>
+                  <span>{t("Sessions")}</span>
+                </span>
+              </div>
+              <div className="quick-stat">
+                <span className="quick-stat-icon" aria-hidden="true">
+                  <img src="/assets/stats-players.webp" width="96" height="96" alt="" />
+                </span>
+                <span className="quick-stat-copy">
+                  <strong>{stats.length}</strong>
+                  <span>{t("Spieler")}</span>
+                </span>
+              </div>
+              <div className="quick-stat quick-stat--leader">
+                <span className="quick-stat-icon" aria-hidden="true">
+                  <img src="/assets/stats-leader.webp" width="96" height="96" alt="" />
+                </span>
+                <span className="quick-stat-copy">
+                  <strong title={stats[0]?.name ?? "—"}>{stats[0]?.name ?? "—"}</strong>
+                  <span>{t("Führung")}</span>
+                </span>
+              </div>
             </section>
 
             <button className="dashboard-action-card dashboard-action-card--primary" type="button" onClick={startNew}>
