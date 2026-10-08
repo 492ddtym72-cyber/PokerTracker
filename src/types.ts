@@ -162,6 +162,7 @@ export interface PaymentRequest {
   amountCents: number;
   paidCents: number;
   remainingCents: number;
+  stale: boolean;
   message: string | null;
   paymentUrl: string | null;
   createdAt: string;
