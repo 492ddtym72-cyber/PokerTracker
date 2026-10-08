@@ -22,7 +22,7 @@ import { GOLD_WREATH, SILVER_WREATH } from "./leaderboardFrames";
 import { SettlementScreen, SettlementSummary } from "./Settlement";
 import { ProfilePhotoCropper } from "./ProfilePhotoCropper";
 import { PlayerAvatar, playerInitials } from "./PlayerAvatar";
-import { InboxLauncher } from "./PaymentInbox";
+import { InboxLauncher, type InboxStatus } from "./PaymentInbox";
 import type {
   AuditChange,
   AuditEvent,
@@ -909,6 +909,14 @@ export default function App() {
   );
   const [screen, setScreen] = useState<Screen>("home");
   const [profileSwitcherOpen, setProfileSwitcherOpen] = useState(false);
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const [inboxStatus, setInboxStatus] = useState<InboxStatus>({
+    playerId: null,
+    unread: 0,
+    latestUnreadId: null,
+  });
+  const [showInboxBubble, setShowInboxBubble] = useState(false);
+  const notifiedInboxEvents = useRef(new Set<string>());
   const [playerCardId, setPlayerCardId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [detailNightId, setDetailNightId] = useState<string | null>(null);
@@ -944,6 +952,42 @@ export default function App() {
   const [profilePhotoSourceLoading, setProfilePhotoSourceLoading] = useState(false);
   const profilePhotoInputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState("");
+
+  const unreadInboxCount = inboxStatus.playerId === currentPlayerId
+    ? inboxStatus.unread
+    : 0;
+
+  // Show a small, temporary hint only once for each newly observed event.
+  // Keep the small indicator visible until the event is actually read.
+  useEffect(() => {
+    if (!currentPlayerId || inboxStatus.playerId !== currentPlayerId ||
+        !inboxStatus.latestUnreadId || inboxStatus.unread === 0) {
+      setShowInboxBubble(false);
+      return;
+    }
+    const eventKey = currentPlayerId + ":" + inboxStatus.latestUnreadId;
+    if (notifiedInboxEvents.current.has(eventKey)) return;
+    notifiedInboxEvents.current.add(eventKey);
+    setShowInboxBubble(true);
+    const hide = window.setTimeout(() => setShowInboxBubble(false), 6000);
+    return () => window.clearTimeout(hide);
+  }, [currentPlayerId, inboxStatus.playerId, inboxStatus.latestUnreadId, inboxStatus.unread]);
+
+  function openInbox() {
+    setProfileSwitcherOpen(false);
+    setShowInboxBubble(false);
+    setInboxOpen(true);
+  }
+
+  const inboxPanel = (
+    <InboxLauncher
+      currentPlayerId={currentPlayerId}
+      playerProfiles={playerProfiles}
+      open={inboxOpen}
+      onOpenChange={setInboxOpen}
+      onStatusChange={setInboxStatus}
+    />
+  );
 
   async function refreshNights() {
     const data = await loadNights();
@@ -1563,6 +1607,25 @@ export default function App() {
             </button>
           </div>
 
+          {currentPlayerId && (
+            <button type="button" className="profile-switcher-inbox" onClick={openInbox}>
+              <span className="profile-switcher-inbox-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="5" width="18" height="14" rx="3" />
+                  <path d="m4 7 8 6 8-6" />
+                </svg>
+              </span>
+              <strong>{t("Postfach")}</strong>
+              {unreadInboxCount > 0 && (
+                <span className="profile-switcher-inbox-count" aria-label={
+                  unreadInboxCount + " " + t("ungelesen")
+                }>{unreadInboxCount > 9 ? "9+" : unreadInboxCount}</span>
+              )}
+              <span className="profile-switcher-inbox-chevron" aria-hidden="true"><ChevronIcon /></span>
+            </button>
+          )}
+
           <div className="profile-switcher-list">
             {knownPlayers.map((player) => {
               const active = player.id === currentPlayerId;
@@ -1950,6 +2013,7 @@ export default function App() {
           </form>
         </div>
         <ProfileSwitcherDialog />
+        {inboxPanel}
       </main>
     );
   }
@@ -2209,6 +2273,7 @@ export default function App() {
           {error && <p className="error-banner">{error}</p>}
         </div>
         <ProfileSwitcherDialog />
+        {inboxPanel}
       </main>
     );
   }
@@ -2219,8 +2284,27 @@ export default function App() {
         <header className="app-header">
           <AnimatedPokerChipPair onClick={() => navigate("home")} />
           <div className="header-actions">
-            <InboxLauncher currentPlayerId={currentPlayerId} playerProfiles={playerProfiles} />
-            <CurrentProfileBadge showHint={screen === "home"} />
+            <div className="profile-inbox-anchor">
+              <CurrentProfileBadge showHint={screen === "home"} />
+              {currentPlayerId && unreadInboxCount > 0 && (
+                <>
+                  <span className="profile-inbox-indicator" aria-hidden="true" />
+                  {showInboxBubble && (
+                    <button type="button" className="profile-inbox-bubble"
+                      aria-label={t("Postfach öffnen")}
+                      onClick={openInbox}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"
+                        focusable="false" aria-hidden="true">
+                        <rect x="3" y="5" width="18" height="14" rx="3" />
+                        <path d="m4 7 8 6 8-6" />
+                      </svg>
+                      <span>{unreadInboxCount === 1 ? t("Neue Nachricht") : t("Neue Nachrichten")}</span>
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </header>
 
@@ -2682,6 +2766,7 @@ export default function App() {
 
       <BottomNav />
       <ProfileSwitcherDialog />
+      {inboxPanel}
       <PlayerCardDialog />
       {profilePhotoCropSource && (
         <ProfilePhotoCropper
