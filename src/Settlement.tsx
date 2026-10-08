@@ -715,55 +715,34 @@ export function SettlementScreen({
         <div className="empty-card">{t("Lädt …")}</div>
       ) : data ? (
         <>
-          <section className="settlement-overview-card">
-            <div className="settlement-overview-copy">
-              {currentPlayer && (
-                <span className="settlement-overview-name">{currentPlayer.name}</span>
-              )}
-              <strong
-                className={
-                  "settlement-overview-value" +
-                  (currentPlayer
-                    ? currentPlayer.openBalanceCents > 0
-                      ? " positive"
-                      : currentPlayer.openBalanceCents < 0
-                        ? " negative"
-                        : ""
-                    : data.totalOutstandingCents > 0
-                      ? " positive"
-                      : "")
-                }
-                aria-hidden={Boolean(currentPlayer)}
-              >
-                {currentPlayer
-                  ? (currentPlayer.openBalanceCents > 0
-                      ? "+"
-                      : currentPlayer.openBalanceCents < 0
-                        ? "−"
-                        : "") + formatMoney(Math.abs(currentPlayer.openBalanceCents))
-                  : formatMoney(data.totalOutstandingCents)}
-              </strong>
-              <small className="settlement-overview-total">
-                {currentPlayer
-                  ? `${formatMoney(data.totalOutstandingCents)} ${t("gesamt")}`
-                  : data.totalOutstandingCents === 0 && data.groupDifferenceCents === 0
-                    ? t("Alles ausgeglichen")
-                    : t("gesamt")}
-              </small>
-              {currentPlayer && (
-                <span className="settlement-overview-accessible">
+          {currentPlayer && (
+            <section className="settlement-overview-card">
+              <div className="settlement-overview-copy">
+                <span className="settlement-overview-label">
                   {currentPlayer.openBalanceCents > 0
-                    ? t("Du bekommst noch {amount}").replace(
-                        "{amount}", formatMoney(currentPlayer.openBalanceCents),
-                      )
+                    ? t("Du bekommst")
                     : currentPlayer.openBalanceCents < 0
-                      ? t("Du zahlst noch {amount}").replace(
-                          "{amount}", formatMoney(Math.abs(currentPlayer.openBalanceCents)),
-                        )
-                      : t("Du bist ausgeglichen")}
+                      ? t("Du zahlst")
+                      : t("Alles ausgeglichen")}
                 </span>
-              )}
-            </div>
+                <strong className={
+                  "settlement-overview-value" +
+                  (currentPlayer.openBalanceCents > 0
+                    ? " positive"
+                    : currentPlayer.openBalanceCents < 0
+                      ? " negative"
+                      : "")
+                }>
+                  {formatMoney(Math.abs(currentPlayer.openBalanceCents))}
+                </strong>
+                {currentPlayer.openBalanceCents !== 0 && (
+                  <small className="settlement-overview-context">
+                    {currentPlayer.openBalanceCents > 0
+                      ? t("vom Gesamtgewinn")
+                      : t("vom Gesamtverlust")}
+                  </small>
+                )}
+              </div>
             <svg
               className="settlement-overview-chip"
               viewBox="0 0 120 120"
@@ -784,7 +763,8 @@ export function SettlementScreen({
                 <path d="M57.7 61h4.6c.1 10 2 15 7 19H50.7c5-4 7-9 7-19Z" />
               </g>
             </svg>
-          </section>
+            </section>
+          )}
 
           {!currentPlayer && (
             <section className="settlement-profile-nudge">
