@@ -3822,9 +3822,61 @@ select:focus {
 
 
 /* Payment requests: lightweight inbox layered over the existing app. */
-.header-actions {display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:0;flex-shrink:0}
-.inbox-trigger {position:relative;width:44px;height:44px;flex:0 0 44px;display:grid;place-items:center;background:linear-gradient(145deg,#12362a,#092117);border:1px solid rgba(231,198,117,.18);border-radius:14px;color:#edddba;box-shadow:inset 0 1px rgba(255,255,255,.07)}
-.inbox-trigger svg {width:22px;height:22px}
+/* Keep the inbox and player selector identical in footprint at every viewport.
+   Separate control sizing from glyph sizing so the envelope reads as large as
+   the profile photo, without reducing the size of the avatar. */
+.header-actions {
+  --header-control-width: 70px;
+  --header-control-height: 70px;
+  --header-envelope-size: 56px;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.header-actions .current-profile-badge,
+.header-actions .inbox-trigger {
+  width: var(--header-control-width);
+  max-width: var(--header-control-width);
+  min-width: var(--header-control-width);
+  height: var(--header-control-height);
+  min-height: var(--header-control-height);
+  flex: 0 0 var(--header-control-width);
+  margin-left: 0;
+  border: 1px solid rgba(231,198,117,.14);
+  border-radius: 16px;
+  background: rgba(8,31,23,.72);
+  box-shadow: inset 0 1px rgba(255,255,255,.025);
+}
+
+.header-actions .inbox-trigger {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #edddba;
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+.header-actions .inbox-trigger:hover,
+.header-actions .inbox-trigger:focus-visible {
+  border-color: rgba(231,198,117,.36);
+  background: rgba(10,38,28,.88);
+}
+
+.header-actions .inbox-trigger:active {
+  transform: scale(.97);
+}
+
+.header-actions .inbox-trigger svg {
+  display: block;
+  width: var(--header-envelope-size);
+  height: var(--header-envelope-size);
+  shape-rendering: geometricPrecision;
+}
 .inbox-trigger:focus-visible,.inbox-close:focus-visible,.inbox-tabs button:focus-visible,.inbox-actions button:focus-visible {outline:2px solid var(--gold);outline-offset:3px}
 .inbox-unread {position:absolute;right:-5px;top:-6px;min-width:20px;height:20px;display:grid;place-items:center;border-radius:12px;background:#f0c878;color:#162519;font-size:11px;font-weight:800;padding:0 4px;border:2px solid #092019}
 .inbox-backdrop,.request-dialog-backdrop {position:fixed;inset:0;z-index:1000;display:flex;align-items:flex-start;justify-content:center;background:rgba(0,8,6,.74);backdrop-filter:blur(7px);padding:clamp(12px,5vh,50px) 12px 20px;overflow:auto}
@@ -3880,11 +3932,53 @@ select:focus {
 .request-money span {font-weight:750;color:var(--gold)}
 .request-dialog-hint {font-size:11px;line-height:1.5;color:#9cac9d;margin:0}
 .settlement-request-button {border-radius:11px;border:1px solid #e7c67580;background:#273c28;color:#f4d99f;padding:11px 12px;font-weight:750;min-height:44px}
-@media(max-width:520px) {
-  .header-actions {gap:5px}
-  .inbox-trigger {width:39px;height:39px;flex-basis:39px;border-radius:12px}
-  .inbox-panel,.request-dialog {padding:18px;border-radius:20px}
-  .inbox-backdrop,.request-dialog-backdrop {padding:12px 8px}
+@media (max-width: 520px) {
+  .header-actions {
+    --header-control-width: 62px;
+    --header-control-height: 67px;
+    --header-envelope-size: 53px;
+    gap: 6px;
+  }
+
+  /* Reserve equal space for both controls without overflowing small phones. */
+  .app-header .brand-button { gap: 6px; }
+  .app-header .brand-button strong { font-size: clamp(18px, 5vw, 24px); }
+  .app-header .brand-chip-scene {
+    width: clamp(31px, 8.6vw, 36px);
+    height: clamp(31px, 8.6vw, 36px);
+    flex-basis: clamp(31px, 8.6vw, 36px);
+  }
+  .inbox-panel, .request-dialog { padding: 18px; border-radius: 20px; }
+  .inbox-backdrop, .request-dialog-backdrop { padding: 12px 8px; }
+}
+
+@media (max-width: 370px) {
+  .header-actions {
+    --header-control-width: 54px;
+    --header-envelope-size: 50px;
+    gap: 4px;
+  }
+  .app-header .brand-button strong { font-size: clamp(16px, 5vw, 19px); }
+  .app-header .brand-chip-scene {
+    width: clamp(29px, 8.5vw, 32px);
+    height: clamp(29px, 8.5vw, 32px);
+    flex-basis: clamp(29px, 8.5vw, 32px);
+  }
+}
+
+@media (max-width: 340px) {
+  .header-actions {
+    --header-control-width: 48px;
+    --header-control-height: 64px;
+    --header-envelope-size: 44px;
+  }
+  .app-header .brand-button { gap: 4px; }
+  .app-header .brand-button strong { font-size: 16px; }
+  .app-header .brand-chip-scene {
+    width: 27px;
+    height: 27px;
+    flex-basis: 27px;
+  }
 }
 
 /* Keep the request action full-width alongside the existing transfer controls. */
