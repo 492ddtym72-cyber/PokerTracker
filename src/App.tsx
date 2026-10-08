@@ -5,6 +5,7 @@ import {
   loadHistory,
   loadNights,
   loadPlayers,
+  loadPlayerProfilePhotoSource,
   updateNight,
   updateNightAdjustments,
   updatePlayerProfilePhoto,
@@ -865,7 +866,9 @@ export default function App() {
     playerId: string;
     photo: string | null;
   } | null>(null);
-  const [profilePhotoCropFile, setProfilePhotoCropFile] = useState<File | null>(null);
+  const [profilePhotoCropSource, setProfilePhotoCropSource] = useState<File | string | null>(null);
+  const [profilePhotoSourceLoading, setProfilePhotoSourceLoading] = useState(false);
+  const profilePhotoInputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState("");
 
   async function refreshNights() {
@@ -1017,7 +1020,7 @@ export default function App() {
   }, [players]);
 
   useEffect(() => {
-    if (!profileSwitcherOpen && !playerCardId && !profilePhotoCropFile) return;
+    if (!profileSwitcherOpen && !playerCardId && !profilePhotoCropSource) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -1026,7 +1029,7 @@ export default function App() {
       if (event.key !== "Escape") return;
       setProfileSwitcherOpen(false);
       setPlayerCardId(null);
-      if (!profilePhotoSaving) setProfilePhotoCropFile(null);
+      if (!profilePhotoSaving) setProfilePhotoCropSource(null);
     };
 
     document.addEventListener("keydown", handleKeyDown);
@@ -1035,7 +1038,7 @@ export default function App() {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [profileSwitcherOpen, playerCardId, profilePhotoCropFile, profilePhotoSaving]);
+  }, [profileSwitcherOpen, playerCardId, profilePhotoCropSource, profilePhotoSaving]);
 
   function changeLanguage(next: Language) {
     setLanguagePreference(next);
@@ -1055,7 +1058,7 @@ export default function App() {
     setError("");
   }
 
-  async function saveProfilePhoto(profilePhoto: string) {
+  async function saveProfilePhoto(profilePhoto: string, sourcePhoto: string) {
     if (!currentPlayerId) return t("Bitte zuerst ein Profil auswählen.");
 
     const playerId = currentPlayerId;
@@ -1064,7 +1067,7 @@ export default function App() {
     setError("");
 
     try {
-      await updatePlayerProfilePhoto(playerId, profilePhoto);
+      await updatePlayerProfilePhoto(playerId, profilePhoto, sourcePhoto);
       setPlayerProfiles((current) =>
         current.map((player) =>
           player.id === playerId ? { ...player, profilePhoto } : player,
@@ -1082,6 +1085,33 @@ export default function App() {
       return message;
     } finally {
       setProfilePhotoSaving(false);
+    }
+  }
+
+  async function editCurrentProfilePhoto() {
+    if (!currentPlayerId || profilePhotoSaving || profilePhotoSourceLoading) return;
+    const playerId = currentPlayerId;
+    const currentPhoto = profilePhotoFor(playerId);
+
+    if (!currentPhoto) {
+      profilePhotoInputRef.current?.click();
+      return;
+    }
+
+    setProfilePhotoSourceLoading(true);
+    setError("");
+    try {
+      const { sourcePhoto } = await loadPlayerProfilePhotoSource(playerId);
+      // Ignore a response if another profile was selected while loading.
+      if (storedCurrentPlayerId() === playerId) {
+        setProfilePhotoCropSource(sourcePhoto ?? currentPhoto);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : t("Fotovorlage konnte nicht geladen werden."),
+      );
+    } finally {
+      setProfilePhotoSourceLoading(false);
     }
   }
 
@@ -2394,16 +2424,29 @@ export default function App() {
                 {currentPlayerId ? (
                   <>
                     <div className="profile-device-avatar-wrap">
-                      <PlayerAvatar
-                        className="profile-device-avatar"
-                        name={knownPlayers.find((player) => player.id === currentPlayerId)?.name ?? "?"}
-                        photo={profilePhotoFor(currentPlayerId)}
-                      />
+                      <button
+                        type="button"
+                        className="profile-device-avatar-button"
+                        aria-label={profilePhotoFor(currentPlayerId)
+                          ? t("Profilbild erneut zuschneiden")
+                          : t("Foto auswählen")}
+                        title={profilePhotoFor(currentPlayerId)
+                          ? t("Profilbild erneut zuschneiden")
+                          : t("Foto auswählen")}
+                        disabled={profilePhotoSaving || profilePhotoSourceLoading}
+                        onClick={() => void editCurrentProfilePhoto()}
+                      >
+                        <PlayerAvatar
+                          className="profile-device-avatar"
+                          name={knownPlayers.find((player) => player.id === currentPlayerId)?.name ?? "?"}
+                          photo={profilePhotoFor(currentPlayerId)}
+                        />
+                      </button>
 
                       <label
                         className={
                           "profile-device-camera" +
-                          (profilePhotoSaving ? " is-disabled" : "")
+                          (profilePhotoSaving || profilePhotoSourceLoading ? " is-disabled" : "")
                         }
                         aria-label={
                           profilePhotoFor(currentPlayerId)
@@ -2413,16 +2456,17 @@ export default function App() {
                       >
                         <CameraIcon />
                         <input
+                          ref={profilePhotoInputRef}
                           className="profile-photo-input"
                           type="file"
                           accept="image/jpeg,image/png,image/webp"
-                          disabled={profilePhotoSaving}
+                          disabled={profilePhotoSaving || profilePhotoSourceLoading}
                           onChange={(event) => {
                             const file = event.currentTarget.files?.[0];
                             event.currentTarget.value = "";
                             if (!file) return;
                             setError("");
-                            setProfilePhotoCropFile(file);
+                            setProfilePhotoCropSource(file);
                           }}
                         />
                       </label>
@@ -2435,7 +2479,11 @@ export default function App() {
                     <p className="profile-device-hint">
                       {profilePhotoSaving
                         ? t("Foto wird gespeichert …")
-                        : t("Tippe auf das Kamera-Symbol, um ein Profilbild zu wählen.")}
+                        : profilePhotoSourceLoading
+                          ? t("Foto wird geladen …")
+                          : profilePhotoFor(currentPlayerId)
+                            ? t("Tippe auf das Profilbild, um den Ausschnitt zu ändern.")
+                            : t("Tippe auf das Kamera-Symbol, um ein Profilbild zu wählen.")}
                     </p>
                   </>
                 ) : (
@@ -2528,16 +2576,16 @@ export default function App() {
       <BottomNav />
       <ProfileSwitcherDialog />
       <PlayerCardDialog />
-      {profilePhotoCropFile && (
+      {profilePhotoCropSource && (
         <ProfilePhotoCropper
-          file={profilePhotoCropFile}
+          source={profilePhotoCropSource}
           saving={profilePhotoSaving}
           onCancel={() => {
-            if (!profilePhotoSaving) setProfilePhotoCropFile(null);
+            if (!profilePhotoSaving) setProfilePhotoCropSource(null);
           }}
-          onConfirm={async (photo) => {
-            const saveError = await saveProfilePhoto(photo);
-            if (!saveError) setProfilePhotoCropFile(null);
+          onConfirm={async (photo, sourcePhoto) => {
+            const saveError = await saveProfilePhoto(photo, sourcePhoto);
+            if (!saveError) setProfilePhotoCropSource(null);
             return saveError;
           }}
         />
