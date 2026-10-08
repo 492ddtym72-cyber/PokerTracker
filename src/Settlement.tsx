@@ -435,12 +435,14 @@ export function SettlementSummary({
     };
 
     window.addEventListener("focus", refreshIfVisible);
+    window.addEventListener("pokertracker:settlement-updated", refreshIfVisible);
     window.addEventListener("pageshow", refreshIfVisible);
     document.addEventListener("visibilitychange", refreshIfVisible);
 
     return () => {
       active = false;
       window.removeEventListener("focus", refreshIfVisible);
+    window.removeEventListener("pokertracker:settlement-updated", refreshIfVisible);
       window.removeEventListener("pageshow", refreshIfVisible);
       document.removeEventListener("visibilitychange", refreshIfVisible);
     };
@@ -559,6 +561,7 @@ export function SettlementScreen({
 
     const intervalId = window.setInterval(refreshIfVisible, 15_000);
     window.addEventListener("focus", refreshIfVisible);
+    window.addEventListener("pokertracker:settlement-updated", refreshIfVisible);
     window.addEventListener("pageshow", refreshIfVisible);
     document.addEventListener("visibilitychange", refreshIfVisible);
 
@@ -566,6 +569,7 @@ export function SettlementScreen({
       active = false;
       window.clearInterval(intervalId);
       window.removeEventListener("focus", refreshIfVisible);
+    window.removeEventListener("pokertracker:settlement-updated", refreshIfVisible);
       window.removeEventListener("pageshow", refreshIfVisible);
       document.removeEventListener("visibilitychange", refreshIfVisible);
     };
