@@ -1405,9 +1405,37 @@ export default function App() {
     }
   }
 
-  function CurrentProfileBadge() {
+  function CurrentProfileBadge({ showHint = false }: { showHint?: boolean }) {
     const currentPlayer = knownPlayers.find((player) => player.id === currentPlayerId);
-    if (!currentPlayer) return null;
+
+    if (!currentPlayer) {
+      // Keep profile selection available without taking space in the home content.
+      // The small hint only appears after the player list has loaded.
+      return (
+        <div className="profile-prompt-anchor">
+          <button
+            type="button"
+            className="profile-prompt-trigger"
+            aria-label={t("Profil wählen")}
+            title={t("Profil wählen")}
+            disabled={loading || knownPlayers.length === 0}
+            onClick={() => setProfileSwitcherOpen(true)}
+          >
+            <ProfileSwitchIcon />
+            <span className="profile-prompt-indicator" aria-hidden="true" />
+          </button>
+          {showHint && !loading && knownPlayers.length > 0 && (
+            <button
+              type="button"
+              className="profile-prompt-bubble"
+              onClick={() => setProfileSwitcherOpen(true)}
+            >
+              {t("Profil wählen")}
+            </button>
+          )}
+        </div>
+      );
+    }
 
     return (
       <button
@@ -1446,7 +1474,7 @@ export default function App() {
         >
           <div className="profile-switcher-header">
             <div>
-              <h2 id="profile-switcher-title">{t("Profil wechseln")}</h2>
+              <h2 id="profile-switcher-title">{currentPlayerId ? t("Profil wechseln") : t("Profil wählen")}</h2>
               <p>{t("Wer verwendet PokerTracker auf diesem Gerät?")}</p>
             </div>
             <button
@@ -1665,7 +1693,7 @@ export default function App() {
           <AnimatedPokerChip />
           <strong>PokerTracker</strong>
         </button>
-        <CurrentProfileBadge />
+        <CurrentProfileBadge showHint={screen === "home"} />
       </header>
     );
   }
@@ -2141,30 +2169,6 @@ export default function App() {
               <div><strong>{stats.length}</strong><span>{t("Spieler")}</span></div>
               <div><strong>{stats[0]?.name ?? "—"}</strong><span>{t("Führung")}</span></div>
             </section>
-
-            {!loading && knownPlayers.length > 0 && !currentPlayerId && (
-              <section className="identity-nudge">
-                <div className="identity-nudge-copy">
-                  <span className="identity-nudge-icon" aria-hidden="true">◎</span>
-                  <div>
-                    <strong>{t("PokerTracker personalisieren")}</strong>
-                    <small>{t("Wer bist du? Die Auswahl bleibt nur auf diesem Gerät.")}</small>
-                  </div>
-                </div>
-                <select
-                  aria-label={t("Wer bist du?")}
-                  defaultValue=""
-                  onChange={(event) => {
-                    if (event.target.value) changeCurrentPlayer(event.target.value);
-                  }}
-                >
-                  <option value="">{t("Spieler wählen")}</option>
-                  {knownPlayers.map((player) => (
-                    <option key={player.id} value={player.id}>{player.name}</option>
-                  ))}
-                </select>
-              </section>
-            )}
 
             <SettlementSummary
               onOpen={() => navigate("settlement")}
