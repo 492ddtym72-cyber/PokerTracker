@@ -682,8 +682,17 @@ function AnimatedPokerChip() {
       context.restore();
     };
 
-    const drawChip = (angle: number, suit: ChipSuit) => {
+    const drawChip = (
+      angle: number,
+      suit: ChipSuit,
+      zRotation = 0,
+    ) => {
+      // Clear in canvas coordinates before rotating the entire rendered chip.
       context.clearRect(0, 0, size, size);
+      context.save();
+      context.translate(center, center);
+      context.rotate(zRotation);
+      context.translate(-center, -center);
 
       const cosine = Math.cos(angle);
       const sine = Math.sin(angle);
@@ -704,12 +713,23 @@ function AnimatedPokerChip() {
       if (faceScale > 0.075) {
         drawFace(nearFaceCenter, faceScale, suit);
       }
+      context.restore();
     };
+
+    // Two existing edge-on flips and two face-on spins per four turns.
+    // Canvas positive rotation is clockwise (the Y coordinate points down).
+    const turnModes = [
+      "flipY",
+      "spinZClockwise",
+      "flipY",
+      "spinZCounterclockwise",
+    ] as const;
 
     let disposed = false;
     let frame: number | undefined;
     let timer: number | undefined;
     let suitIndex = 0;
+    let turnIndex = 0;
     let restingAngle = 0;
     let turnStartAngle = 0;
     let turning = false;
@@ -755,6 +775,8 @@ function AnimatedPokerChip() {
       turnStartAngle = restingAngle;
       const startedAt = performance.now();
       const duration = 1900;
+      const turnMode = turnModes[turnIndex];
+      const isFlip = turnMode === "flipY";
       const currentSuit = CHIP_SUITS[suitIndex];
       const nextSuit =
         CHIP_SUITS[(suitIndex + 1) % CHIP_SUITS.length];
@@ -772,14 +794,18 @@ function AnimatedPokerChip() {
         }
 
         const progress = Math.min(1, (now - startedAt) / duration);
-        // One continuous curve for the entire 180° turn. There is no DOM
-        // hand-off or second animation at 90°, so every flip has identical
-        // timing and there is nothing for Safari to glitch between.
+        // One uninterrupted easing curve for both kinds of turn. The existing
+        // 3D edge-on flip remains untouched; face-on spins rotate its canvas
+        // drawing, with no competing DOM/CSS animation or suit hand-off.
         const eased = 0.5 - 0.5 * Math.cos(Math.PI * progress);
-        const angle = turnStartAngle + Math.PI * eased;
-        const visibleSuit = progress < 0.5 ? currentSuit : nextSuit;
+        const angle = isFlip ? turnStartAngle + Math.PI * eased : turnStartAngle;
+        const zRotation = isFlip
+          ? 0
+          : (turnMode === "spinZClockwise" ? 1 : -1) * Math.PI * 2 * eased;
+        const visibleSuit =
+          isFlip && progress >= 0.5 ? nextSuit : currentSuit;
 
-        drawChip(angle, visibleSuit);
+        drawChip(angle, visibleSuit, zRotation);
 
         if (progress < 1) {
           frame = window.requestAnimationFrame(animate);
@@ -787,8 +813,11 @@ function AnimatedPokerChip() {
         }
 
         frame = undefined;
-        suitIndex = (suitIndex + 1) % CHIP_SUITS.length;
-        restingAngle = turnStartAngle + Math.PI;
+        if (isFlip) {
+          suitIndex = (suitIndex + 1) % CHIP_SUITS.length;
+          restingAngle = turnStartAngle + Math.PI;
+        }
+        turnIndex = (turnIndex + 1) % turnModes.length;
         turning = false;
         drawChip(restingAngle, CHIP_SUITS[suitIndex]);
         scheduleNextTurn(1000);
