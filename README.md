@@ -25,6 +25,7 @@ PokerTracker calculates profit/loss, checks the table balance and builds lifetim
 - session history
 - lifetime player standings
 - settlement payments with partial payments, suggestions and undo history
+- in-app payment requests, optional message/link, inbox reminders and recipient-confirmed transfers
 - optional device-local player identity for personalized settlement views
 - list and visual money-flow settlement views
 - PayPal and Revolut handoff with a live server-checked amount copied to the clipboard and no stored payment-account identifiers
