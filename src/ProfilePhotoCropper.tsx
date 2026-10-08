@@ -20,14 +20,15 @@ type DragState = {
 };
 
 type ProfilePhotoCropperProps = {
-  file: File;
+  source: File | string;
   saving: boolean;
   onCancel: () => void;
-  onConfirm: (photo: string) => Promise<string | null>;
+  onConfirm: (photo: string, sourcePhoto: string) => Promise<string | null>;
 };
 
 const OUTPUT_SIZE = 320;
 const MAX_DATA_URL_LENGTH = 240_000;
+const MAX_SOURCE_DATA_URL_LENGTH = 850_000;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -47,8 +48,34 @@ function encodeJpeg(canvas: HTMLCanvasElement) {
   throw new Error(t("Profilfoto konnte nicht verarbeitet werden."));
 }
 
+// Preserve an editable, uncropped image while keeping the database payload bounded.
+function encodeSourcePhoto(image: HTMLImageElement, size: NaturalSize) {
+  const baseScale = Math.min(1, 1280 / Math.max(size.width, size.height));
+
+  for (const shrink of [1, 0.85, 0.7, 0.55, 0.4]) {
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(size.width * baseScale * shrink));
+    canvas.height = Math.max(1, Math.round(size.height * baseScale * shrink));
+    const context = canvas.getContext("2d");
+    if (!context) break;
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    for (const quality of [0.9, 0.82, 0.74, 0.66, 0.58, 0.5]) {
+      const dataUrl = canvas.toDataURL("image/jpeg", quality);
+      if (dataUrl.startsWith("data:image/jpeg;base64,") &&
+          dataUrl.length <= MAX_SOURCE_DATA_URL_LENGTH) {
+        return dataUrl;
+      }
+    }
+  }
+
+  throw new Error(t("Profilfoto konnte nicht verarbeitet werden."));
+}
+
 export function ProfilePhotoCropper({
-  file,
+  source,
   saving,
   onCancel,
   onConfirm,
@@ -66,16 +93,18 @@ export function ProfilePhotoCropper({
   const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
-    const objectUrl = URL.createObjectURL(file);
-    setImageSrc(objectUrl);
+    const objectUrl = typeof source === "string" ? null : URL.createObjectURL(source);
+    setImageSrc(objectUrl ?? source as string);
     setNaturalSize(null);
     setZoom(1);
     setOffset({ x: 0, y: 0 });
     setLoadError("");
     setSaveError("");
 
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [file]);
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [source]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -194,7 +223,14 @@ export function ProfilePhotoCropper({
       );
 
       const dataUrl = encodeJpeg(canvas);
-      const error = await onConfirm(dataUrl);
+      // Reuse the saved original when reopening, rather than recompressing it
+      // on every edit. New uploads get a separate, full-frame JPEG source.
+      const sourcePhoto = typeof source === "string" &&
+          source.startsWith("data:image/jpeg;base64,") &&
+          source.length <= MAX_SOURCE_DATA_URL_LENGTH
+        ? source
+        : encodeSourcePhoto(image, naturalSize);
+      const error = await onConfirm(dataUrl, sourcePhoto);
       if (error) setSaveError(error);
     } catch (error) {
       setSaveError(
