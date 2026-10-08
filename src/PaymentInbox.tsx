@@ -144,7 +144,6 @@ export function InboxLauncher({
                 {t("Gesendet")}{tab==="out"&&pending>0&&<span>•</span>}
               </button>
             </div>
-            <p className="inbox-privacy">{t("Gruppenpostfach: Alle mit dem Gruppenpasswort können Profile wechseln.")}</p>
             {error&&<p className="inbox-error" role="alert">{error}</p>}
             {loading&&!data?<div className="inbox-empty">{t("Lädt …")}</div>:
               activeRequests.length===0?
