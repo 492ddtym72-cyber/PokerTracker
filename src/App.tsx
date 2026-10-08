@@ -2237,7 +2237,7 @@ export default function App() {
             <section className="quick-stats quick-stats--premium" aria-label={t("Statistik")}>
               <div className="quick-stat">
                 <span className="quick-stat-icon" aria-hidden="true">
-                  <img src="/assets/stats-sessions.webp" width="96" height="96" alt="" />
+                  <img src="/assets/stats-sessions.svg" width="36" height="36" alt="" />
                 </span>
                 <span className="quick-stat-copy">
                   <strong>{nights.length}</strong>
@@ -2246,7 +2246,7 @@ export default function App() {
               </div>
               <div className="quick-stat">
                 <span className="quick-stat-icon" aria-hidden="true">
-                  <img src="/assets/stats-players.webp" width="96" height="96" alt="" />
+                  <img src="/assets/stats-players.svg" width="36" height="36" alt="" />
                 </span>
                 <span className="quick-stat-copy">
                   <strong>{stats.length}</strong>
@@ -2255,7 +2255,7 @@ export default function App() {
               </div>
               <div className="quick-stat quick-stat--leader">
                 <span className="quick-stat-icon" aria-hidden="true">
-                  <img src="/assets/stats-leader.webp" width="96" height="96" alt="" />
+                  <img src="/assets/stats-leader.svg" width="36" height="36" alt="" />
                 </span>
                 <span className="quick-stat-copy">
                   <strong title={stats[0]?.name ?? "—"}>{stats[0]?.name ?? "—"}</strong>

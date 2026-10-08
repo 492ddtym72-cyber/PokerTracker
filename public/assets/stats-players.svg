@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Spielergruppe">
+<defs>
+ <linearGradient id="gold" x1=".07" y1=".05" x2=".8" y2="1" gradientUnits="objectBoundingBox">
+  <stop stop-color="#FFF0BB"/><stop offset=".25" stop-color="#F5D681"/><stop offset=".66" stop-color="#CB9442"/><stop offset="1" stop-color="#A66D2C"/>
+ </linearGradient>
+ <linearGradient id="shade" x1="0" y1="0" x2="1" y2="1">
+  <stop stop-color="#F8D67E"/><stop offset="1" stop-color="#AC7832"/>
+ </linearGradient>
+</defs>
+<!-- Two supporting players behind the center player -->
+<circle cx="13.5" cy="23.5" r="6.7" fill="url(#shade)" stroke="#FFE6A1" stroke-width="1.1"/>
+<circle cx="50.5" cy="23.5" r="6.7" fill="url(#shade)" stroke="#FFE6A1" stroke-width="1.1"/>
+<path d="M3 48v-6.2c0-6.1 4.3-10.7 10.5-10.7 5.7 0 9.6 3.9 10.1 9.6V48Z" fill="url(#shade)" stroke="#9D682B" stroke-width="1.3"/>
+<path d="M40.4 48v-7.3c.5-5.7 4.4-9.6 10.1-9.6 6.2 0 10.5 4.6 10.5 10.7V48Z" fill="url(#shade)" stroke="#9D682B" stroke-width="1.3"/>
+<circle cx="32" cy="17.7" r="9.5" fill="url(#gold)" stroke="#FFE9A7" stroke-width="1.2"/>
+<path d="M16 53V44c0-9.7 6.5-15.5 16-15.5S48 34.3 48 44v9Z" fill="url(#gold)" stroke="#B17D34" stroke-width="1.65" stroke-linejoin="round"/>
+<path d="M19.2 48.3v-5.1c0-7.2 4.9-11.4 12.8-11.4" stroke="#FFF2C4" stroke-width="1.5" stroke-linecap="round" opacity=".7"/>
+</svg>
