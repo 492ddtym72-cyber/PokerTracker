@@ -456,7 +456,6 @@ export function SettlementSummary({
           <path d="M5 29c1 6 13 6 14 0M29 29c1 6 13 6 14 0" />
         </svg>
       </span>
-      <span className="dashboard-action-divider" aria-hidden="true" />
       <span className="dashboard-action-copy settlement-summary-copy">
         <strong>{t("Ausgleichen")}</strong>
         {!data ? (
