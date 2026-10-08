@@ -9,13 +9,22 @@ function requestDate(iso:string) {
   return new Date(iso).toLocaleDateString(getLocale(),{day:"numeric",month:"short",year:"numeric"});
 }
 
+export interface InboxStatus {
+  playerId: string | null;
+  unread: number;
+  latestUnreadId: string | null;
+}
+
 export function InboxLauncher({
-  currentPlayerId, playerProfiles,
+  currentPlayerId, playerProfiles, open, onOpenChange, onStatusChange,
 }: {
   currentPlayerId: string | null;
   playerProfiles: PlayerProfile[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onStatusChange: (status: InboxStatus) => void;
 }) {
-  const [open,setOpen]=useState(false);
+  const setOpen = onOpenChange;
   const [data,setData]=useState<PaymentInboxData|null>(null);
   const [tab,setTab]=useState<"in"|"out">("in");
   const [loading,setLoading]=useState(false);
@@ -39,6 +48,7 @@ export function InboxLauncher({
   useEffect(()=>{
     setData(null);
     setOpen(false);
+    onStatusChange({playerId:me,unread:0,latestUnreadId:null});
     if (!me) return;
     let active=true;
     const reload=()=>loadPaymentInbox(me).then(next=>{
@@ -51,13 +61,37 @@ export function InboxLauncher({
     const onFocus=()=>{if(document.visibilityState==="visible")void reload();};
     window.addEventListener("focus",onFocus);
     document.addEventListener("visibilitychange",onFocus);
+    window.addEventListener("pokertracker:inbox-updated",onFocus);
     return ()=>{active=false;window.clearInterval(interval);
       window.removeEventListener("focus",onFocus);
       document.removeEventListener("visibilitychange",onFocus);
+      window.removeEventListener("pokertracker:inbox-updated",onFocus);
     };
-  },[me]);
+  },[me, onOpenChange, onStatusChange]);
 
-  const unread=data?.events.filter(event=>!event.readAt).length??0;
+  useEffect(()=>{
+    const latest=data?.events.find(event=>!event.readAt);
+    onStatusChange({
+      playerId:me,
+      unread:data?.events.filter(event=>!event.readAt).length??0,
+      latestUnreadId:latest?.id??null,
+    });
+  },[data,me,onStatusChange]);
+
+  useEffect(()=>{
+    if(!open || !me)return;
+    setLoading(true);
+    refresh(me).catch(err=>setError(err instanceof Error?err.message:String(err)))
+      .finally(()=>setLoading(false));
+  },[open,me]);
+
+  useEffect(()=>{
+    if(!open || !me || !data)return;
+    const unreadEvent=data.events.find(event=>!event.readAt);
+    if(!unreadEvent)return;
+    const request=data.requests.find(r=>r.id===unreadEvent.requestId);
+    if(request) setTab(request.fromPlayerId===me?"in":"out");
+  },[open,me]);
 
   useEffect(()=>{
     if (!open || !me || !data) return;
@@ -110,20 +144,6 @@ export function InboxLauncher({
 
   return (
     <>
-      <button type="button" className="inbox-trigger" disabled={!me}
-        aria-label={t("Postfach")+(unread?" ("+unread+")":"")}
-        title={me?t("Postfach"):t("Bitte zuerst ein Profil auswählen.")}
-        onClick={()=>{setOpen(true);setLoading(true);setError("");
-          if(me)void refresh(me).catch(e=>setError(e instanceof Error?e.message:String(e)))
-            .finally(()=>setLoading(false));
-        }}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.55"
-          strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-          <rect x="2.5" y="4" width="19" height="16" rx="3"/>
-          <path d="m3.5 7 8.5 6 8.5-6"/>
-        </svg>
-        {unread>0&&<span className="inbox-unread">{unread>9?"9+":unread}</span>}
-      </button>
       {open&&me&&(
         <div className="inbox-backdrop" role="presentation" onMouseDown={e=>{
           if(e.target===e.currentTarget)setOpen(false);
