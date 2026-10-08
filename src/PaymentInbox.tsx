@@ -103,7 +103,8 @@ export function InboxLauncher({
     tab==="in"?r.fromPlayerId===me:r.toPlayerId===me);
   const incomingCount=data?.requests.filter(r=>r.fromPlayerId===me&&
     !r.cancelledAt&&r.remainingCents>0).length??0;
-  const pending=data?.reports.filter(r=>r.status==="reported").length??0;
+  const pending=data?.reports.filter(r=>r.status==="reported"&&
+    data.requests.some(request=>request.id===r.requestId&&request.toPlayerId===me)).length??0;
 
   return (
     <>
@@ -175,17 +176,18 @@ export function InboxLauncher({
                         <span className="inbox-request-amount">{formatMoney(request.remainingCents)}</span>
                       </div>
                       {request.message&&<p className="inbox-request-message">{request.message}</p>}
-                      {request.paymentUrl&&incoming&&
+                      {request.paymentUrl&&incoming&&!request.stale&&
                         <a className="inbox-pay-link" href={request.paymentUrl} target="_blank"
                           rel="noopener noreferrer">
                           <span>↗</span> {t("Zahlungslink öffnen")}
                         </a>}
+                      {request.stale&&!request.cancelledAt&&<div className="inbox-state">{t("Bilanz geändert – Anforderung überprüfen")}</div>}
                       {archived&&<div className="inbox-state">{request.cancelledAt?t("Zurückgezogen"):t("Ausgeglichen")}</div>}
                       {!archived&&pendingReports.length>0&&<div className="inbox-state">
                         {incoming?t("Bestätigung ausstehend"):t("Zahlung gemeldet – bitte prüfen")}
                       </div>}
                       {incoming&&!archived&&pendingReports.length===0&&(
-                        reportFor===request.id?
+                        request.stale ? <div className="inbox-state">{t("Bitte den Gläubiger um eine aktualisierte Anforderung.")}</div> : reportFor===request.id?
                         <form className="inbox-report-form" onSubmit={e=>{
                           e.preventDefault();
                           const cents=parseMoney(reportAmount);
@@ -218,7 +220,7 @@ export function InboxLauncher({
                             </div>
                           </div>)}
                           <div className="inbox-actions">
-                            <button type="button" className="inbox-secondary" disabled={!canAct||!reminderAllowed}
+                            <button type="button" className="inbox-secondary" disabled={!canAct||!reminderAllowed||request.stale}
                               title={!reminderAllowed?t("Eine Erinnerung ist nur alle 24 Stunden möglich."):""}
                               onClick={()=>void run(request.id,"remind")}>{t("Erinnern")}</button>
                             <button type="button" className="inbox-cancel" disabled={!canAct}
