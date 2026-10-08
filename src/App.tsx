@@ -461,9 +461,10 @@ function AnimatedPokerChipPair({ onClick }: { onClick: () => void }) {
     if (!leftCanvas || !rightCanvas) return;
 
     // Both chips share one requestAnimationFrame, easing curve and turn clock.
-    // Keep the 32-unit 3D geometry and high-resolution 44px canvas unchanged.
+    // Keep the 32-unit 3D geometry and render on a high-density canvas so
+    // the enlarged chips stay crisp without changing their animation.
     const size = 32;
-    const displaySize = 44;
+    const displaySize = 80;
     const center = size / 2;
     const radius = 13.75;
     const halfThickness = 2.65;
