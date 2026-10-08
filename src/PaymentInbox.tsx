@@ -23,6 +23,7 @@ export function InboxLauncher({
   const [error,setError]=useState("");
   const [reportFor,setReportFor]=useState<string|null>(null);
   const [reportAmount,setReportAmount]=useState("");
+  const [reportToken,setReportToken]=useState(()=>crypto.randomUUID());
   const photoById=useMemo(()=>new Map(playerProfiles.map(p=>[p.id,p.profilePhoto])),[playerProfiles]);
   const me=currentPlayerId;
 
@@ -96,6 +97,7 @@ export function InboxLauncher({
   function openReport(request:PaymentRequest) {
     setReportFor(request.id);
     setReportAmount((request.remainingCents/100).toFixed(2).replace(".",","));
+    setReportToken(crypto.randomUUID());
     setError("");
   }
 
@@ -194,7 +196,7 @@ export function InboxLauncher({
                           if(cents===null||cents<1||cents>request.remainingCents){
                             setError(t("Bitte einen gültigen Betrag angeben."));return;
                           }
-                          void run(request.id,"report",{amountCents:cents,clientToken:crypto.randomUUID()});
+                          void run(request.id,"report",{amountCents:cents,clientToken:reportToken});
                         }}>
                           <label>{t("Gezahlter Betrag")}<input inputMode="decimal" value={reportAmount}
                             onChange={e=>setReportAmount(e.target.value)} autoFocus/></label>
