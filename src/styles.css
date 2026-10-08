@@ -3272,11 +3272,11 @@ select:focus {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   justify-self: center;
-  width: min(100%, 320px);
-  min-height: 60px;
-  padding: 4px;
+  width: min(100%, 390px);
+  min-height: 52px;
+  padding: 3px;
   border: 1px solid rgba(100, 156, 125, .27);
-  border-radius: 19px;
+  border-radius: 17px;
   background: #071c15;
   box-shadow: inset 0 1px 0 rgba(184, 231, 195, .04), 0 5px 16px rgba(0, 0, 0, .12);
 }
@@ -3285,12 +3285,12 @@ select:focus {
   content: "";
   position: absolute;
   z-index: 0;
-  top: 4px;
-  bottom: 4px;
-  left: 4px;
-  width: calc(50% - 4px);
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
   border: 1px solid rgba(130, 207, 155, .20);
-  border-radius: 15px;
+  border-radius: 14px;
   background: linear-gradient(165deg, #194638, #123528);
   box-shadow: 0 2px 7px rgba(0, 0, 0, .16), inset 0 1px 0 rgba(209, 250, 224, .04);
   transform: translateX(0);
@@ -3310,10 +3310,10 @@ select:focus {
   justify-content: center;
   gap: 8px;
   min-width: 0;
-  min-height: 50px;
+  min-height: 44px;
   padding: 0 10px;
   border: 0;
-  border-radius: 15px;
+  border-radius: 14px;
   background: transparent;
   color: #90a69b;
   font-size: 15px;
@@ -3326,8 +3326,8 @@ select:focus {
 
 .settlement-view-toggle button svg {
   display: block;
-  width: 20px;
-  height: 20px;
+  width: 19px;
+  height: 19px;
   flex: none;
 }
 
@@ -3347,18 +3347,14 @@ select:focus {
 }
 
 @media (max-width: 370px) {
-  .settlement-view-toggle {
-    width: min(100%, 300px);
-  }
-
   .settlement-view-toggle button {
     gap: 7px;
     font-size: 14px;
   }
 
   .settlement-view-toggle button svg {
-    width: 19px;
-    height: 19px;
+    width: 18px;
+    height: 18px;
   }
 }
 
