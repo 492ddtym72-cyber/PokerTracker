@@ -62,7 +62,7 @@ const requestTotals = `(SELECT COALESCE(SUM(sp.amount_cents),0)
 
 export async function loadPaymentRequests(env: Env, playerId: string) {
   player(playerId);
-  const [requests, reports, events] = await Promise.all([
+  const [requests, reports, events, settlement] = await Promise.all([
     env.DB.prepare(`SELECT pr.*, debtor.name AS from_player_name, creditor.name AS to_player_name,
       ${requestTotals} AS paid_cents
       FROM payment_requests pr
@@ -79,16 +79,27 @@ export async function loadPaymentRequests(env: Env, playerId: string) {
     env.DB.prepare(`SELECT id,request_id,kind,created_at,read_at
       FROM payment_request_events WHERE to_player_id=?
       ORDER BY created_at DESC LIMIT 200`).bind(playerId).all<EventRow>(),
+    loadSettlementSnapshot(env),
   ]);
   return {
-    requests: requests.results.map(r => ({
+    requests: requests.results.map(r => {
+      const payer=settlement.players.find(p=>p.id===r.from_player_id);
+      const creditor=settlement.players.find(p=>p.id===r.to_player_id);
+      const liveLimit=Math.max(0,Math.min(
+        payer ? -payer.openBalanceCents : 0,
+        creditor ? creditor.openBalanceCents : 0,
+      ));
+      const unpaid=Math.max(0,r.amount_cents-r.paid_cents);
+      return ({
       id:r.id, fromPlayerId:r.from_player_id, toPlayerId:r.to_player_id,
       fromPlayerName:r.from_player_name,toPlayerName:r.to_player_name,
       amountCents:r.amount_cents,paidCents:r.paid_cents,
-      remainingCents:Math.max(0,r.amount_cents-r.paid_cents),
+      remainingCents:Math.min(unpaid,liveLimit),
+      stale:unpaid>liveLimit,
       message:r.message, paymentUrl:r.payment_url,
       createdAt:r.created_at,cancelledAt:r.cancelled_at,lastRemindedAt:r.last_reminded_at,
-    })),
+    });
+    }),
     reports: reports.results.map(r => ({
       id:r.id,requestId:r.request_id,amountCents:r.amount_cents,status:r.status,
       createdAt:r.created_at,decidedAt:r.decided_at,voidedAt:r.voided_at,
@@ -156,6 +167,10 @@ export async function remindPaymentRequest(env: Env, id: string, actorPlayerId: 
   const request = await getRequest(env,id);
   if (player(actorPlayerId) !== request.to_player_id) throw new Error("Falsches Spielerprofil.");
   if (request.cancelled_at || request.amount_cents <= request.paid_cents) throw new Error("Diese Anforderung ist nicht mehr offen.");
+  const outstanding=request.amount_cents-request.paid_cents;
+  if ((await balances(env,request.from_player_id,request.to_player_id)) < outstanding) {
+    throw new Error("Die Bilanz hat sich verändert. Bitte diese Anforderung zurückziehen und neu erstellen.");
+  }
   const marker=crypto.randomUUID(), at=now();
   const results=await env.DB.batch([
     env.DB.prepare(`UPDATE payment_requests SET last_reminded_at=?,reminder_token=?
