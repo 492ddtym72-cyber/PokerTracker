@@ -3822,63 +3822,145 @@ select:focus {
 
 
 /* Payment requests: lightweight inbox layered over the existing app. */
-/* Keep the inbox and player selector identical in footprint at every viewport.
-   Separate control sizing from glyph sizing so the envelope reads as large as
-   the profile photo, without reducing the size of the avatar. */
+/* The inbox is accessed through the profile; it does not occupy header width. */
 .header-actions {
-  --header-control-width: 70px;
-  --header-control-height: 70px;
-  --header-envelope-size: 56px;
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: flex-end;
-  gap: 10px;
-  min-width: 0;
   flex: 0 0 auto;
+  min-width: 0;
+  margin-left: auto;
 }
-
-.header-actions .current-profile-badge,
-.header-actions .inbox-trigger {
-  width: var(--header-control-width);
-  max-width: var(--header-control-width);
-  min-width: var(--header-control-width);
-  height: var(--header-control-height);
-  min-height: var(--header-control-height);
-  flex: 0 0 var(--header-control-width);
-  margin-left: 0;
-  border: 1px solid rgba(231,198,117,.14);
-  border-radius: 16px;
-  background: rgba(8,31,23,.72);
-  box-shadow: inset 0 1px rgba(255,255,255,.025);
-}
-
-.header-actions .inbox-trigger {
+.profile-inbox-anchor {
   position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+.profile-inbox-anchor .current-profile-badge { margin-left: 0; }
+.profile-inbox-indicator {
+  position: absolute;
+  top: 1px;
+  right: 5px;
+  z-index: 2;
+  width: 9px;
+  height: 9px;
+  border: 2px solid #071d15;
+  border-radius: 50%;
+  background: #e7c675;
+  pointer-events: none;
+}
+.profile-inbox-bubble {
+  position: absolute;
+  top: calc(100% + 9px);
+  right: 0;
+  z-index: 12;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: max-content;
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid rgba(231,198,117,.29);
+  border-radius: 11px;
+  background: #143428;
+  color: #e9dcbb;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+  box-shadow: 0 8px 22px rgba(0,0,0,.28);
+  animation: inbox-bubble-in 190ms ease-out both;
+}
+.profile-inbox-bubble svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: #e7c675;
+}
+.profile-inbox-bubble::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  right: 24px;
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  background: #143428;
+  border-left: 1px solid rgba(231,198,117,.29);
+  border-top: 1px solid rgba(231,198,117,.29);
+}
+.profile-inbox-bubble:hover,
+.profile-inbox-bubble:focus-visible {
+  border-color: rgba(231,198,117,.52);
+  background: #1b4130;
+}
+.profile-inbox-bubble:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+@keyframes inbox-bubble-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-inbox-bubble { animation: none; }
+}
+.profile-switcher-inbox {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 38px minmax(0,1fr) auto 18px;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 11px 10px 8px;
+  margin-bottom: 13px;
+  border: 1px solid rgba(231,198,117,.20);
+  border-radius: 14px;
+  background: rgba(231,198,117,.045);
+  color: #e9e7d9;
+  text-align: left;
+}
+.profile-switcher-inbox strong {
+  font-size: 12px;
+  font-weight: 780;
+}
+.profile-switcher-inbox-icon {
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
-  padding: 0;
-  color: #edddba;
-  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+  border-radius: 11px;
+  background: rgba(231,198,117,.09);
+  color: #e7c675;
 }
-
-.header-actions .inbox-trigger:hover,
-.header-actions .inbox-trigger:focus-visible {
-  border-color: rgba(231,198,117,.36);
-  background: rgba(10,38,28,.88);
+.profile-switcher-inbox-icon svg { width: 19px; height: 19px; }
+.profile-switcher-inbox-count {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding-inline: 5px;
+  border-radius: 999px;
+  background: #e7c675;
+  color: #1b2a20;
+  font-size: 10px;
+  font-weight: 850;
 }
-
-.header-actions .inbox-trigger:active {
-  transform: scale(.97);
+.profile-switcher-inbox-chevron svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: #9bac9d;
+  stroke-width: 1.8;
 }
-
-.header-actions .inbox-trigger svg {
-  display: block;
-  width: var(--header-envelope-size);
-  height: var(--header-envelope-size);
-  shape-rendering: geometricPrecision;
+.profile-switcher-inbox:hover,
+.profile-switcher-inbox:focus-visible {
+  border-color: rgba(231,198,117,.42);
+  background: rgba(231,198,117,.075);
 }
-.inbox-trigger:focus-visible,.inbox-close:focus-visible,.inbox-tabs button:focus-visible,.inbox-actions button:focus-visible {outline:2px solid var(--gold);outline-offset:3px}
-.inbox-unread {position:absolute;right:-5px;top:-6px;min-width:20px;height:20px;display:grid;place-items:center;border-radius:12px;background:#f0c878;color:#162519;font-size:11px;font-weight:800;padding:0 4px;border:2px solid #092019}
+.profile-switcher-inbox:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .inbox-backdrop,.request-dialog-backdrop {position:fixed;inset:0;z-index:1000;display:flex;align-items:flex-start;justify-content:center;background:rgba(0,8,6,.74);backdrop-filter:blur(7px);padding:clamp(12px,5vh,50px) 12px 20px;overflow:auto}
 .inbox-panel,.request-dialog {width:min(100%,510px);max-height:calc(100dvh - 36px);overflow:auto;background:linear-gradient(150deg,#0b2a21,#081b16 68%);border:1px solid rgba(231,198,117,.21);border-radius:24px;box-shadow:0 26px 80px rgba(0,0,0,.55);padding:22px}
 .inbox-heading {display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
@@ -3933,52 +4015,8 @@ select:focus {
 .request-dialog-hint {font-size:11px;line-height:1.5;color:#9cac9d;margin:0}
 .settlement-request-button {border-radius:11px;border:1px solid #e7c67580;background:#273c28;color:#f4d99f;padding:11px 12px;font-weight:750;min-height:44px}
 @media (max-width: 520px) {
-  .header-actions {
-    --header-control-width: 62px;
-    --header-control-height: 67px;
-    --header-envelope-size: 53px;
-    gap: 6px;
-  }
-
-  /* Reserve equal space for both controls without overflowing small phones. */
-  .app-header .brand-button { gap: 6px; }
-  .app-header .brand-button strong { font-size: clamp(18px, 5vw, 24px); }
-  .app-header .brand-chip-scene {
-    width: clamp(31px, 8.6vw, 36px);
-    height: clamp(31px, 8.6vw, 36px);
-    flex-basis: clamp(31px, 8.6vw, 36px);
-  }
   .inbox-panel, .request-dialog { padding: 18px; border-radius: 20px; }
   .inbox-backdrop, .request-dialog-backdrop { padding: 12px 8px; }
-}
-
-@media (max-width: 370px) {
-  .header-actions {
-    --header-control-width: 54px;
-    --header-envelope-size: 50px;
-    gap: 4px;
-  }
-  .app-header .brand-button strong { font-size: clamp(16px, 5vw, 19px); }
-  .app-header .brand-chip-scene {
-    width: clamp(29px, 8.5vw, 32px);
-    height: clamp(29px, 8.5vw, 32px);
-    flex-basis: clamp(29px, 8.5vw, 32px);
-  }
-}
-
-@media (max-width: 340px) {
-  .header-actions {
-    --header-control-width: 48px;
-    --header-control-height: 64px;
-    --header-envelope-size: 44px;
-  }
-  .app-header .brand-button { gap: 4px; }
-  .app-header .brand-button strong { font-size: 16px; }
-  .app-header .brand-chip-scene {
-    width: 27px;
-    height: 27px;
-    flex-basis: 27px;
-  }
 }
 
 /* Keep the request action full-width alongside the existing transfer controls. */

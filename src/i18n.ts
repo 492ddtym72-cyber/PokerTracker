@@ -5,6 +5,10 @@ const STORAGE_KEY = "pokertracker-language";
 const ENGLISH: Record<string, string> = {
   "PokerTracker": "PokerTracker",
   "Postfach": "Inbox",
+  "Neue Nachricht": "New message",
+  "Neue Nachrichten": "New messages",
+  "Postfach öffnen": "Open inbox",
+  "ungelesen": "unread",
   "Postfachansicht": "Inbox view",
   "Eingang": "Received",
   "Gesendet": "Sent",
