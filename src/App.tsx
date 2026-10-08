@@ -439,9 +439,10 @@ function UnitedKingdomFlag() {
   );
 }
 
-function AnimatedPokerChip() {
+function AnimatedPokerChipPair({ onClick }: { onClick: () => void }) {
   const [motionEnabled, setMotionEnabled] = useState(true);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const leftCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rightCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -454,24 +455,32 @@ function AnimatedPokerChip() {
   }, []);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const leftCanvas = leftCanvasRef.current;
+    const rightCanvas = rightCanvasRef.current;
+    if (!leftCanvas || !rightCanvas) return;
 
-    // Preserve the chip's 32-unit geometry/animation, but render it at a
-    // higher resolution for the larger 44px header mark.
+    // Both chips share one requestAnimationFrame, easing curve and turn clock.
+    // Keep the 32-unit 3D geometry and high-resolution 44px canvas unchanged.
     const size = 32;
     const displaySize = 44;
     const center = size / 2;
     const radius = 13.75;
     const halfThickness = 2.65;
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
-    const context = canvas.getContext("2d");
-    if (!context) return;
+    const leftContext = leftCanvas.getContext("2d");
+    const rightContext = rightCanvas.getContext("2d");
+    if (!leftContext || !rightContext) return;
+    const canvases = [leftCanvas, rightCanvas] as const;
+    const contexts = [leftContext, rightContext] as const;
 
-    canvas.width = Math.round(displaySize * dpr);
-    canvas.height = Math.round(displaySize * dpr);
-    const scale = canvas.width / size;
-    context.setTransform(scale, 0, 0, scale, 0, 0);
+    for (let index = 0; index < canvases.length; index += 1) {
+      const canvas = canvases[index];
+      const context = contexts[index];
+      canvas.width = Math.round(displaySize * dpr);
+      canvas.height = Math.round(displaySize * dpr);
+      const scale = canvas.width / size;
+      context.setTransform(scale, 0, 0, scale, 0, 0);
+    }
 
     const suitGlyphs: Record<ChipSuit, string> = {
       spade: "♠",
@@ -481,6 +490,7 @@ function AnimatedPokerChip() {
     };
 
     const drawHull = (
+      context: CanvasRenderingContext2D,
       leftCenter: number,
       rightCenter: number,
       rx: number,
@@ -603,6 +613,7 @@ function AnimatedPokerChip() {
     };
 
     const drawFace = (
+      context: CanvasRenderingContext2D,
       faceCenterX: number,
       faceScale: number,
       suit: ChipSuit,
@@ -685,6 +696,7 @@ function AnimatedPokerChip() {
     };
 
     const drawChip = (
+      context: CanvasRenderingContext2D,
       angle: number,
       suit: ChipSuit,
       zRotation = 0,
@@ -705,7 +717,7 @@ function AnimatedPokerChip() {
       const leftCenter = center - projectedHalfThickness;
       const rightCenter = center + projectedHalfThickness;
 
-      drawHull(leftCenter, rightCenter, faceRx, sideVisibility);
+      drawHull(context, leftCenter, rightCenter, faceRx, sideVisibility);
 
       const nearFaceSign = cosine >= 0 ? 1 : -1;
       const nearFaceCenter =
@@ -713,13 +725,14 @@ function AnimatedPokerChip() {
       // Draw the nearest surface as opaque clay. Only the last few degrees
       // are edge-only, when the face is physically too thin to be visible.
       if (faceScale > 0.075) {
-        drawFace(nearFaceCenter, faceScale, suit);
+        drawFace(context, nearFaceCenter, faceScale, suit);
       }
       context.restore();
     };
 
-    // Two existing edge-on flips and two face-on spins per four turns.
-    // Canvas positive rotation is clockwise (the Y coordinate points down).
+    // Offset the right chip by exactly one turn in the four-turn sequence:
+    // one chip flips around Y while the other spins around Z, then they swap.
+    // Canvas positive rotation is clockwise (Y coordinates point down).
     const turnModes = [
       "flipY",
       "spinZClockwise",
@@ -727,13 +740,22 @@ function AnimatedPokerChip() {
       "spinZCounterclockwise",
     ] as const;
 
+    // One Y flip advances the suit, so the right chip begins one turn ahead.
+    const chipStates = [
+      { suitIndex: 0, restingAngle: 0 },
+      { suitIndex: 1, restingAngle: Math.PI },
+    ];
+    const drawRestingChips = () => {
+      for (let index = 0; index < chipStates.length; index += 1) {
+        const chip = chipStates[index];
+        drawChip(contexts[index], chip.restingAngle, CHIP_SUITS[chip.suitIndex]);
+      }
+    };
+
     let disposed = false;
     let frame: number | undefined;
     let timer: number | undefined;
-    let suitIndex = 0;
     let turnIndex = 0;
-    let restingAngle = 0;
-    let turnStartAngle = 0;
     let turning = false;
 
     const cancelScheduledWork = () => {
@@ -774,14 +796,13 @@ function AnimatedPokerChip() {
       }
 
       turning = true;
-      turnStartAngle = restingAngle;
       const startedAt = performance.now();
       const duration = 1900;
-      const turnMode = turnModes[turnIndex];
-      const isFlip = turnMode === "flipY";
-      const currentSuit = CHIP_SUITS[suitIndex];
-      const nextSuit =
-        CHIP_SUITS[(suitIndex + 1) % CHIP_SUITS.length];
+      const startingAngles = chipStates.map((chip) => chip.restingAngle);
+      const modes = [
+        turnModes[turnIndex],
+        turnModes[(turnIndex + 1) % turnModes.length],
+      ];
 
       const animate = (now: number) => {
         if (
@@ -790,24 +811,36 @@ function AnimatedPokerChip() {
           document.visibilityState !== "visible"
         ) {
           turning = false;
-          restingAngle = turnStartAngle;
-          drawChip(restingAngle, currentSuit);
+          drawRestingChips();
           return;
         }
 
         const progress = Math.min(1, (now - startedAt) / duration);
-        // One uninterrupted easing curve for both kinds of turn. The existing
-        // 3D edge-on flip remains untouched; face-on spins rotate its canvas
-        // drawing, with no competing DOM/CSS animation or suit hand-off.
         const eased = 0.5 - 0.5 * Math.cos(Math.PI * progress);
-        const angle = isFlip ? turnStartAngle + Math.PI * eased : turnStartAngle;
-        const zRotation = isFlip
-          ? 0
-          : (turnMode === "spinZClockwise" ? 1 : -1) * Math.PI * 2 * eased;
-        const visibleSuit =
-          isFlip && progress >= 0.5 ? nextSuit : currentSuit;
 
-        drawChip(angle, visibleSuit, zRotation);
+        // Both surfaces are drawn on the same frame with the same progress.
+        // Only the rotation axis and sequence phase differ.
+        for (let index = 0; index < chipStates.length; index += 1) {
+          const chip = chipStates[index];
+          const mode = modes[index];
+          const isFlip = mode === "flipY";
+          const angle = isFlip
+            ? startingAngles[index] + Math.PI * eased
+            : startingAngles[index];
+          const zRotation = isFlip
+            ? 0
+            : (mode === "spinZClockwise" ? 1 : -1) * Math.PI * 2 * eased;
+          const visibleSuitIndex =
+            (chip.suitIndex + (isFlip && progress >= 0.5 ? 1 : 0)) %
+            CHIP_SUITS.length;
+
+          drawChip(
+            contexts[index],
+            angle,
+            CHIP_SUITS[visibleSuitIndex],
+            zRotation,
+          );
+        }
 
         if (progress < 1) {
           frame = window.requestAnimationFrame(animate);
@@ -815,13 +848,16 @@ function AnimatedPokerChip() {
         }
 
         frame = undefined;
-        if (isFlip) {
-          suitIndex = (suitIndex + 1) % CHIP_SUITS.length;
-          restingAngle = turnStartAngle + Math.PI;
+        for (let index = 0; index < chipStates.length; index += 1) {
+          if (modes[index] === "flipY") {
+            chipStates[index].suitIndex =
+              (chipStates[index].suitIndex + 1) % CHIP_SUITS.length;
+            chipStates[index].restingAngle = startingAngles[index] + Math.PI;
+          }
         }
         turnIndex = (turnIndex + 1) % turnModes.length;
         turning = false;
-        drawChip(restingAngle, CHIP_SUITS[suitIndex]);
+        drawRestingChips();
         scheduleNextTurn(1000);
       };
 
@@ -833,12 +869,12 @@ function AnimatedPokerChip() {
       turning = false;
 
       if (document.visibilityState === "visible") {
-        drawChip(restingAngle, CHIP_SUITS[suitIndex]);
+        drawRestingChips();
         scheduleNextTurn(500);
       }
     };
 
-    drawChip(restingAngle, CHIP_SUITS[suitIndex]);
+    drawRestingChips();
 
     if (motionEnabled) {
       scheduleNextTurn(650);
@@ -853,9 +889,15 @@ function AnimatedPokerChip() {
   }, [motionEnabled]);
 
   return (
-    <span className="brand-chip-scene" aria-hidden="true">
-      <canvas ref={canvasRef} className="brand-chip-canvas" />
-    </span>
+    <button className="brand-button" type="button" onClick={onClick}>
+      <span className="brand-chip-scene" aria-hidden="true">
+        <canvas ref={leftCanvasRef} className="brand-chip-canvas" />
+      </span>
+      <strong>PokerTracker</strong>
+      <span className="brand-chip-scene" aria-hidden="true">
+        <canvas ref={rightCanvasRef} className="brand-chip-canvas" />
+      </span>
+    </button>
   );
 }
 
@@ -1720,10 +1762,7 @@ export default function App() {
   function Header() {
     return (
       <header className="app-header">
-        <button className="brand-button" type="button" onClick={() => navigate("home")}>
-          <AnimatedPokerChip />
-          <strong>PokerTracker</strong>
-        </button>
+        <AnimatedPokerChipPair onClick={() => navigate("home")} />
         <CurrentProfileBadge showHint={screen === "home"} />
       </header>
     );
