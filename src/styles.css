@@ -3711,7 +3711,7 @@ select:focus {
 .inbox-request {padding:17px;border:1px solid rgba(231,198,117,.12);background:linear-gradient(135deg,#133429,#0d261e);border-radius:18px;display:grid;gap:13px}
 .inbox-request.is-closed {opacity:.73}
 .inbox-request-head {display:flex;align-items:center;gap:11px;min-width:0}
-.inbox-request-head .player-avatar {width:43px;height:43px;flex:0 0 43px}
+.inbox-request-head .player-photo {width:43px;height:43px;flex:0 0 43px}
 .inbox-request-person {display:grid;gap:3px;min-width:0;flex:1}
 .inbox-request-person strong {font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .inbox-request-person small {font-size:11px;color:#9bb0a2}
@@ -3739,7 +3739,7 @@ select:focus {
 .inbox-empty small {color:#a9b9aa;max-width:300px;line-height:1.5}
 .inbox-error {background:rgba(160,37,32,.15);border:1px solid #b64d4a70;border-radius:10px;color:#ffb4ac;padding:11px;font-size:13px;margin:8px 0}
 .request-dialog-player {display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:13px;padding:12px;margin-bottom:18px}
-.request-dialog-player .player-avatar {width:45px;height:45px;flex:0 0 45px}
+.request-dialog-player .player-photo {width:45px;height:45px;flex:0 0 45px}
 .request-dialog-player>div {flex:1;display:grid;gap:3px}
 .request-dialog-player small {font-size:11px;color:#9caf9e}
 .request-dialog-player>strong {font-size:17px;color:var(--gold);font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -3755,3 +3755,6 @@ select:focus {
   .inbox-panel,.request-dialog {padding:18px;border-radius:20px}
   .inbox-backdrop,.request-dialog-backdrop {padding:12px 8px}
 }
+
+/* Keep the request action full-width alongside the existing transfer controls. */
+.settlement-payment-actions .settlement-request-button {width:100%;font-size:13px}
