@@ -8,7 +8,6 @@ const ENGLISH: Record<string, string> = {
   "Postfachansicht": "Inbox view",
   "Eingang": "Received",
   "Gesendet": "Sent",
-  "Gruppenpostfach: Alle mit dem Gruppenpasswort können Profile wechseln.": "Shared inbox: anyone with the group password can switch profiles.",
   "Noch keine Zahlungsanforderungen": "No payment requests yet",
   "Hier erscheinen deine Zahlungserinnerungen.": "Your payment requests appear here.",
   "Neue Anforderungen lassen sich unter Ausgleichen senden.": "Send a new request under Settle up.",
