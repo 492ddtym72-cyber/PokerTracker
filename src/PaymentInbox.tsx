@@ -25,7 +25,7 @@ export function InboxLauncher({
   onStatusChange: (status: InboxStatus) => void;
 }) {
   const setOpen = onOpenChange;
-  const [data,setData]=useState<PaymentInboxData|null>(null);
+  const [snapshot,setData]=useState<(PaymentInboxData & { ownerPlayerId: string })|null>(null);
   const [tab,setTab]=useState<"in"|"out">("in");
   const [loading,setLoading]=useState(false);
   const [busy,setBusy]=useState<string|null>(null);
@@ -35,12 +35,14 @@ export function InboxLauncher({
   const [reportToken,setReportToken]=useState(()=>crypto.randomUUID());
   const photoById=useMemo(()=>new Map(playerProfiles.map(p=>[p.id,p.profilePhoto])),[playerProfiles]);
   const me=currentPlayerId;
+  // Never display or announce a previous player's messages during a profile switch.
+  const data=snapshot?.ownerPlayerId===me?snapshot:null;
 
   async function refresh(playerId:string) {
     return loadPaymentInbox(playerId).then(next=>{
       // Do not replace messages belonging to the previously selected profile.
       if (window.localStorage.getItem("pokertracker-current-player-id") === playerId) {
-        setData(next);
+        setData({...next,ownerPlayerId:playerId});
       }
       return next;
     });
@@ -52,7 +54,7 @@ export function InboxLauncher({
     if (!me) return;
     let active=true;
     const reload=()=>loadPaymentInbox(me).then(next=>{
-      if(active) setData(next);
+      if(active) setData({...next,ownerPlayerId:me});
     }).catch(()=>{/* Keep the app usable if inbox is unavailable. */});
     void reload();
     const interval=window.setInterval(()=>{
