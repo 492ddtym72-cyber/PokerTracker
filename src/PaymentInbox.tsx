@@ -117,10 +117,10 @@ export function InboxLauncher({
           if(me)void refresh(me).catch(e=>setError(e instanceof Error?e.message:String(e)))
             .finally(()=>setLoading(false));
         }}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-          strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <rect x="3" y="5" width="18" height="14" rx="3"/>
-          <path d="m4 7 8 6 8-6"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.55"
+          strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+          <rect x="2.5" y="4" width="19" height="16" rx="3"/>
+          <path d="m3.5 7 8.5 6 8.5-6"/>
         </svg>
         {unread>0&&<span className="inbox-unread">{unread>9?"9+":unread}</span>}
       </button>
