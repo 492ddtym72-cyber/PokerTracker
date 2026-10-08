@@ -8,6 +8,7 @@ import {
 import { formatMoney, parseMoney } from "./lib/money";
 import { getLocale, t } from "./i18n";
 import { PlayerAvatar, playerInitials } from "./PlayerAvatar";
+import { PaymentRequestDialog } from "./PaymentRequestDialog";
 import type {
   PlayerProfile,
   SettlementPaymentInput,
@@ -494,6 +495,7 @@ export function SettlementScreen({
   const [saving, setSaving] = useState(false);
   const [voidingId, setVoidingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<PaymentDraft | null>(null);
+  const [requestDraft, setRequestDraft] = useState<SettlementSuggestion | null>(null);
   const [view, setView] = useState<SettlementView>(() =>
     window.localStorage.getItem("pokertracker-settlement-view") === "flow" ? "flow" : "list"
   );
@@ -1050,6 +1052,12 @@ export function SettlementScreen({
                           </div>
                         )}
 
+                        {currentPlayerId === suggestion.toPlayerId && (
+                          <button type="button" className="settlement-request-button"
+                            onClick={() => setRequestDraft(suggestion)}>
+                            {t("Anfordern")}
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="settlement-record-button"
@@ -1293,6 +1301,14 @@ export function SettlementScreen({
       ) : null}
 
       {error && <p className="error-banner">{error}</p>}
+      {requestDraft && currentPlayerId === requestDraft.toPlayerId && (
+        <PaymentRequestDialog
+          suggestion={requestDraft}
+          currentPlayerId={currentPlayerId}
+          profiles={playerProfiles}
+          onClose={() => setRequestDraft(null)}
+        />
+      )}
     </>
   );
 }
