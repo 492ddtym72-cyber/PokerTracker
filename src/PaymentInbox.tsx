@@ -137,8 +137,10 @@ export function InboxLauncher({
     setError("");
   }
 
+  // Also hide withdrawn incoming requests immediately if an older API response is cached.
+  // Keep sent requests visible to the sender for reference.
   const activeRequests=(data?.requests??[]).filter(r=>
-    tab==="in"?r.fromPlayerId===me:r.toPlayerId===me);
+    tab==="in"?(r.fromPlayerId===me&&!r.cancelledAt):r.toPlayerId===me);
   const incomingCount=data?.requests.filter(r=>r.fromPlayerId===me&&
     !r.cancelledAt&&r.remainingCents>0).length??0;
   const pending=data?.reports.filter(r=>r.status==="reported"&&
