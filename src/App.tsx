@@ -962,11 +962,6 @@ export default function App() {
     );
   }, [nights]);
 
-  const maxAbsProfit = useMemo(
-    () => Math.max(1, ...stats.map((player) => Math.abs(player.profitCents))),
-    [stats],
-  );
-
   const knownPlayers = useMemo<Array<{ id: string; name: string }>>(
     () => {
       const source = playerProfiles.length > 0
@@ -2362,7 +2357,6 @@ export default function App() {
                 <section className="leaderboard-list">
                   {stats.map((player, index) => {
                     const rank = index + 1;
-                    const width = Math.max(3, Math.round((Math.abs(player.profitCents) / maxAbsProfit) * 100));
 
                     return (
                       <article
@@ -2387,19 +2381,31 @@ export default function App() {
                           />
                           <img src={leaderboardFrame(rank)} alt="" aria-hidden="true" />
                         </div>
-                        <div className="leaderboard-copy">
-                          <strong>{player.name}</strong>
-                          <span>{player.nights} {t(player.nights === 1 ? "Abend" : "Abende")} · {formatMoney(player.stakeCents)} {t("Einsatz")}</span>
-                          <span className="leaderboard-bar" aria-hidden="true">
-                            <span
-                              className={"leaderboard-bar-fill " + (player.profitCents >= 0 ? "is-positive" : "is-negative")}
-                              style={{ width: width + "%" }}
-                            />
-                          </span>
+                        <div className="leaderboard-info">
+                          <div className="leaderboard-primary-line">
+                            <strong className="leaderboard-player-name">{player.name}</strong>
+                            <b className={"leaderboard-balance " + (player.profitCents >= 0 ? "positive" : "negative")}>
+                              {player.profitCents > 0 ? "+" : ""}{formatMoney(player.profitCents)}
+                            </b>
+                          </div>
+                          <div className="leaderboard-stat-cells">
+                            <span className="leaderboard-stat-cell">
+                              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <rect x="3.5" y="5" width="17" height="16" rx="2" />
+                                <path d="M7.5 3v4m9-4v4M3.5 10h17" />
+                              </svg>
+                              <span><strong>{player.nights}</strong> {t(player.nights === 1 ? "Abend" : "Abende")}</span>
+                            </span>
+                            <span className="leaderboard-stat-cell">
+                              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <circle cx="12" cy="12" r="9" />
+                                <circle cx="12" cy="12" r="4.1" />
+                                <path d="M12 3v4.5m0 9V21M3 12h4.5m9 0H21" />
+                              </svg>
+                              <span><strong>{formatMoney(player.stakeCents)}</strong> {t("Einsatz")}</span>
+                            </span>
+                          </div>
                         </div>
-                        <b className={"leaderboard-balance " + (player.profitCents >= 0 ? "positive" : "negative")}>
-                          {player.profitCents > 0 ? "+" : ""}{formatMoney(player.profitCents)}
-                        </b>
                       </article>
                     );
                   })}
