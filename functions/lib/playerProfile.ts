@@ -12,6 +12,14 @@ export async function ensurePlayerProfilesTable(env: Env) {
       FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
     )`,
   ).run();
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS player_photo_sources (
+      player_id TEXT PRIMARY KEY,
+      source_photo TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+    )`,
+  ).run();
 }
 
 export function validateProfilePhoto(value: unknown) {
@@ -23,6 +31,18 @@ export function validateProfilePhoto(value: unknown) {
 
   if (value.length > MAX_PROFILE_PHOTO_LENGTH || !DATA_URL_PATTERN.test(value)) {
     throw new Error("Das Profilfoto ist zu groß oder hat ein ungültiges Format.");
+  }
+
+  return value;
+}
+
+export function validateProfilePhotoSource(value: unknown) {
+  if (
+    typeof value !== "string" ||
+    value.length > 900_000 ||
+    !DATA_URL_PATTERN.test(value)
+  ) {
+    throw new Error("Die Fotovorlage ist zu groß oder hat ein ungültiges Format.");
   }
 
   return value;
