@@ -783,6 +783,13 @@ export function SettlementScreen({
             </section>
           )}
 
+          {data.ongoingSessionCount > 0 && (
+            <section className="settlement-ongoing-note">
+              <strong>{data.ongoingSessionCount} {data.ongoingSessionCount === 1 ? t("laufende Session") : t("laufende Sessions")}</strong>
+              <span>{t("Noch nicht abgeschlossene Sessions beeinflussen den Ausgleich nicht.")}</span>
+            </section>
+          )}
+
           {data.groupDifferenceCents !== 0 && (
             <section className="settlement-warning">
               <strong>{t("Offene Session-Differenz")}: {formatMoney(data.groupDifferenceCents)}</strong>
