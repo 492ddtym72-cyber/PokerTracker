@@ -38,3 +38,13 @@
   .local-settlement-amount { font-size: 13px; }
   .local-settlement-actions button { font-size: 11px; padding: 8px 9px; }
 }
+
+.session-mode-editor { margin: 0 0 16px; border: 1px solid rgba(255,255,255,.11); border-radius: 15px; background: #0b261d; padding: 17px; display: grid; gap: 11px; }
+.session-mode-editor > strong { font-size: 14px; }
+.session-mode-editor > small { color: #a4b5a9; font-size: 12px; line-height: 1.5; }
+.session-mode-options { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 7px; }
+.session-mode-options button { border: 1px solid rgba(255,255,255,.13); background: #0a1b15; color: #b6c9bd; border-radius: 10px; padding: 12px 7px; font-size: 13px; font-weight: 600; }
+.session-mode-options button.selected { border-color: rgba(223,191,117,.54); background: #233b2e; color: #f2deb0; }
+.session-settlement-launcher { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid rgba(255,255,255,.10); border-radius: 14px; padding: 12px 14px; margin: 16px 0; background: #09251b; }
+.session-settlement-launcher span { font-size: 13px; color: #abc2b2; }
+.session-settlement-launcher .secondary-button { margin: 0; white-space: nowrap; }
