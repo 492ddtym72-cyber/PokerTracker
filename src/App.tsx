@@ -1435,6 +1435,7 @@ export default function App() {
     try {
       await updateNightAdjustments(night.id, adjustments);
       await refreshNights();
+      window.dispatchEvent(new Event("pokertracker:settlement-updated"));
       setReconcileOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Differenzausgleich konnte nicht gespeichert werden."));
@@ -1452,6 +1453,7 @@ export default function App() {
     try {
       await updateNightAdjustments(night.id, []);
       await refreshNights();
+      window.dispatchEvent(new Event("pokertracker:settlement-updated"));
       setReconcileOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Differenzausgleich konnte nicht zurückgesetzt werden."));
@@ -1536,6 +1538,7 @@ export default function App() {
       }
 
       await refreshAfterMutation();
+      window.dispatchEvent(new Event("pokertracker:settlement-updated"));
       resetEditor();
       setEditorOpen(false);
       setScreen("home");
@@ -1566,6 +1569,7 @@ export default function App() {
     try {
       await deleteNight(night.id);
       await refreshAfterMutation();
+      window.dispatchEvent(new Event("pokertracker:settlement-updated"));
       setDetailNightId(null);
       setScreen("home");
     } catch (err) {
