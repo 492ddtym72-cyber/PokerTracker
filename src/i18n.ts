@@ -13,6 +13,8 @@ const ENGLISH: Record<string, string> = {
   "Session läuft": "Session in progress",
   "Tisch offen": "Table in progress",
   "Offene Tische": "Open tables",
+  "Noch keine abgeschlossenen Abende": "No completed poker nights yet",
+  "Abgeschlossene Sessions erscheinen hier.": "Completed sessions appear here.",
   "laufende Session": "ongoing session",
   "laufende Sessions": "ongoing sessions",
   "Vorläufig": "Provisional",
