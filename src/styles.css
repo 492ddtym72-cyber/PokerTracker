@@ -4050,9 +4050,21 @@ select:focus {
   border-color: rgba(118, 184, 143, .55);
   color: #e8f1e8;
 }
-.session-status-detail { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 12px 0 16px; }
-.session-status-detail > div { display: grid; gap: 5px; }
-.session-status-detail button { flex: 0 0 auto; padding: 10px 14px; }
+.session-status-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0 16px;
+}
+.session-status-detail > div { display: grid; gap: 5px; min-width: 0; }
+.session-status-detail button {
+  width: auto;
+  min-width: 132px;
+  max-width: 100%;
+  margin-top: 0;
+  padding: 10px 14px;
+}
 .session-status-detail button:disabled { opacity: .4; }
 .session-status-pill {
   display: inline-block;
@@ -4068,9 +4080,9 @@ select:focus {
 }
 .provisional-label { color: #92b5a2; font-size: .8rem; }
 .settlement-ongoing-note { display: grid; gap: 5px; margin-bottom: 20px; }
-@media (max-width: 400px) {
-  .session-status-detail { align-items: flex-start; }
-  .session-status-detail button { font-size: .8rem; }
+@media (max-width: 520px) {
+  .session-status-detail { grid-template-columns: minmax(0, 1fr); }
+  .session-status-detail button { width: 100%; min-width: 0; }
 }
 
 /* Balance adjustments remain available for an ongoing session once cash-outs exist. */
