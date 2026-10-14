@@ -123,6 +123,24 @@ export function loadHistory(offset = 0, limit = 40) {
 }
 
 
+export function loadSessionSettlement(nightId: string) {
+  return api<SettlementResponse>("/api/nights/" + encodeURIComponent(nightId) + "/settlement");
+}
+
+export function recordSessionPayment(nightId: string, input: SettlementPaymentInput) {
+  return api<SettlementResponse>("/api/nights/" + encodeURIComponent(nightId) + "/settlement", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function voidSessionPayment(nightId: string, paymentId: string) {
+  return api<SettlementResponse>(
+    "/api/nights/" + encodeURIComponent(nightId) + "/settlement?paymentId=" + encodeURIComponent(paymentId),
+    { method: "DELETE" },
+  );
+}
+
 export function loadSettlements() {
   return api<SettlementResponse>("/api/settlements");
 }
