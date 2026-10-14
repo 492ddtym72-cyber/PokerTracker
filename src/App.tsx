@@ -906,6 +906,38 @@ function AnimatedPokerChipPair({ onClick }: { onClick: () => void }) {
   );
 }
 
+
+/**
+ * A quiet, top-down outline of the actual table, with one seat per player.
+ * The occasional card movement is decorative and never implies live hand data.
+ */
+function OpenTableIllustration({ playerCount }: { playerCount: number }) {
+  const seats = Array.from({ length: Math.min(20, playerCount) }, (_, index) => {
+    const angle = (-Math.PI / 2) + (2 * Math.PI * index) / Math.max(1, playerCount);
+    return {
+      x: 80 + 68 * Math.cos(angle),
+      y: 56 + 39 * Math.sin(angle),
+    };
+  });
+
+  return (
+    <svg className="open-table-illustration" viewBox="0 0 160 112" aria-hidden="true" focusable="false">
+      <ellipse className="open-table-outline" cx="80" cy="56" rx="59" ry="31" />
+      <ellipse className="open-table-inner" cx="80" cy="56" rx="53" ry="25" />
+      {seats.map((seat, index) => (
+        <g key={index}>
+          <circle className="open-table-seat-outer" cx={seat.x} cy={seat.y} r="5.6" />
+          <circle className="open-table-seat-inner" cx={seat.x} cy={seat.y} r="2.7" />
+        </g>
+      ))}
+      <g className="open-table-dealt-card">
+        <rect x="75" y="48" width="11" height="16" rx="1.4" />
+        <path d="M78 51h3" />
+      </g>
+    </svg>
+  );
+}
+
 export default function App() {
   const [language, setLanguage] = useState<Language>(() => getLanguage());
   const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(
@@ -1116,7 +1148,10 @@ export default function App() {
   const completedSessionCount = completedNights.filter(
     (night) => night.recordType === "session",
   ).length;
-  const ongoingSessionCount = nights.filter((night) => night.status === "ongoing").length;
+  const ongoingNights = useMemo(
+    () => nights.filter((night) => night.status === "ongoing"),
+    [nights],
+  );
   const totalStakeAllTime = useMemo(
     () => completedNights.reduce(
       (nightTotal, night) =>
@@ -2384,6 +2419,34 @@ export default function App() {
               <small>{completedSessionCount} {t("Pokerabende")}</small>
             </section>
 
+            {ongoingNights.length > 0 && (
+              <section className="open-tables" aria-label={t("Offene Tische")}>
+                {ongoingNights.map((night) => {
+                  const totals = nightTotals(night);
+                  return (
+                    <button
+                      className="open-table-card"
+                      key={night.id}
+                      type="button"
+                      onClick={() => openNight(night)}
+                      aria-label={t("Tisch offen") + ": " + night.title}
+                    >
+                      <div className="open-table-content">
+                        <span className="open-table-eyebrow">{t("Tisch offen")}</span>
+                        <strong className="open-table-title">{night.title}</strong>
+                        <span className="open-table-meta">
+                          {night.players.length} {t("Spieler")}
+                          <span className="open-table-separator" aria-hidden="true">/</span>
+                          {formatMoney(totals.stakeCents)} {t("Einsatz")}
+                        </span>
+                      </div>
+                      <OpenTableIllustration playerCount={night.players.length} />
+                    </button>
+                  );
+                })}
+              </section>
+            )}
+
             <section className="quick-stats quick-stats--premium" aria-label={t("Statistik")}>
               <div className="quick-stat">
                 <span className="quick-stat-icon" aria-hidden="true">
@@ -2437,19 +2500,19 @@ export default function App() {
             <section className="screen-section">
               <div className="section-title-row">
                 <h2>{t("Letzte Abende")}</h2>
-                <span>{nights.length} {t("gesamt")}{ongoingSessionCount ? ` · ${ongoingSessionCount} ${t("laufend")}` : ""}</span>
+                <span>{completedNights.length} {t("gesamt")}</span>
               </div>
 
               {loading ? (
                 <div className="empty-card">{t("Lädt …")}</div>
-              ) : nights.length === 0 ? (
+              ) : completedNights.length === 0 ? (
                 <div className="empty-card">
                   <strong>{t("Noch kein Pokerabend")}</strong>
                   <p>{t("Nach dem ersten Abend erscheint hier die Übersicht.")}</p>
                 </div>
               ) : (
                 <div className="compact-night-list">
-                  {nights.map((night) => {
+                  {completedNights.map((night) => {
                     const totals = nightTotals(night);
                     const leader = [...night.players].sort(
                       (a, b) => playerResultCents(b) - playerResultCents(a),
@@ -2463,25 +2526,14 @@ export default function App() {
                           <strong>{new Date(night.playedAt + "T12:00:00").getDate()}</strong>
                         </div>
                         <div className="compact-night-copy">
-                          <div className="compact-night-title-row">
-                            <strong>{night.title}</strong>
-                            {night.status === "ongoing" && (
-                              <span className="session-status-pill">{t("Läuft")}</span>
-                            )}
-                          </div>
+                          <strong>{night.title}</strong>
                           <span>{night.players.length} {t("Spieler")} · {formatMoney(totals.stakeCents)}</span>
                         </div>
                         <div className="compact-night-result">
-                          {night.status === "ongoing" ? (
-                            <span className="provisional-label">{t("Vorläufig")}</span>
-                          ) : (
-                            <>
-                              {leader && <strong className={leaderResult >= 0 ? "positive" : "negative"}>
-                                {leaderResult > 0 ? "+" : ""}{formatMoney(leaderResult)}
-                              </strong>}
-                              <span>{leader?.name ?? ""}</span>
-                            </>
-                          )}
+                          {leader && <strong className={leaderResult >= 0 ? "positive" : "negative"}>
+                            {leaderResult > 0 ? "+" : ""}{formatMoney(leaderResult)}
+                          </strong>}
+                          <span>{leader?.name ?? ""}</span>
                         </div>
                         <span className="chevron">›</span>
                       </button>
