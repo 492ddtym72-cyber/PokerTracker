@@ -88,6 +88,14 @@ export function updateNight(id: string, input: NightInput) {
   });
 }
 
+export function updateNightStatus(id: string, status: "ongoing" | "completed") {
+  return api<{ id: string; status: "ongoing" | "completed" }>(
+    "/api/nights/" + encodeURIComponent(id), {
+      method: "PATCH", body: JSON.stringify({ status }),
+    },
+  );
+}
+
 export function deleteNight(id: string) {
   return api<void>("/api/nights/" + encodeURIComponent(id), {
     method: "DELETE",

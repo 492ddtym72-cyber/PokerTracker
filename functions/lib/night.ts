@@ -7,10 +7,13 @@ export interface NightPlayerInput {
   cashOutCents: number;
 }
 
+export type NightStatus = "ongoing" | "completed";
+
 export interface NightInput {
   title: string;
   playedAt: string;
   players: NightPlayerInput[];
+  status?: NightStatus;
 }
 
 export interface NightAdjustmentInput {
@@ -22,6 +25,7 @@ export interface NightSnapshot {
   id: string;
   title: string;
   playedAt: string;
+  status?: NightStatus;
   players: NightPlayerInput[];
 }
 
@@ -29,6 +33,7 @@ interface SnapshotRow {
   night_id: string;
   title: string;
   played_at: string;
+  status: NightStatus;
   player_name: string | null;
   stake_cents: number | null;
   cash_out_cents: number | null;
@@ -53,6 +58,7 @@ function snapshotFromInput(id: string, input: NightInput): NightSnapshot {
     id,
     title: input.title,
     playedAt: input.playedAt,
+    status: input.status,
     players: input.players.map((player) => ({ ...player })),
   };
 }
@@ -100,6 +106,10 @@ export function validateNightInput(value: unknown): NightInput {
   const title = typeof raw.title === "string" ? raw.title.trim() : "";
   const playedAt = typeof raw.playedAt === "string" ? raw.playedAt : "";
   const players = Array.isArray(raw.players) ? raw.players : [];
+  const status = raw.status === undefined ? undefined : raw.status;
+  if (status !== undefined && status !== "ongoing" && status !== "completed") {
+    throw new Error("Ungültiger Session-Status.");
+  }
 
   if (!title || title.length > 80) {
     throw new Error("Bitte einen gültigen Namen für den Pokerabend angeben.");
@@ -160,7 +170,7 @@ export function validateNightInput(value: unknown): NightInput {
     cleanPlayers.push({ playerId, name, stakeCents, cashOutCents });
   }
 
-  return { title, playedAt, players: cleanPlayers };
+  return { title, playedAt, players: cleanPlayers, ...(status ? { status } : {}) };
 }
 
 export function validateNightAdjustments(value: unknown): NightAdjustmentInput[] {
@@ -313,6 +323,7 @@ export async function loadNightSnapshot(env: Env, nightId: string) {
        n.id AS night_id,
        n.title,
        n.played_at,
+       n.status,
        p.name AS player_name,
        r.stake_cents,
        r.cash_out_cents
@@ -330,6 +341,7 @@ export async function loadNightSnapshot(env: Env, nightId: string) {
     id: first.night_id,
     title: first.title,
     playedAt: first.played_at,
+    status: first.status,
     players: [],
   };
 
@@ -411,22 +423,41 @@ export async function writeNight(
     })),
   });
 
+  const differenceCents = input.players.reduce(
+    (sum, player) => sum + player.cashOutCents - player.stakeCents, 0,
+  );
+  const status: NightStatus = input.status ??
+    (mode === "update" ? before?.status ?? "completed" :
+      differenceCents === 0 ? "completed" : "ongoing");
+  const unchangedResults = Boolean(before && sameNightResults(before, after));
+  let existingAdjustmentCents = 0;
+  if (mode === "update" && unchangedResults && status === "completed") {
+    const row = await env.DB.prepare(
+      "SELECT COALESCE(SUM(amount_cents),0) AS total FROM night_adjustments WHERE night_id=?",
+    ).bind(nightId).first<{total:number}>();
+    existingAdjustmentCents = Number(row?.total) || 0;
+  }
+  if (status === "completed" && differenceCents + existingAdjustmentCents !== 0) {
+    throw new Error("Die Session kann erst mit ausgeglichener Bilanz abgeschlossen werden.");
+  }
+  after.status = status;
+
   const statements: D1PreparedStatement[] = [];
 
   if (mode === "create") {
     statements.push(
       env.DB.prepare(
-        "INSERT INTO poker_nights (id, title, played_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-      ).bind(nightId, input.title, input.playedAt, now, now),
+        "INSERT INTO poker_nights (id, title, played_at, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+      ).bind(nightId, input.title, input.playedAt, status, now, now),
     );
   } else {
     statements.push(
       env.DB.prepare(
-        "UPDATE poker_nights SET title = ?, played_at = ?, updated_at = ? WHERE id = ?",
-      ).bind(input.title, input.playedAt, now, nightId),
+        "UPDATE poker_nights SET title = ?, played_at = ?, status = ?, updated_at = ? WHERE id = ?",
+      ).bind(input.title, input.playedAt, status, now, nightId),
     );
 
-    if (before && !sameNightResults(before, after)) {
+    if (before && !unchangedResults) {
       statements.push(
         env.DB.prepare("DELETE FROM night_adjustments WHERE night_id = ?").bind(nightId),
       );
@@ -476,6 +507,29 @@ export async function writeNight(
   );
 
   await env.DB.batch(statements);
+}
+
+export async function writeNightStatus(env: Env, nightId: string, status: NightStatus) {
+  const before = await loadNightSnapshot(env, nightId);
+  if (!before) throw new Error("Pokerabend nicht gefunden.");
+  if (before.status === status) return;
+  if (status === "completed") {
+    const totals = await env.DB.prepare(
+      `SELECT COUNT(*) AS player_count,
+          COALESCE(SUM(r.cash_out_cents-r.stake_cents+COALESCE(a.amount_cents,0)),0) AS difference_cents
+       FROM night_results r
+       LEFT JOIN night_adjustments a ON a.night_id=r.night_id AND a.player_id=r.player_id
+       WHERE r.night_id=?`,
+    ).bind(nightId).first<{player_count:number;difference_cents:number}>();
+    if (!totals || totals.player_count < 2 || totals.difference_cents !== 0) {
+      throw new Error("Die Session kann erst mit ausgeglichener Bilanz abgeschlossen werden.");
+    }
+  }
+  const now = new Date().toISOString();
+  await env.DB.batch([
+    env.DB.prepare("UPDATE poker_nights SET status=?, updated_at=? WHERE id=?").bind(status, now, nightId),
+    auditStatement(env, "night.updated", nightId, now, before, {...before,status}),
+  ]);
 }
 
 export async function deleteNightWithAudit(env: Env, nightId: string) {

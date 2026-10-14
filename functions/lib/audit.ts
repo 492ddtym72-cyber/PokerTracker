@@ -9,7 +9,7 @@ export type AuditEventType =
 export type AuditChange =
   | {
       type: "field";
-      field: "title" | "date";
+      field: "title" | "date" | "status";
       before: string;
       after: string;
     }
@@ -70,6 +70,14 @@ export function buildAuditChanges(
       field: "date",
       before: before.playedAt,
       after: after.playedAt,
+    });
+  }
+
+  if ((before.status ?? "completed") !== (after.status ?? "completed")) {
+    changes.push({
+      type: "field", field: "status",
+      before: before.status ?? "completed",
+      after: after.status ?? "completed",
     });
   }
 

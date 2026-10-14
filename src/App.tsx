@@ -7,6 +7,7 @@ import {
   loadPlayers,
   loadPlayerProfilePhotoSource,
   updateNight,
+  updateNightStatus,
   updateNightAdjustments,
   updatePlayerProfilePhoto,
 } from "./lib/api";
@@ -28,6 +29,7 @@ import type {
   AuditEvent,
   HistoryResponse,
   NightInput,
+  NightStatus,
   PlayerProfile,
   PokerNight,
   SettlementResponse,
@@ -95,7 +97,7 @@ function calculatePlayerCardDetails(
     }, 0);
 
   const appearances = nights
-    .filter((night) => night.recordType === "session")
+    .filter((night) => night.recordType === "session" && night.status === "completed")
     .flatMap((night) => {
       const result = night.players.find((candidate) => candidate.id === player.id);
       return result
@@ -312,10 +314,11 @@ function eventIcon(event: AuditEvent) {
 
 function changeText(change: AuditChange) {
   if (change.type === "field") {
-    const label = change.field === "title" ? t("Name") : t("Datum");
-    const before = change.field === "date" ? formatDate(change.before) : change.before;
-    const after = change.field === "date" ? formatDate(change.after) : change.after;
-    return `${label}: ${before} → ${after}`;
+    const label = change.field === "title" ? t("Name") :
+      change.field === "status" ? t("Status") : t("Datum");
+    const labelValue = (value: string) => change.field === "date" ? formatDate(value) :
+      change.field === "status" ? t(value === "ongoing" ? "Läuft" : "Abgeschlossen") : value;
+    return `${label}: ${labelValue(change.before)} → ${labelValue(change.after)}`;
   }
 
   if (change.type === "player_added") {
@@ -936,6 +939,7 @@ export default function App() {
   const [playedAt, setPlayedAt] = useState(today);
   const [players, setPlayers] = useState<DraftPlayer[]>([emptyPlayer(), emptyPlayer()]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [sessionStatus, setSessionStatus] = useState<NightStatus | "auto">("auto");
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1046,6 +1050,7 @@ export default function App() {
     const byPlayer = new Map<string, PlayerStats>();
 
     for (const night of nights) {
+      if (night.status === "ongoing") continue;
       const countsAsSession = night.recordType === "session";
 
       for (const player of night.players) {
@@ -1104,13 +1109,21 @@ export default function App() {
     return profilePhotoByPlayer.get(playerId) ?? null;
   }
 
+  const completedNights = useMemo(
+    () => nights.filter((night) => night.status === "completed"),
+    [nights],
+  );
+  const completedSessionCount = completedNights.filter(
+    (night) => night.recordType === "session",
+  ).length;
+  const ongoingSessionCount = nights.filter((night) => night.status === "ongoing").length;
   const totalStakeAllTime = useMemo(
-    () => nights.reduce(
+    () => completedNights.reduce(
       (nightTotal, night) =>
         nightTotal + night.players.reduce((sum, player) => sum + player.stakeCents, 0),
       0,
     ),
-    [nights],
+    [completedNights],
   );
 
   const detailNight = useMemo(
@@ -1133,6 +1146,10 @@ export default function App() {
       differenceCents: cashOutCents - stakeCents,
     };
   }, [players]);
+
+  const effectiveSessionStatus: NightStatus = sessionStatus === "auto"
+    ? (draftTotals.differenceCents === 0 ? "completed" : "ongoing")
+    : sessionStatus;
 
   useEffect(() => {
     if (!profileSwitcherOpen && !playerCardId && !profilePhotoCropSource) return;
@@ -1272,6 +1289,7 @@ export default function App() {
     setPlayedAt(today());
     setPlayers([emptyPlayer(), emptyPlayer()]);
     setEditingId(null);
+    setSessionStatus("auto");
     setError("");
   }
 
@@ -1296,6 +1314,7 @@ export default function App() {
     setEditingId(night.id);
     setTitle(night.title);
     setPlayedAt(night.playedAt);
+    setSessionStatus(night.status);
     setPlayers(night.players.map((player) => ({
       key: crypto.randomUUID(),
       playerId: player.id,
@@ -1482,6 +1501,7 @@ export default function App() {
       title: title.trim() || t("Pokerabend"),
       playedAt,
       players: cleanPlayers,
+      status: effectiveSessionStatus,
     };
   }
 
@@ -1507,6 +1527,20 @@ export default function App() {
       setScreen("home");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Pokerabend konnte nicht gespeichert werden."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function finalizeNight(night: PokerNight) {
+    setError("");
+    setSaving(true);
+    try {
+      await updateNightStatus(night.id, "completed");
+      await refreshAfterMutation();
+      window.dispatchEvent(new Event("pokertracker:settlement-updated"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("Session konnte nicht abgeschlossen werden."));
     } finally {
       setSaving(false);
     }
@@ -1997,6 +2031,23 @@ export default function App() {
               </div>
             </section>
 
+            <section className="session-status-editor" aria-label={t("Session-Status")}>
+              <strong>{t("Session-Status")}</strong>
+              <div className="session-status-options" role="group" aria-label={t("Session-Status")}>
+                <button type="button" className={effectiveSessionStatus === "ongoing" ? "selected" : ""}
+                  aria-pressed={effectiveSessionStatus === "ongoing"} onClick={() => setSessionStatus("ongoing")}>
+                  {t("Läuft")}
+                </button>
+                <button type="button" className={effectiveSessionStatus === "completed" ? "selected" : ""}
+                  aria-pressed={effectiveSessionStatus === "completed"} onClick={() => setSessionStatus("completed")}>
+                  {t("Abgeschlossen")}
+                </button>
+              </div>
+              <small>{effectiveSessionStatus === "ongoing"
+                ? t("Wird gespeichert, aber nicht für Zahlungen oder Statistiken berücksichtigt.")
+                : t("Abgeschlossene Sessions werden in die Gesamtbilanz übernommen.")}</small>
+            </section>
+
             <section className={"reconcile-card " + (draftTotals.differenceCents === 0 ? "balanced-card" : "warning-card")}>
               <div><span>{t("Einsatz")}</span><strong>{formatMoney(draftTotals.stakeCents)}</strong></div>
               <div><span>{t("Endbeträge")}</span><strong>{formatMoney(draftTotals.cashOutCents)}</strong></div>
@@ -2059,7 +2110,18 @@ export default function App() {
             </div>
           </section>
 
-          <section className={
+          {detailNight.status === "ongoing" && (
+            <section className="session-status-detail">
+              <div>
+                <strong>{t("Session läuft")}</strong>
+                <small>{t("Ergebnisse sind vorläufig. Zahlungen und Statistiken bleiben unverändert.")}</small>
+              </div>
+              <button type="button" className="secondary-button" disabled={saving || totals.remainingDifferenceCents !== 0}
+                onClick={() => finalizeNight(detailNight)}>{saving ? t("Speichert …") : t("Abschließen")}</button>
+            </section>
+          )}
+
+          {detailNight.status === "completed" && <section className={
             "detail-balance-card " +
             (totals.remainingDifferenceCents === 0 ? "good" : "bad")
           }>
@@ -2094,7 +2156,7 @@ export default function App() {
                     : t("Differenz klären")}
               </button>
             )}
-          </section>
+          </section>}
 
           {reconcileOpen && totals.differenceCents !== 0 && (
             <section className="reconcile-editor">
@@ -2315,7 +2377,7 @@ export default function App() {
             <section className="hero-ledger">
               <span>{t("Einsätze gesamt")}</span>
               <strong>{formatMoney(totalStakeAllTime)}</strong>
-              <small>{nights.length} {t("Pokerabende")}</small>
+              <small>{completedSessionCount} {t("Pokerabende")}</small>
             </section>
 
             <section className="quick-stats quick-stats--premium" aria-label={t("Statistik")}>
@@ -2324,7 +2386,7 @@ export default function App() {
                   <img src="/assets/stats-sessions.svg" width="36" height="36" alt="" />
                 </span>
                 <span className="quick-stat-copy">
-                  <strong>{nights.length}</strong>
+                  <strong>{completedSessionCount}</strong>
                   <span>{t("Sessions")}</span>
                 </span>
               </div>
@@ -2371,7 +2433,7 @@ export default function App() {
             <section className="screen-section">
               <div className="section-title-row">
                 <h2>{t("Letzte Abende")}</h2>
-                <span>{nights.length} {t("gesamt")}</span>
+                <span>{nights.length} {t("gesamt")}{ongoingSessionCount ? ` · ${ongoingSessionCount} ${t("laufend")}` : ""}</span>
               </div>
 
               {loading ? (
@@ -2397,14 +2459,22 @@ export default function App() {
                           <strong>{new Date(night.playedAt + "T12:00:00").getDate()}</strong>
                         </div>
                         <div className="compact-night-copy">
-                          <strong>{night.title}</strong>
+                          <strong>{night.title}{night.status === "ongoing" && (
+                            <span className="session-status-pill">{t("Läuft")}</span>
+                          )}</strong>
                           <span>{night.players.length} {t("Spieler")} · {formatMoney(totals.stakeCents)}</span>
                         </div>
                         <div className="compact-night-result">
-                          {leader && <strong className={leaderResult >= 0 ? "positive" : "negative"}>
-                            {leaderResult > 0 ? "+" : ""}{formatMoney(leaderResult)}
-                          </strong>}
-                          <span>{leader?.name ?? ""}</span>
+                          {night.status === "ongoing" ? (
+                            <span className="provisional-label">{t("Vorläufig")}</span>
+                          ) : (
+                            <>
+                              {leader && <strong className={leaderResult >= 0 ? "positive" : "negative"}>
+                                {leaderResult > 0 ? "+" : ""}{formatMoney(leaderResult)}
+                              </strong>}
+                              <span>{leader?.name ?? ""}</span>
+                            </>
+                          )}
                         </div>
                         <span className="chevron">›</span>
                       </button>

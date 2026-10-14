@@ -4018,3 +4018,57 @@ select:focus {
 
 /* Keep the request action full-width alongside the existing transfer controls. */
 .settlement-payment-actions .settlement-request-button {width:100%;font-size:13px}
+
+/* Ongoing sessions: neutral status, separate from settled money. */
+.session-status-editor,
+.session-status-detail,
+.settlement-ongoing-note {
+  border: 1px solid rgba(166, 185, 168, .19);
+  background: rgba(10, 36, 27, .58);
+  border-radius: 16px;
+  padding: 16px 18px;
+}
+.session-status-editor { display: grid; gap: 12px; }
+.session-status-editor > strong,
+.session-status-detail strong,
+.settlement-ongoing-note strong { color: #e5ece4; font-size: .94rem; }
+.session-status-editor small,
+.session-status-detail small,
+.settlement-ongoing-note span { color: #92a89b; font-size: .81rem; line-height: 1.5; }
+.session-status-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.session-status-options button {
+  padding: 11px 8px;
+  background: rgba(3, 25, 18, .48);
+  border: 1px solid rgba(162, 191, 171, .18);
+  border-radius: 10px;
+  color: #a5b8ad;
+  font: inherit;
+  font-size: .9rem;
+}
+.session-status-options button.selected {
+  background: rgba(44, 111, 80, .3);
+  border-color: rgba(118, 184, 143, .55);
+  color: #e8f1e8;
+}
+.session-status-detail { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 12px 0 16px; }
+.session-status-detail > div { display: grid; gap: 5px; }
+.session-status-detail button { flex: 0 0 auto; padding: 10px 14px; }
+.session-status-detail button:disabled { opacity: .4; }
+.session-status-pill {
+  display: inline-block;
+  margin-left: 9px;
+  padding: 3px 7px;
+  border-radius: 7px;
+  background: rgba(82, 144, 107, .17);
+  color: #b2ceb7;
+  border: 1px solid rgba(136, 171, 144, .25);
+  font-size: .67rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+.provisional-label { color: #92b5a2; font-size: .8rem; }
+.settlement-ongoing-note { display: grid; gap: 5px; margin-bottom: 20px; }
+@media (max-width: 400px) {
+  .session-status-detail { align-items: flex-start; }
+  .session-status-detail button { font-size: .8rem; }
+}

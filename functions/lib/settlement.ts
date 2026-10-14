@@ -55,6 +55,7 @@ interface RoutePriorityRow {
 interface NightSnapshotRow {
   night_count: number;
   latest_update: string | null;
+  ongoing_count: number;
 }
 
 function buildSuggestions(
@@ -187,6 +188,7 @@ export async function loadSettlementSnapshot(env: Env) {
          ), 0) AS poker_balance_cents
        FROM players p
        JOIN night_results r ON r.player_id = p.id
+       JOIN poker_nights n ON n.id=r.night_id AND n.status='completed'
        LEFT JOIN night_adjustments a
          ON a.night_id = r.night_id AND a.player_id = r.player_id
        GROUP BY p.id, p.name
@@ -235,7 +237,10 @@ export async function loadSettlementSnapshot(env: Env) {
        LIMIT 200`,
     ).all<PaymentRow>(),
     env.DB.prepare(
-      "SELECT COUNT(*) AS night_count, MAX(updated_at) AS latest_update FROM poker_nights",
+      `SELECT SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS night_count,
+       MAX(CASE WHEN status='completed' THEN updated_at END) AS latest_update,
+       SUM(CASE WHEN status='ongoing' THEN 1 ELSE 0 END) AS ongoing_count
+     FROM poker_nights`,
     ).first<NightSnapshotRow>(),
   ]);
 
@@ -295,6 +300,7 @@ export async function loadSettlementSnapshot(env: Env) {
     })),
     totalOutstandingCents,
     groupDifferenceCents,
+    ongoingSessionCount: Number(nightSnapshot?.ongoing_count) || 0,
   };
 }
 

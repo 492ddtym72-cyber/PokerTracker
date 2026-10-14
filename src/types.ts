@@ -12,6 +12,8 @@ export interface PlayerResult {
   adjustmentCents: number;
 }
 
+export type NightStatus = "ongoing" | "completed";
+
 export interface PokerNight {
   id: string;
   title: string;
@@ -19,6 +21,7 @@ export interface PokerNight {
   createdAt: string;
   updatedAt: string;
   recordType: "session" | "baseline";
+  status: NightStatus;
   players: PlayerResult[];
 }
 
@@ -33,6 +36,7 @@ export interface NightInput {
   title: string;
   playedAt: string;
   players: NightPlayerInput[];
+  status?: NightStatus;
 }
 
 export interface NightAdjustmentInput {
@@ -49,7 +53,7 @@ export type AuditEventType =
 export type AuditChange =
   | {
       type: "field";
-      field: "title" | "date";
+      field: "title" | "date" | "status";
       before: string;
       after: string;
     }
@@ -132,6 +136,7 @@ export interface SettlementResponse {
   payments: SettlementPayment[];
   totalOutstandingCents: number;
   groupDifferenceCents: number;
+  ongoingSessionCount: number;
 }
 
 export interface SettlementPaymentInput {
