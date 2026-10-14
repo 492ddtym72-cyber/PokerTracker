@@ -2463,9 +2463,12 @@ export default function App() {
                           <strong>{new Date(night.playedAt + "T12:00:00").getDate()}</strong>
                         </div>
                         <div className="compact-night-copy">
-                          <strong>{night.title}{night.status === "ongoing" && (
-                            <span className="session-status-pill">{t("Läuft")}</span>
-                          )}</strong>
+                          <div className="compact-night-title-row">
+                            <strong>{night.title}</strong>
+                            {night.status === "ongoing" && (
+                              <span className="session-status-pill">{t("Läuft")}</span>
+                            )}
+                          </div>
                           <span>{night.players.length} {t("Spieler")} · {formatMoney(totals.stakeCents)}</span>
                         </div>
                         <div className="compact-night-result">
