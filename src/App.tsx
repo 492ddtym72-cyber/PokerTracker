@@ -2121,17 +2121,21 @@ export default function App() {
             </section>
           )}
 
-          {detailNight.status === "completed" && <section className={
+          {(detailNight.status === "completed" ||
+            (detailNight.status === "ongoing" && totals.cashOutCents > 0)) && <section className={
             "detail-balance-card " +
-            (totals.remainingDifferenceCents === 0 ? "good" : "bad")
+            (detailNight.status === "ongoing" ? "ongoing" :
+              totals.remainingDifferenceCents === 0 ? "good" : "bad")
           }>
             <div className="detail-balance-copy">
               <strong>
-                {totals.differenceCents === 0
-                  ? t("✓ Bilanz stimmt")
-                  : totals.remainingDifferenceCents === 0
-                    ? t("✓ Differenz ausgeglichen")
-                    : t("Offene Differenz") + " " + formatMoney(totals.remainingDifferenceCents)}
+                {detailNight.status === "ongoing" && totals.remainingDifferenceCents !== 0
+                  ? t("Vorläufige Differenz") + " " + formatMoney(totals.remainingDifferenceCents)
+                  : totals.differenceCents === 0
+                    ? t("✓ Bilanz stimmt")
+                    : totals.remainingDifferenceCents === 0
+                      ? t("✓ Differenz ausgeglichen")
+                      : t("Offene Differenz") + " " + formatMoney(totals.remainingDifferenceCents)}
               </strong>
               {totals.differenceCents !== 0 && (
                 <span>
