@@ -45,3 +45,16 @@ npm run dev
 runs only the frontend.
 
 A complete local stack requires a Wrangler Pages development environment with a D1 binding named `DB`.
+
+## Ongoing poker sessions (migration 0010)
+
+Before deploying code that uses session statuses, create a D1 Time Travel bookmark
+or export the production database. Apply `migrations/0010_ongoing_sessions.sql`
+**once** to the existing database. The migration adds a status column, defaults
+historical records to completed, and marks sessions with stakes but zero
+cash-outs as ongoing; it never deletes or edits individual results or payments.
+
+Ongoing sessions remain in the night list and are fully editable, but do not
+contribute to balances, payment requests, payouts, leaderboard statistics, or
+the saved settlement route snapshot. Finalizing requires a balanced session
+(including any recorded cent adjustments). Do not rerun the migration.
