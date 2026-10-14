@@ -21,6 +21,7 @@ import {
 } from "./i18n";
 import { GOLD_WREATH, SILVER_WREATH } from "./leaderboardFrames";
 import { SettlementScreen, SettlementSummary } from "./Settlement";
+import { SessionSettlement } from "./SessionSettlement";
 import { ProfilePhotoCropper } from "./ProfilePhotoCropper";
 import { PlayerAvatar, playerInitials } from "./PlayerAvatar";
 import { OpenTableIllustration } from "./OpenTableIllustration";
@@ -31,6 +32,7 @@ import type {
   HistoryResponse,
   NightInput,
   NightStatus,
+  SettlementMode,
   PlayerProfile,
   PokerNight,
   SettlementResponse,
@@ -98,7 +100,7 @@ function calculatePlayerCardDetails(
     }, 0);
 
   const appearances = nights
-    .filter((night) => night.recordType === "session" && night.status === "completed")
+    .filter((night) => night.recordType === "session" && night.status === "completed" && night.settlementMode !== "separate")
     .flatMap((night) => {
       const result = night.players.find((candidate) => candidate.id === player.id);
       return result
@@ -942,6 +944,8 @@ export default function App() {
   const [players, setPlayers] = useState<DraftPlayer[]>([emptyPlayer(), emptyPlayer()]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [sessionStatus, setSessionStatus] = useState<NightStatus | "auto">("auto");
+  const [settlementMode, setSettlementMode] = useState<SettlementMode>("pooled");
+  const [sessionSettlementOpen, setSessionSettlementOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1052,7 +1056,7 @@ export default function App() {
     const byPlayer = new Map<string, PlayerStats>();
 
     for (const night of nights) {
-      if (night.status === "ongoing") continue;
+      if (night.status !== "completed" || night.settlementMode === "separate") continue;
       const countsAsSession = night.recordType === "session";
 
       for (const player of night.players) {
@@ -1116,7 +1120,7 @@ export default function App() {
     [nights],
   );
   const completedSessionCount = completedNights.filter(
-    (night) => night.recordType === "session",
+    (night) => night.recordType === "session" && night.settlementMode !== "separate",
   ).length;
   const ongoingNights = useMemo(
     () => nights.filter((night) => night.status === "ongoing"),
@@ -1125,7 +1129,7 @@ export default function App() {
   const totalStakeAllTime = useMemo(
     () => completedNights.reduce(
       (nightTotal, night) =>
-        nightTotal + night.players.reduce((sum, player) => sum + player.stakeCents, 0),
+        nightTotal + (night.settlementMode === "separate" ? 0 : night.players.reduce((sum, player) => sum + player.stakeCents, 0)),
       0,
     ),
     [completedNights],
@@ -1285,6 +1289,7 @@ export default function App() {
     setEditorOpen(false);
     setDetailNightId(null);
     setReconcileOpen(false);
+    setSessionSettlementOpen(false);
     setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -1295,6 +1300,7 @@ export default function App() {
     setPlayers([emptyPlayer(), emptyPlayer()]);
     setEditingId(null);
     setSessionStatus("auto");
+    setSettlementMode("pooled");
     setError("");
   }
 
@@ -1307,6 +1313,7 @@ export default function App() {
   }
 
   function openNight(night: PokerNight) {
+    setSessionSettlementOpen(false);
     setDetailNightId(night.id);
     setEditorOpen(false);
     setReconcileOpen(false);
@@ -1320,6 +1327,7 @@ export default function App() {
     setTitle(night.title);
     setPlayedAt(night.playedAt);
     setSessionStatus(night.status);
+    setSettlementMode(night.settlementMode);
     setPlayers(night.players.map((player) => ({
       key: crypto.randomUUID(),
       playerId: player.id,
@@ -1507,6 +1515,7 @@ export default function App() {
       playedAt,
       players: cleanPlayers,
       status: effectiveSessionStatus,
+      settlementMode,
     };
   }
 
@@ -2050,7 +2059,25 @@ export default function App() {
               </div>
               <small>{effectiveSessionStatus === "ongoing"
                 ? t("Wird gespeichert, aber nicht für Zahlungen oder Statistiken berücksichtigt.")
+                : settlementMode === "separate" ? t("Diese Session bleibt außerhalb der Gesamtstatistik.")
                 : t("Abgeschlossene Sessions werden in die Gesamtbilanz übernommen.")}</small>
+            </section>
+
+            <section className="session-mode-editor" aria-label={t("Abrechnung")}>
+              <strong>{t("Abrechnung")}</strong>
+              <div className="session-mode-options" role="group" aria-label={t("Abrechnung")}>
+                <button type="button" className={settlementMode === "pooled" ? "selected" : ""}
+                  aria-pressed={settlementMode === "pooled"}
+                  disabled={Boolean(editingId && nights.find(n => n.id === editingId)?.status === "completed")}
+                  onClick={() => setSettlementMode("pooled")}>{t("Gesamtbilanz")}</button>
+                <button type="button" className={settlementMode === "separate" ? "selected" : ""}
+                  aria-pressed={settlementMode === "separate"}
+                  disabled={Boolean(editingId && nights.find(n => n.id === editingId)?.status === "completed")}
+                  onClick={() => setSettlementMode("separate")}>{t("Nur diese Session")}</button>
+              </div>
+              <small>{settlementMode === "separate"
+                ? t("Eigene Zahlungen, keine Auswirkung auf Rangliste oder Gesamtbilanz.")
+                : t("Wie bisher: Ergebnisse fließen in die Gesamtbilanz ein.")}</small>
             </section>
 
             <section className={"reconcile-card " + (draftTotals.differenceCents === 0 ? "balanced-card" : "warning-card")}>
@@ -2333,6 +2360,21 @@ export default function App() {
               );
             })}
           </section>
+
+          {detailNight.recordType === "session" && (
+            <section className="session-settlement-launcher">
+              <span>{detailNight.settlementMode === "separate" ? t("Separat abgerechnet") : t("Teil der Gesamtbilanz")}</span>
+              {detailNight.status === "completed" && detailNight.settlementMode === "separate" && (
+                <button type="button" className="secondary-button" aria-expanded={sessionSettlementOpen}
+                  onClick={() => setSessionSettlementOpen(open => !open)}>
+                  {sessionSettlementOpen ? t("Schließen") : t("Session abrechnen")}
+                </button>
+              )}
+            </section>
+          )}
+          {detailNight.status === "completed" && detailNight.settlementMode === "separate" && sessionSettlementOpen && (
+            <SessionSettlement nightId={detailNight.id} currentPlayerId={currentPlayerId} photoFor={profilePhotoFor} />
+          )}
 
           <div className="detail-actions">
             <button className="secondary-button" type="button" onClick={() => editNight(detailNight)}>
