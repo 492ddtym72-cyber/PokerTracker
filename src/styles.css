@@ -4072,3 +4072,7 @@ select:focus {
   .session-status-detail { align-items: flex-start; }
   .session-status-detail button { font-size: .8rem; }
 }
+
+/* Balance adjustments remain available for an ongoing session once cash-outs exist. */
+.detail-balance-card.ongoing { border: 1px solid rgba(164, 185, 165, .22); background: rgba(16, 37, 27, .52); }
+.detail-balance-card.ongoing .detail-balance-copy strong { color: #d5e3d5; }
