@@ -14,6 +14,7 @@ const ENGLISH: Record<string, string> = {
   "laufende Session": "ongoing session",
   "laufende Sessions": "ongoing sessions",
   "Vorläufig": "Provisional",
+  "Vorläufige Differenz": "Provisional difference",
   "Wird gespeichert, aber nicht für Zahlungen oder Statistiken berücksichtigt.": "Saved, but excluded from settlements and statistics.",
   "Abgeschlossene Sessions werden in die Gesamtbilanz übernommen.": "Completed sessions are included in overall balances.",
   "Ergebnisse sind vorläufig. Zahlungen und Statistiken bleiben unverändert.": "Results are provisional. Settlements and statistics remain unchanged.",
