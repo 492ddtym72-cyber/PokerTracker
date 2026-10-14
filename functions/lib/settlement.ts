@@ -58,7 +58,7 @@ interface NightSnapshotRow {
   ongoing_count: number;
 }
 
-function buildSuggestions(
+export function buildSuggestions(
   players: SettlementPlayer[],
   preferredRoutes: RoutePriorityRow[] = [],
 ) {
@@ -188,7 +188,7 @@ export async function loadSettlementSnapshot(env: Env) {
          ), 0) AS poker_balance_cents
        FROM players p
        JOIN night_results r ON r.player_id = p.id
-       JOIN poker_nights n ON n.id=r.night_id AND n.status='completed'
+       JOIN poker_nights n ON n.id=r.night_id AND n.status='completed' AND n.settlement_mode='pooled'
        LEFT JOIN night_adjustments a
          ON a.night_id = r.night_id AND a.player_id = r.player_id
        GROUP BY p.id, p.name
@@ -237,8 +237,8 @@ export async function loadSettlementSnapshot(env: Env) {
        LIMIT 200`,
     ).all<PaymentRow>(),
     env.DB.prepare(
-      `SELECT SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS night_count,
-       MAX(CASE WHEN status='completed' THEN updated_at END) AS latest_update,
+      `SELECT SUM(CASE WHEN status='completed' AND settlement_mode='pooled' THEN 1 ELSE 0 END) AS night_count,
+       MAX(CASE WHEN status='completed' AND settlement_mode='pooled' THEN updated_at END) AS latest_update,
        SUM(CASE WHEN status='ongoing' THEN 1 ELSE 0 END) AS ongoing_count
      FROM poker_nights`,
     ).first<NightSnapshotRow>(),

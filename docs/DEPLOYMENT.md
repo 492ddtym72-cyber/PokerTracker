@@ -58,3 +58,21 @@ Ongoing sessions remain in the night list and are fully editable, but do not
 contribute to balances, payment requests, payouts, leaderboard statistics, or
 the saved settlement route snapshot. Finalizing requires a balanced session
 (including any recorded cent adjustments). Do not rerun the migration.
+
+## Separate session settlements (migration 0011)
+
+Before deploying code supporting session-only accounting, back up the production D1
+or create a Time Travel bookmark, then apply `migrations/0011_session_settlements.sql`
+**once**. This adds a `settlement_mode` column defaulting to `pooled` so all
+historical nights, totals and payments remain unchanged. A new
+`session_settlement_payments` table holds local transfers separately from the
+existing overall ledger.
+
+A completed night can be reclassified only while no active global settlement
+payments or newer outstanding requests would be invalidated. Once a separate
+session has recorded payments, changing its results or mode is blocked until
+those payments are voided. Every local transfer remains in its own session's
+history, even after cancellation.
+
+The migration was applied to the production D1 binding on 2026-10-15 after a
+Time Travel bookmark and row-count check.

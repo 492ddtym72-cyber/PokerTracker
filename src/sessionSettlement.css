@@ -1,0 +1,50 @@
+.local-settlement {
+  margin: 18px 0 22px;
+  border: 1px solid rgba(215, 190, 119, .21);
+  border-radius: 19px;
+  padding: 20px 17px;
+  background: linear-gradient(160deg, #0c2c22, #071d17);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.045);
+}
+.local-settlement-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.local-settlement-kicker { display: block; font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: #a2b9ab; margin-bottom: 4px; }
+.local-settlement-heading h2 { font-size: 21px; margin: 0; font-weight: 620; }
+.local-settlement-total { font-variant-numeric: tabular-nums; font-size: 22px; color: #e8ca85; white-space: nowrap; }
+.local-settlement-transfers { display: grid; gap: 10px; }
+.local-settlement-transfer { border-radius: 14px; border: 1px solid rgba(255,255,255,.085); background: rgba(0,0,0,.15); padding: 14px 13px 11px; }
+.local-settlement-people { display: grid; grid-template-columns: minmax(0,1fr) 20px minmax(0,1fr) auto; gap: 9px; align-items: center; }
+.local-settlement-person { display: flex; gap: 9px; align-items: center; min-width: 0; font-size: 13px; font-weight: 600; }
+.local-settlement-person > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.local-settlement-person .local-settlement-avatar { display: inline-flex; flex: 0 0 35px; width: 35px; height: 35px; border-radius: 50%; align-items: center; justify-content: center; background: #1c4837; font-size: 13px; background-size: cover; background-position: center; }
+.local-settlement-arrow { color: #94b6a2; text-align: center; font-size: 18px; }
+.local-settlement-amount { font-size: 15px; color: #f5d991; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.local-settlement-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 7px; margin-top: 13px; }
+.local-settlement-actions button, .local-settlement-payment button { border: 1px solid rgba(255,255,255,.17); background: transparent; color: #d4e2d8; border-radius: 9px; padding: 8px 11px; font-size: 12px; font-weight: 600; }
+.local-settlement-actions .local-settlement-primary { border-color: rgba(213,184,108,.5); color: #f2dda9; background: #244334; }
+.local-settlement-history { margin-top: 22px; border-top: 1px solid rgba(255,255,255,.10); padding-top: 15px; }
+.local-settlement-history h3 { margin: 0 0 12px; font-size: 14px; }
+.local-settlement-payment { display: flex; align-items: center; gap: 9px; border-top: 1px solid rgba(255,255,255,.065); padding: 9px 0; font-size: 12px; }
+.local-settlement-payment span { flex: 1; min-width: 0; }
+.local-settlement-payment strong { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.local-settlement-payment.is-void { opacity: .46; }
+.local-settlement-muted { font-size: 12px; color: #9bb2a4; margin: 16px 0 0; line-height: 1.5; }
+.local-settlement-empty { color: #dbeddf; border: 1px solid rgba(90,181,122,.24); border-radius: 12px; padding: 15px; font-size: 14px; }
+.local-settlement-error { color: #f3a39c; font-size: 13px; }
+@media (max-width: 460px) {
+  .local-settlement { padding: 16px 12px; }
+  .local-settlement-person { display: flex; flex-direction: column; gap: 5px; font-size: 12px; text-align: center; }
+  .local-settlement-person .local-settlement-avatar { width: 39px; height: 39px; flex-basis: 39px; }
+  .local-settlement-people { grid-template-columns: minmax(0,1fr) 18px minmax(0,1fr) auto; gap: 6px; }
+  .local-settlement-amount { font-size: 13px; }
+  .local-settlement-actions button { font-size: 11px; padding: 8px 9px; }
+}
+
+.session-mode-editor { margin: 0 0 16px; border: 1px solid rgba(255,255,255,.11); border-radius: 15px; background: #0b261d; padding: 17px; display: grid; gap: 11px; }
+.session-mode-editor > strong { font-size: 14px; }
+.session-mode-editor > small { color: #a4b5a9; font-size: 12px; line-height: 1.5; }
+.session-mode-options { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 7px; }
+.session-mode-options button { border: 1px solid rgba(255,255,255,.13); background: #0a1b15; color: #b6c9bd; border-radius: 10px; padding: 12px 7px; font-size: 13px; font-weight: 600; }
+.session-mode-options button.selected { border-color: rgba(223,191,117,.54); background: #233b2e; color: #f2deb0; }
+.session-settlement-launcher { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid rgba(255,255,255,.10); border-radius: 14px; padding: 12px 14px; margin: 16px 0; background: #09251b; }
+.session-settlement-launcher span { font-size: 13px; color: #abc2b2; }
+.session-settlement-launcher .secondary-button { margin: 0; white-space: nowrap; }

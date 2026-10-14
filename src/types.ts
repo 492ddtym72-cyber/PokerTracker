@@ -13,6 +13,7 @@ export interface PlayerResult {
 }
 
 export type NightStatus = "ongoing" | "completed";
+export type SettlementMode = "pooled" | "separate";
 
 export interface PokerNight {
   id: string;
@@ -22,6 +23,7 @@ export interface PokerNight {
   updatedAt: string;
   recordType: "session" | "baseline";
   status: NightStatus;
+  settlementMode: SettlementMode;
   players: PlayerResult[];
 }
 
@@ -37,6 +39,7 @@ export interface NightInput {
   playedAt: string;
   players: NightPlayerInput[];
   status?: NightStatus;
+  settlementMode?: SettlementMode;
 }
 
 export interface NightAdjustmentInput {
