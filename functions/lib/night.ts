@@ -576,7 +576,14 @@ export async function writeNightStatus(env: Env, nightId: string, status: NightS
 export async function deleteNightWithAudit(env: Env, nightId: string) {
   const before = await loadNightSnapshot(env, nightId);
   if (!before) return false;
-  await rejectIfSessionHasPayments(env, nightId);
+  // Keep voided transfers in the audit history; even cancelled payment records
+  // are retained, so deleting their parent session would silently orphan them.
+  const paymentHistory = await env.DB.prepare(
+    "SELECT 1 AS found FROM session_settlement_payments WHERE night_id=? LIMIT 1",
+  ).bind(nightId).first<{found:number}>();
+  if (paymentHistory) {
+    throw new Error("Eine Session mit Zahlungshistorie kann nicht gelöscht werden.");
+  }
 
   const now = new Date().toISOString();
 
