@@ -236,7 +236,8 @@ export async function reportPayment(env:Env,id:string,value:unknown) {
 function openSql(playerColumn:string) {
   return `(
     (SELECT COALESCE(SUM(r.cash_out_cents-r.stake_cents+COALESCE(a.amount_cents,0)),0)
-     FROM night_results r LEFT JOIN night_adjustments a ON a.night_id=r.night_id AND a.player_id=r.player_id
+     FROM night_results r JOIN poker_nights n ON n.id=r.night_id AND n.status='completed'
+     LEFT JOIN night_adjustments a ON a.night_id=r.night_id AND a.player_id=r.player_id
      WHERE r.player_id=${playerColumn})
     + (SELECT COALESCE(SUM(s.amount_cents),0) FROM settlement_payments s
        WHERE s.from_player_id=${playerColumn} AND s.voided_at IS NULL)
