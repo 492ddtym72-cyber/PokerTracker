@@ -2507,8 +2507,8 @@ export default function App() {
                 <div className="empty-card">{t("Lädt …")}</div>
               ) : completedNights.length === 0 ? (
                 <div className="empty-card">
-                  <strong>{t("Noch kein Pokerabend")}</strong>
-                  <p>{t("Nach dem ersten Abend erscheint hier die Übersicht.")}</p>
+                  <strong>{t("Noch keine abgeschlossenen Abende")}</strong>
+                  <p>{t("Abgeschlossene Sessions erscheinen hier.")}</p>
                 </div>
               ) : (
                 <div className="compact-night-list">
