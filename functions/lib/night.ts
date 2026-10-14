@@ -583,7 +583,7 @@ export async function nightExists(env: Env, nightId: string) {
 // Local settlements never flow into the lifetime ledger and may not be silently invalidated.
 async function hasSessionPayments(env: Env, nightId: string) {
   const row = await env.DB.prepare(
-    "SELECT 1 AS paid FROM session_settlement_payments WHERE night_id = ? LIMIT 1",
+    "SELECT 1 AS paid FROM session_settlement_payments WHERE night_id = ? AND voided_at IS NULL LIMIT 1",
   ).bind(nightId).first<{ paid: number }>();
   return Boolean(row?.paid);
 }
