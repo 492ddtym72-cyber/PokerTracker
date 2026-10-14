@@ -4066,65 +4066,6 @@ select:focus {
   padding: 10px 14px;
 }
 .session-status-detail button:disabled { opacity: .4; }
-/* Keep the active indicator visible even when a session title is long. */
-.compact-night-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.compact-night-title-row > strong {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.compact-night-copy .session-status-pill {
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 auto;
-  gap: 7px;
-  margin: 0;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background: rgba(72, 138, 95, .13);
-  color: #b8d9c3;
-  border: 1px solid rgba(113, 184, 134, .28);
-  font-size: 10px;
-  font-weight: 650;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.compact-night-copy .session-status-pill::before {
-  content: "";
-  display: block;
-  width: 6px;
-  height: 6px;
-  flex: 0 0 6px;
-  border-radius: 50%;
-  background: #75d89a;
-  animation: ongoing-session-breathe 2.8s ease-in-out infinite;
-}
-
-@keyframes ongoing-session-breathe {
-  0%, 100% {
-    opacity: .72;
-    box-shadow: 0 0 0 0 rgba(117, 216, 154, .24);
-  }
-  50% {
-    opacity: 1;
-    box-shadow: 0 0 0 4px rgba(117, 216, 154, 0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .compact-night-copy .session-status-pill::before {
-    animation: none;
-    opacity: 1;
-  }
-}
-.provisional-label { color: #92b5a2; font-size: .8rem; }
 .settlement-ongoing-note { display: grid; gap: 5px; margin-bottom: 20px; }
 @media (max-width: 520px) {
   .session-status-detail { grid-template-columns: minmax(0, 1fr); }
@@ -4134,3 +4075,188 @@ select:focus {
 /* Balance adjustments remain available for an ongoing session once cash-outs exist. */
 .detail-balance-card.ongoing { border: 1px solid rgba(164, 185, 165, .22); background: rgba(16, 37, 27, .52); }
 .detail-balance-card.ongoing .detail-balance-copy strong { color: #d5e3d5; }
+
+/* Home: a table that's still in play. No badges or glowing status treatments. */
+.open-tables {
+  display: grid;
+  gap: 10px;
+  margin: 13px 0 0;
+}
+
+.open-table-card {
+  width: 100%;
+  min-width: 0;
+  min-height: 132px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(104px, 33%, 155px);
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  padding: 16px 12px 16px 21px;
+  overflow: hidden;
+  border: 1px solid rgba(146, 173, 145, .29);
+  border-radius: 17px;
+  background: #0a251c;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+  color: #f0eee4;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 180ms ease;
+}
+
+.open-table-card::before {
+  content: "";
+  position: absolute;
+  top: 22px;
+  bottom: 22px;
+  left: 0;
+  width: 2px;
+  background: #b4a073;
+}
+
+.open-table-card:hover {
+  border-color: rgba(184, 196, 157, .51);
+}
+
+.open-table-card:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.open-table-content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.open-table-eyebrow {
+  color: #bda779;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .19em;
+  text-transform: uppercase;
+}
+
+.open-table-title {
+  max-width: 100%;
+  margin-top: 11px;
+  font-size: clamp(16px, 4.4vw, 19px);
+  line-height: 1.24;
+  letter-spacing: -.025em;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.open-table-meta {
+  margin-top: 11px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 9px;
+  row-gap: 3px;
+  color: #9bad9e;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.open-table-separator {
+  color: #597767;
+}
+
+.open-table-illustration {
+  width: 100%;
+  max-width: 160px;
+  height: auto;
+  justify-self: end;
+  overflow: visible;
+}
+
+.open-table-outline {
+  fill: #103529;
+  stroke: #789879;
+  stroke-width: 2.1;
+}
+
+.open-table-inner {
+  fill: none;
+  stroke: #476e55;
+  stroke-width: .8;
+}
+
+.open-table-seat-outer {
+  fill: #0a251c;
+  stroke: #8ba28a;
+  stroke-width: 1.35;
+}
+
+.open-table-seat-inner {
+  fill: #d2c9aa;
+}
+
+.open-table-dealt-card {
+  transform-origin: 80px 56px;
+  animation: open-table-deal 9s cubic-bezier(.22, .65, .35, 1) infinite;
+}
+
+.open-table-dealt-card rect {
+  fill: #e8e6d5;
+  stroke: #d6cfaf;
+  stroke-width: .7;
+}
+
+.open-table-dealt-card path {
+  fill: none;
+  stroke: #a9a083;
+  stroke-width: .8;
+  stroke-linecap: round;
+}
+
+/* An occasional, quiet deal across the felt; no fabricated live progress. */
+@keyframes open-table-deal {
+  0%, 8% {
+    opacity: 0;
+    transform: translate(-24px, -5px) rotate(-14deg);
+  }
+  13% {
+    opacity: .95;
+    transform: translate(-24px, -5px) rotate(-14deg);
+  }
+  28% {
+    opacity: 1;
+    transform: translate(14px, 5px) rotate(5deg);
+  }
+  37% {
+    opacity: 0;
+    transform: translate(14px, 5px) rotate(5deg);
+  }
+  38%, 100% {
+    opacity: 0;
+    transform: translate(-24px, -5px) rotate(-14deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .open-table-dealt-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .open-table-card {
+    transition: none;
+  }
+}
+
+@media (max-width: 390px) {
+  .open-table-card {
+    grid-template-columns: minmax(0, 1fr) 105px;
+    gap: 4px;
+    padding-left: 17px;
+  }
+  .open-table-meta {
+    font-size: 10px;
+    column-gap: 6px;
+  }
+}
+
