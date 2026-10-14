@@ -2068,11 +2068,9 @@ export default function App() {
               <div className="session-mode-options" role="group" aria-label={t("Abrechnung")}>
                 <button type="button" className={settlementMode === "pooled" ? "selected" : ""}
                   aria-pressed={settlementMode === "pooled"}
-                  disabled={Boolean(editingId && nights.find(n => n.id === editingId)?.status === "completed")}
                   onClick={() => setSettlementMode("pooled")}>{t("Gesamtbilanz")}</button>
                 <button type="button" className={settlementMode === "separate" ? "selected" : ""}
                   aria-pressed={settlementMode === "separate"}
-                  disabled={Boolean(editingId && nights.find(n => n.id === editingId)?.status === "completed")}
                   onClick={() => setSettlementMode("separate")}>{t("Nur diese Session")}</button>
               </div>
               <small>{settlementMode === "separate"
