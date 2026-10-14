@@ -7,6 +7,7 @@ import {
   validateNightInput,
   writeNight,
   writeNightAdjustments,
+  writeNightStatus,
 } from "../../lib/night";
 
 export const onRequestPut: PagesFunction<Env> = async ({ request, env, params }) => {
@@ -36,7 +37,15 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env, params 
   }
 
   try {
-    const adjustments = validateNightAdjustments(await request.json());
+    const body = await request.json() as Record<string, unknown>;
+    if (body && "status" in body) {
+      if (body.status !== "ongoing" && body.status !== "completed") {
+        return apiError("Ungültiger Session-Status.");
+      }
+      await writeNightStatus(env, id, body.status);
+      return json({ id, status: body.status });
+    }
+    const adjustments = validateNightAdjustments(body);
     const result = await writeNightAdjustments(env, id, adjustments);
     return json(result);
   } catch (error) {
