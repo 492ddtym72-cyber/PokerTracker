@@ -8,12 +8,14 @@ export interface NightPlayerInput {
 }
 
 export type NightStatus = "ongoing" | "completed";
+export type SettlementMode = "pooled" | "separate";
 
 export interface NightInput {
   title: string;
   playedAt: string;
   players: NightPlayerInput[];
   status?: NightStatus;
+  settlementMode?: SettlementMode;
 }
 
 export interface NightAdjustmentInput {
@@ -26,6 +28,7 @@ export interface NightSnapshot {
   title: string;
   playedAt: string;
   status?: NightStatus;
+  settlementMode?: SettlementMode;
   players: NightPlayerInput[];
 }
 
@@ -34,6 +37,7 @@ interface SnapshotRow {
   title: string;
   played_at: string;
   status: NightStatus;
+  settlement_mode: SettlementMode;
   player_name: string | null;
   stake_cents: number | null;
   cash_out_cents: number | null;
@@ -59,6 +63,7 @@ function snapshotFromInput(id: string, input: NightInput): NightSnapshot {
     title: input.title,
     playedAt: input.playedAt,
     status: input.status,
+    settlementMode: input.settlementMode,
     players: input.players.map((player) => ({ ...player })),
   };
 }
@@ -107,6 +112,10 @@ export function validateNightInput(value: unknown): NightInput {
   const playedAt = typeof raw.playedAt === "string" ? raw.playedAt : "";
   const players = Array.isArray(raw.players) ? raw.players : [];
   const status = raw.status === undefined ? undefined : raw.status;
+  const settlementMode = raw.settlementMode === undefined ? undefined : raw.settlementMode;
+  if (settlementMode !== undefined && settlementMode !== "pooled" && settlementMode !== "separate") {
+    throw new Error("Ungültige Abrechnungsart.");
+  }
   if (status !== undefined && status !== "ongoing" && status !== "completed") {
     throw new Error("Ungültiger Session-Status.");
   }
@@ -170,7 +179,8 @@ export function validateNightInput(value: unknown): NightInput {
     cleanPlayers.push({ playerId, name, stakeCents, cashOutCents });
   }
 
-  return { title, playedAt, players: cleanPlayers, ...(status ? { status } : {}) };
+  return { title, playedAt, players: cleanPlayers, ...(status ? { status } : {}),
+    ...(settlementMode ? { settlementMode } : {}) };
 }
 
 export function validateNightAdjustments(value: unknown): NightAdjustmentInput[] {
@@ -228,6 +238,7 @@ export async function writeNightAdjustments(
   nightId: string,
   adjustments: NightAdjustmentInput[],
 ) {
+  await rejectIfSessionHasPayments(env, nightId);
   const rows = await env.DB.prepare(
     `SELECT player_id, stake_cents, cash_out_cents
      FROM night_results
@@ -324,6 +335,7 @@ export async function loadNightSnapshot(env: Env, nightId: string) {
        n.title,
        n.played_at,
        n.status,
+       n.settlement_mode,
        p.name AS player_name,
        r.stake_cents,
        r.cash_out_cents
@@ -342,6 +354,7 @@ export async function loadNightSnapshot(env: Env, nightId: string) {
     title: first.title,
     playedAt: first.played_at,
     status: first.status,
+    settlementMode: first.settlement_mode,
     players: [],
   };
 
@@ -429,6 +442,17 @@ export async function writeNight(
   const status: NightStatus = input.status ??
     (mode === "update" ? before?.status ?? "completed" :
       differenceCents === 0 ? "completed" : "ongoing");
+  const settlementMode: SettlementMode = input.settlementMode ?? before?.settlementMode ?? "pooled";
+  if (mode === "update" && before?.status === "completed" && settlementMode !== before.settlementMode) {
+    throw new Error("Die Abrechnungsart abgeschlossener Sessions kann nicht geändert werden.");
+  }
+  if (mode === "update") {
+    const settled = await hasSessionPayments(env, nightId);
+    if (settled && (!before || !sameNightResults(before, after) || status !== "completed" || settlementMode !== before.settlementMode)) {
+      throw new Error("Diese Session hat bereits Zahlungen. Ergebnisse und Abrechnungsart sind gesperrt.");
+    }
+  }
+  after.settlementMode = settlementMode;
   const unchangedResults = Boolean(before && sameNightResults(before, after));
   let existingAdjustmentCents = 0;
   if (mode === "update" && unchangedResults && status === "completed") {
@@ -447,14 +471,14 @@ export async function writeNight(
   if (mode === "create") {
     statements.push(
       env.DB.prepare(
-        "INSERT INTO poker_nights (id, title, played_at, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-      ).bind(nightId, input.title, input.playedAt, status, now, now),
+        "INSERT INTO poker_nights (id, title, played_at, status, settlement_mode, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      ).bind(nightId, input.title, input.playedAt, status, settlementMode, now, now),
     );
   } else {
     statements.push(
       env.DB.prepare(
-        "UPDATE poker_nights SET title = ?, played_at = ?, status = ?, updated_at = ? WHERE id = ?",
-      ).bind(input.title, input.playedAt, status, now, nightId),
+        "UPDATE poker_nights SET title = ?, played_at = ?, status = ?, settlement_mode = ?, updated_at = ? WHERE id = ?",
+      ).bind(input.title, input.playedAt, status, settlementMode, now, nightId),
     );
 
     if (before && !unchangedResults) {
@@ -513,6 +537,7 @@ export async function writeNightStatus(env: Env, nightId: string, status: NightS
   const before = await loadNightSnapshot(env, nightId);
   if (!before) throw new Error("Pokerabend nicht gefunden.");
   if (before.status === status) return;
+  await rejectIfSessionHasPayments(env, nightId);
   if (status === "completed") {
     const totals = await env.DB.prepare(
       `SELECT COUNT(*) AS player_count,
@@ -535,6 +560,7 @@ export async function writeNightStatus(env: Env, nightId: string, status: NightS
 export async function deleteNightWithAudit(env: Env, nightId: string) {
   const before = await loadNightSnapshot(env, nightId);
   if (!before) return false;
+  await rejectIfSessionHasPayments(env, nightId);
 
   const now = new Date().toISOString();
 
@@ -552,4 +578,18 @@ export async function nightExists(env: Env, nightId: string) {
   ).bind(nightId).first<{ id: string }>();
 
   return Boolean(row?.id);
+}
+
+// Local settlements never flow into the lifetime ledger and may not be silently invalidated.
+async function hasSessionPayments(env: Env, nightId: string) {
+  const row = await env.DB.prepare(
+    "SELECT 1 AS paid FROM session_settlement_payments WHERE night_id = ? LIMIT 1",
+  ).bind(nightId).first<{ paid: number }>();
+  return Boolean(row?.paid);
+}
+
+async function rejectIfSessionHasPayments(env: Env, nightId: string) {
+  if (await hasSessionPayments(env, nightId)) {
+    throw new Error("Diese Session hat bereits Zahlungen. Bitte Zahlungen zuerst stornieren.");
+  }
 }
