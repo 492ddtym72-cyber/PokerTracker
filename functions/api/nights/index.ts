@@ -9,6 +9,7 @@ interface NightRow {
   created_at: string;
   updated_at: string;
   record_type: "session" | "baseline";
+  status: "ongoing" | "completed";
   result_id: string | null;
   player_id: string | null;
   player_name: string | null;
@@ -26,6 +27,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
       n.created_at,
       n.updated_at,
       n.record_type,
+      n.status,
       r.id AS result_id,
       p.id AS player_id,
       p.name AS player_name,
@@ -47,6 +49,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
     createdAt: string;
     updatedAt: string;
     recordType: "session" | "baseline";
+    status: "ongoing" | "completed";
     players: Array<{
       id: string;
       name: string;
@@ -67,6 +70,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         recordType: row.record_type,
+        status: row.status,
         players: [],
       };
       nightMap.set(row.night_id, night);
