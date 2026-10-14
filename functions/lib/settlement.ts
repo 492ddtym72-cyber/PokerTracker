@@ -58,7 +58,7 @@ interface NightSnapshotRow {
   ongoing_count: number;
 }
 
-function buildSuggestions(
+export function buildSuggestions(
   players: SettlementPlayer[],
   preferredRoutes: RoutePriorityRow[] = [],
 ) {
