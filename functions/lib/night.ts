@@ -443,8 +443,24 @@ export async function writeNight(
     (mode === "update" ? before?.status ?? "completed" :
       differenceCents === 0 ? "completed" : "ongoing");
   const settlementMode: SettlementMode = input.settlementMode ?? before?.settlementMode ?? "pooled";
+  // Reclassifying an already completed night is permitted only while it has not
+  // been settled in either ledger. Earlier in-app requests remain auditable; new
+  // requests referencing the completed night block reclassification.
   if (mode === "update" && before?.status === "completed" && settlementMode !== before.settlementMode) {
-    throw new Error("Die Abrechnungsart abgeschlossener Sessions kann nicht geändert werden.");
+    const globalPayments = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM settlement_payments WHERE voided_at IS NULL",
+    ).first<{ count: number }>();
+    if (Number(globalPayments?.count) > 0) {
+      throw new Error("Die Gesamtbilanz enthält bereits Zahlungen. Abrechnungsart kann nicht geändert werden.");
+    }
+    const newerRequests = await env.DB.prepare(
+      `SELECT COUNT(*) AS count FROM payment_requests
+       WHERE cancelled_at IS NULL AND created_at >=
+         (SELECT created_at FROM poker_nights WHERE id=?)`,
+    ).bind(nightId).first<{ count: number }>();
+    if (Number(newerRequests?.count) > 0) {
+      throw new Error("Es gibt neuere Zahlungsanforderungen. Bitte zuerst zurückziehen.");
+    }
   }
   if (mode === "update") {
     const settled = await hasSessionPayments(env, nightId);
