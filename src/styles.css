@@ -80,7 +80,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   flex: 1 1 auto;
   min-width: 0;
   align-items: center;
-  justify-content: space-between;
+  justify-content: space-around;
   gap: clamp(7px, 1.5vw, 15px);
   padding: 0;
 }
