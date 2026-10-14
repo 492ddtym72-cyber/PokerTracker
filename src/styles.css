@@ -4076,187 +4076,177 @@ select:focus {
 .detail-balance-card.ongoing { border: 1px solid rgba(164, 185, 165, .22); background: rgba(16, 37, 27, .52); }
 .detail-balance-card.ongoing .detail-balance-copy strong { color: #d5e3d5; }
 
-/* Home: a table that's still in play. No badges or glowing status treatments. */
+/* The live-session card is a quiet entry to the session, not a status banner. */
 .open-tables {
   display: grid;
-  gap: 10px;
+  gap: 11px;
   margin: 13px 0 0;
 }
 
 .open-table-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(126px, 38%);
+  align-items: center;
+  gap: clamp(4px, 1.4vw, 16px);
   width: 100%;
   min-width: 0;
-  min-height: 132px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(104px, 33%, 155px);
-  align-items: center;
-  gap: 8px;
-  position: relative;
-  padding: 16px 12px 16px 21px;
+  min-height: 149px;
+  padding: 19px clamp(14px, 3vw, 24px);
   overflow: hidden;
-  border: 1px solid rgba(146, 173, 145, .29);
-  border-radius: 17px;
-  background: #0a251c;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
-  color: #f0eee4;
+  border: 1px solid rgba(155, 173, 144, .24);
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at 82% 32%, rgba(30, 78, 60, .23), transparent 58%),
+    linear-gradient(115deg, #09271e 0%, #08241c 60%, #09281f 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035), 0 6px 24px rgba(0, 0, 0, .09);
+  color: #f0eee6;
   text-align: left;
   -webkit-tap-highlight-color: transparent;
-  transition: border-color 180ms ease;
+  transition: border-color 180ms ease, background-color 180ms ease;
 }
 
-.open-table-card::before {
-  content: "";
-  position: absolute;
-  top: 22px;
-  bottom: 22px;
-  left: 0;
-  width: 2px;
-  background: #b4a073;
-}
-
-.open-table-card:hover {
-  border-color: rgba(184, 196, 157, .51);
-}
-
-.open-table-card:focus-visible {
-  outline: 2px solid var(--gold);
-  outline-offset: 3px;
-}
+.open-table-card:hover { border-color: rgba(188, 189, 151, .46); }
+.open-table-card:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
 
 .open-table-content {
-  min-width: 0;
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  min-width: 0;
 }
 
 .open-table-eyebrow {
-  color: #bda779;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #b6a780;
   font-size: 10px;
-  font-weight: 650;
-  letter-spacing: .19em;
+  font-weight: 700;
+  letter-spacing: .14em;
+  line-height: 1.3;
   text-transform: uppercase;
+}
+
+.open-table-eyebrow::before {
+  content: "";
+  display: block;
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #8fb18a;
 }
 
 .open-table-title {
   max-width: 100%;
-  margin-top: 11px;
-  font-size: clamp(16px, 4.4vw, 19px);
-  line-height: 1.24;
-  letter-spacing: -.025em;
-  font-weight: 650;
+  margin-top: 12px;
+  color: #f0eee6;
+  font-size: clamp(16px, 4.2vw, 21px);
+  font-weight: 750;
+  letter-spacing: -.035em;
+  line-height: 1.26;
   overflow-wrap: anywhere;
 }
 
 .open-table-meta {
-  margin-top: 11px;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   column-gap: 9px;
-  row-gap: 3px;
-  color: #9bad9e;
-  font-size: 11px;
-  line-height: 1.4;
+  row-gap: 2px;
+  margin-top: 11px;
+  color: #9caf9f;
+  font-size: clamp(10.5px, 2.5vw, 12px);
+  font-weight: 450;
+  line-height: 1.45;
 }
 
-.open-table-separator {
-  color: #597767;
-}
+.open-table-separator { color: #567565; }
 
 .open-table-illustration {
-  width: 100%;
-  max-width: 160px;
-  height: auto;
+  display: block;
   justify-self: end;
+  width: 100%;
+  max-width: 220px;
+  height: auto;
   overflow: visible;
+  pointer-events: none;
 }
 
-.open-table-outline {
-  fill: #103529;
-  stroke: #789879;
-  stroke-width: 2.1;
+.open-table-shadow { fill: #020d09; opacity: .42; }
+.open-table-chair-frame { fill: #091b16; stroke: #85866c; stroke-width: 1.05; }
+.open-table-chair-cushion { fill: #17362c; stroke: #355548; stroke-width: .85; }
+.open-table-chair-seam { fill: none; stroke: #6a7864; stroke-width: .7; opacity: .65; }
+
+.open-table-rim { stroke: #7f8b70; stroke-width: .7; }
+.open-table-rail { fill: #081f18; stroke: #263f33; stroke-width: 1.1; }
+.open-table-felt { stroke: #5a7a61; stroke-width: .85; }
+.open-table-felt-line { fill: none; stroke: #739077; stroke-width: .8; opacity: .34; }
+
+.open-table-chip-shadow { fill: #031910; opacity: .65; }
+.open-table-chip { --chip-face: #477c60; --chip-side: #284937; }
+.open-table-chip.is-red { --chip-face: #a45c54; --chip-side: #693732; }
+.open-table-chip.is-gold { --chip-face: #a9966b; --chip-side: #625637; }
+.open-table-chip.is-black { --chip-face: #47534d; --chip-side: #252e29; }
+.open-table-chip-face { fill: var(--chip-face); stroke: #d2c89f; stroke-width: .6; }
+.open-table-chip-side { fill: var(--chip-side); stroke: #acaa86; stroke-width: .55; }
+.open-table-chip-inset { fill: none; stroke: #e5dab5; stroke-width: .6; opacity: .78; }
+.open-table-chip-markings { fill: none; stroke: #d0cead; stroke-width: 1.25; }
+
+.open-table-card-paper { fill: #ede9da; stroke: #a7a68f; stroke-width: .6; }
+.open-table-card-rank,
+.open-table-card-suit {
+  fill: #2b302c;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 700;
+  user-select: none;
+}
+.open-table-card-rank { font-size: 6.2px; }
+.open-table-card-suit { font-size: 8px; }
+.open-table-card-rank.is-red,
+.open-table-card-suit.is-red { fill: #a34949; }
+
+/* Decorative flop, turn and river: not a feed of real hands or chip counts. */
+.open-table-community-card.is-turn {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: open-table-reveal-turn 12s cubic-bezier(.2, .73, .35, 1) infinite;
+}
+.open-table-community-card.is-river {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: open-table-reveal-river 12s cubic-bezier(.2, .73, .35, 1) infinite;
 }
 
-.open-table-inner {
-  fill: none;
-  stroke: #476e55;
-  stroke-width: .8;
+@keyframes open-table-reveal-turn {
+  0%, 21% { opacity: 0; transform: translate(-7px, -5px) scale(.92); }
+  30%, 89% { opacity: 1; transform: translate(0, 0) scale(1); }
+  96%, 100% { opacity: 0; transform: translate(0, 0) scale(1); }
 }
 
-.open-table-seat-outer {
-  fill: #0a251c;
-  stroke: #8ba28a;
-  stroke-width: 1.35;
-}
-
-.open-table-seat-inner {
-  fill: #d2c9aa;
-}
-
-.open-table-dealt-card {
-  transform-origin: 80px 56px;
-  animation: open-table-deal 9s cubic-bezier(.22, .65, .35, 1) infinite;
-}
-
-.open-table-dealt-card rect {
-  fill: #e8e6d5;
-  stroke: #d6cfaf;
-  stroke-width: .7;
-}
-
-.open-table-dealt-card path {
-  fill: none;
-  stroke: #a9a083;
-  stroke-width: .8;
-  stroke-linecap: round;
-}
-
-/* An occasional, quiet deal across the felt; no fabricated live progress. */
-@keyframes open-table-deal {
-  0%, 8% {
-    opacity: 0;
-    transform: translate(-24px, -5px) rotate(-14deg);
-  }
-  13% {
-    opacity: .95;
-    transform: translate(-24px, -5px) rotate(-14deg);
-  }
-  28% {
-    opacity: 1;
-    transform: translate(14px, 5px) rotate(5deg);
-  }
-  37% {
-    opacity: 0;
-    transform: translate(14px, 5px) rotate(5deg);
-  }
-  38%, 100% {
-    opacity: 0;
-    transform: translate(-24px, -5px) rotate(-14deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .open-table-dealt-card {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-
-  .open-table-card {
-    transition: none;
-  }
+@keyframes open-table-reveal-river {
+  0%, 44% { opacity: 0; transform: translate(-7px, -5px) scale(.92); }
+  53%, 89% { opacity: 1; transform: translate(0, 0) scale(1); }
+  96%, 100% { opacity: 0; transform: translate(0, 0) scale(1); }
 }
 
 @media (max-width: 390px) {
   .open-table-card {
-    grid-template-columns: minmax(0, 1fr) 105px;
-    gap: 4px;
-    padding-left: 17px;
+    grid-template-columns: minmax(0, 1fr) minmax(108px, 37%);
+    gap: 3px;
+    padding: 16px 12px 16px 15px;
+    min-height: 145px;
   }
-  .open-table-meta {
-    font-size: 10px;
-    column-gap: 6px;
-  }
+  .open-table-title { font-size: 16px; }
+  .open-table-eyebrow { font-size: 9px; gap: 6px; }
+  .open-table-meta { font-size: 10.5px; column-gap: 6px; }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .open-table-community-card.is-turn,
+  .open-table-community-card.is-river { animation: none; opacity: 1; transform: none; }
+  .open-table-card { transition: none; }
+}

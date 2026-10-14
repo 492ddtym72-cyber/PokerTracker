@@ -23,6 +23,7 @@ import { GOLD_WREATH, SILVER_WREATH } from "./leaderboardFrames";
 import { SettlementScreen, SettlementSummary } from "./Settlement";
 import { ProfilePhotoCropper } from "./ProfilePhotoCropper";
 import { PlayerAvatar, playerInitials } from "./PlayerAvatar";
+import { OpenTableIllustration } from "./OpenTableIllustration";
 import { InboxLauncher, type InboxStatus } from "./PaymentInbox";
 import type {
   AuditChange,
@@ -906,37 +907,6 @@ function AnimatedPokerChipPair({ onClick }: { onClick: () => void }) {
   );
 }
 
-
-/**
- * A quiet, top-down outline of the actual table, with one seat per player.
- * The occasional card movement is decorative and never implies live hand data.
- */
-function OpenTableIllustration({ playerCount }: { playerCount: number }) {
-  const seats = Array.from({ length: Math.min(20, playerCount) }, (_, index) => {
-    const angle = (-Math.PI / 2) + (2 * Math.PI * index) / Math.max(1, playerCount);
-    return {
-      x: 80 + 68 * Math.cos(angle),
-      y: 56 + 39 * Math.sin(angle),
-    };
-  });
-
-  return (
-    <svg className="open-table-illustration" viewBox="0 0 160 112" aria-hidden="true" focusable="false">
-      <ellipse className="open-table-outline" cx="80" cy="56" rx="59" ry="31" />
-      <ellipse className="open-table-inner" cx="80" cy="56" rx="53" ry="25" />
-      {seats.map((seat, index) => (
-        <g key={index}>
-          <circle className="open-table-seat-outer" cx={seat.x} cy={seat.y} r="5.6" />
-          <circle className="open-table-seat-inner" cx={seat.x} cy={seat.y} r="2.7" />
-        </g>
-      ))}
-      <g className="open-table-dealt-card">
-        <rect x="75" y="48" width="11" height="16" rx="1.4" />
-        <path d="M78 51h3" />
-      </g>
-    </svg>
-  );
-}
 
 export default function App() {
   const [language, setLanguage] = useState<Language>(() => getLanguage());
