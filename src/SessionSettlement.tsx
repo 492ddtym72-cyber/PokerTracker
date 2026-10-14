@@ -112,12 +112,12 @@ export function SessionSettlement({
             <article className="local-settlement-transfer" key={key}>
               <div className="local-settlement-people">
                 <div className="local-settlement-person">
-                  <PlayerAvatar name={entry.fromPlayerName} photo={photoFor(entry.fromPlayerId)} />
+                  <PlayerAvatar className="local-settlement-avatar" name={entry.fromPlayerName} photo={photoFor(entry.fromPlayerId)} />
                   <span>{entry.fromPlayerId === currentPlayerId ? t("Du") : entry.fromPlayerName}</span>
                 </div>
                 <span className="local-settlement-arrow" aria-hidden="true">→</span>
                 <div className="local-settlement-person">
-                  <PlayerAvatar name={entry.toPlayerName} photo={photoFor(entry.toPlayerId)} />
+                  <PlayerAvatar className="local-settlement-avatar" name={entry.toPlayerName} photo={photoFor(entry.toPlayerId)} />
                   <span>{entry.toPlayerId === currentPlayerId ? t("Du") : entry.toPlayerName}</span>
                 </div>
                 <strong className="local-settlement-amount">{formatMoney(entry.amountCents)}</strong>
