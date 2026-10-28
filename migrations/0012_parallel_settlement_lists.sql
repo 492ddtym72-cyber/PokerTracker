@@ -49,3 +49,22 @@ BEFORE DELETE ON settlement_list_nights BEGIN
     SELECT 1 FROM settlement_lists WHERE id=OLD.list_id AND status<>'open'
   ) THEN RAISE(ABORT, 'Cannot remove session from a paying-out list') END;
 END;
+
+-- Defensive DB constraints against concurrent payments and session enrollment.
+CREATE TRIGGER IF NOT EXISTS trg_list_nights_payment_guard
+BEFORE INSERT ON settlement_list_nights BEGIN
+  SELECT CASE WHEN EXISTS(
+    SELECT 1 FROM settlement_list_payments WHERE list_id=NEW.list_id
+  ) THEN RAISE(ABORT, 'Settlement list already has payments') END;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_list_payment_guard
+BEFORE INSERT ON settlement_list_payments BEGIN
+  SELECT CASE WHEN NOT EXISTS(
+    SELECT 1 FROM settlement_lists WHERE id=NEW.list_id AND status IN ('open','paying_out')
+  ) THEN RAISE(ABORT, 'Settlement list is closed') END;
+  SELECT CASE WHEN EXISTS(
+    SELECT 1 FROM settlement_list_nights m
+    JOIN poker_nights n ON n.id=m.night_id
+    WHERE m.list_id=NEW.list_id AND n.status='ongoing'
+  ) THEN RAISE(ABORT, 'Complete all sessions before payout') END;
+END;
