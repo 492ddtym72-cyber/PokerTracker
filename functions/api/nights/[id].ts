@@ -63,11 +63,15 @@ export const onRequestDelete: PagesFunction<Env> = async ({ env, params }) => {
     return apiError("Pokerabend nicht gefunden.", 404);
   }
 
-  const deleted = await deleteNightWithAudit(env, id);
-
-  if (!deleted) {
-    return apiError("Pokerabend nicht gefunden.", 404);
+  try {
+    const deleted = await deleteNightWithAudit(env, id);
+    if (!deleted) return apiError("Pokerabend nicht gefunden.", 404);
+    return new Response(null, { status: 204 });
+  } catch (error) {
+    console.error(error);
+    return apiError(
+      error instanceof Error ? error.message : "Pokerabend konnte nicht gelöscht werden.",
+      409,
+    );
   }
-
-  return new Response(null, { status: 204 });
 };
