@@ -283,7 +283,7 @@ export function SettlementScreen({
     return () => window.clearTimeout(timeout);
   }, [paymentAppNotice]);
 
-  const rigaSessionCount = nights.filter((night) => night.recordType === "session" && night.settlementMode === "pooled" && night.status === "completed").length;
+  const rigaSessionCount = nights.filter((night) => night.recordType === "session" && night.settlementMode === "pooled" && night.status === "completed" && !night.settlementListId).length;
 
   const currentPlayer = useMemo(
     () => data?.players.find((player) => player.id === currentPlayerId) ?? null,
