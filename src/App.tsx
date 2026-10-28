@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   createNight,
+  createSettlementList,
+  loadSettlementLists,
   deleteNight,
   loadHistory,
   loadNights,
@@ -34,6 +36,7 @@ import type {
   NightInput,
   NightStatus,
   SettlementMode,
+  SettlementListSummary,
   PlayerProfile,
   PokerNight,
   SettlementResponse,
@@ -920,6 +923,9 @@ export default function App() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [sessionStatus, setSessionStatus] = useState<NightStatus | "auto">("auto");
   const [settlementMode, setSettlementMode] = useState<SettlementMode>("separate");
+  const [settlementListId, setSettlementListId] = useState<string | null>(null);
+  const [settlementLists, setSettlementLists] = useState<SettlementListSummary[]>([]);
+
   const [sessionSettlementOpen, setSessionSettlementOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -982,6 +988,24 @@ export default function App() {
     return data;
   }
 
+  async function refreshSettlementLists() {
+    const result = await loadSettlementLists();
+    setSettlementLists(result);
+    return result;
+  }
+
+  async function addSettlementList() {
+    const name=window.prompt(t("Name der neuen Abrechnungsliste"));
+    if(name===null) return;
+    setError("");
+    try {
+      const created=await createSettlementList(name);
+      await refreshSettlementLists();
+      setSettlementMode("pooled");
+      setSettlementListId(created.id);
+    } catch(e) {setError(e instanceof Error?e.message:t("Liste konnte nicht angelegt werden."));}
+  }
+
   async function refreshPlayers() {
     const data = await loadPlayers();
     setPlayerProfiles(data);
@@ -1002,7 +1026,7 @@ export default function App() {
   }
 
   async function refreshAfterMutation() {
-    await Promise.all([refreshNights(), refreshPlayers()]);
+    await Promise.all([refreshNights(), refreshPlayers(), refreshSettlementLists()]);
 
     try {
       await refreshHistory(true);
@@ -1010,6 +1034,10 @@ export default function App() {
       console.error("History refresh failed", historyError);
     }
   }
+
+  useEffect(() => {
+    void refreshSettlementLists().catch(err=>console.error("Settlement list refresh failed",err));
+  }, []);
 
   useEffect(() => {
     setLanguagePreference(language);
@@ -1230,6 +1258,7 @@ export default function App() {
     setEditingId(null);
     setSessionStatus("auto");
     setSettlementMode("separate");
+    setSettlementListId(null);
     setError("");
   }
 
@@ -1257,6 +1286,7 @@ export default function App() {
     setPlayedAt(night.playedAt);
     setSessionStatus(night.status);
     setSettlementMode(night.settlementMode);
+    setSettlementListId(night.settlementListId ?? null);
     setPlayers(night.players.map((player) => ({
       key: crypto.randomUUID(),
       playerId: player.id,
@@ -1447,6 +1477,7 @@ export default function App() {
       players: cleanPlayers,
       status: effectiveSessionStatus,
       settlementMode,
+      settlementListId: settlementMode==="pooled" ? settlementListId : null,
     };
   }
 
@@ -1456,6 +1487,10 @@ export default function App() {
 
     const input = buildInput();
     if (!input) return;
+    if(input.settlementMode==="pooled" && !input.settlementListId && !editingId) {
+      setError(t("Bitte eine offene Abrechnungsliste auswählen."));
+      return;
+    }
 
     setSaving(true);
 
@@ -1999,20 +2034,34 @@ export default function App() {
             <section className="session-mode-editor" aria-label={t("Abrechnung")}>
               <strong>{t("Abrechnung")}</strong>
               <div className="session-mode-options" role="group" aria-label={t("Abrechnung")}>
-                <button type="button" className={settlementMode === "pooled" ? "selected" : ""}
-                  aria-pressed={settlementMode === "pooled"}
-                  onClick={() => {
-                    if (settlementMode === "pooled" || window.confirm(t("Neue Sessions in dieser Abrechnung verändern die laufende Riga-Auszahlung. Trotzdem hinzufügen?"))) {
-                      setSettlementMode("pooled");
-                    }
-                  }}>{t("Riga-Abrechnung")}</button>
                 <button type="button" className={settlementMode === "separate" ? "selected" : ""}
                   aria-pressed={settlementMode === "separate"}
-                  onClick={() => setSettlementMode("separate")}>{t("Nur diese Session")}</button>
+                  onClick={() => {setSettlementMode("separate");setSettlementListId(null);}}>{t("Nur diese Session")}</button>
+                <button type="button" className={settlementMode === "pooled" ? "selected" : ""}
+                  aria-pressed={settlementMode === "pooled"}
+                  onClick={() => setSettlementMode("pooled")}>{t("Abrechnungsliste")}</button>
               </div>
+              {settlementMode === "pooled" && (
+                <div className="session-list-picker">
+                  {editingId && !settlementListId
+                    ? <span>{t("Riga-Auszahlung gesperrt")}</span>
+                    : <>
+                      <select value={settlementListId??""}
+                        aria-label={t("Abrechnungsliste")}
+                        onChange={e=>setSettlementListId(e.target.value||null)}>
+                        <option value="">{t("Liste wählen")}</option>
+                        {settlementLists.filter(l=>!l.legacy && (l.status==="open" || l.id===settlementListId))
+                          .map(l=><option key={l.id} value={l.id}>{l.name}{l.status!=="open"?" · "+t("Auszahlung läuft"):""}</option>)}
+                      </select>
+                      <button type="button" className="secondary-button" onClick={()=>void addSettlementList()}>
+                        {t("Neue Liste erstellen")}
+                      </button>
+                    </>}
+                </div>
+              )}
               <small>{settlementMode === "separate"
                 ? t("Eigene Zahlungen; Ergebnisse zählen zur Rangliste, nicht zur gemeinsamen Abrechnung.")
-                : t("Diese Session wird zur laufenden Riga-Auszahlung hinzugefügt.")}</small>
+                : t("Nur diese Abrechnungsliste erhält die Zahlungen dieser Session.")}</small>
             </section>
 
             <section className={"reconcile-card " + (draftTotals.differenceCents === 0 ? "balanced-card" : "warning-card")}>
@@ -2298,7 +2347,9 @@ export default function App() {
 
           {detailNight.recordType === "session" && (
             <section className="session-settlement-launcher">
-              <span>{detailNight.settlementMode === "separate" ? t("Separat abgerechnet") : t("Riga-Abrechnung")}</span>
+              <span>{detailNight.settlementMode === "separate" ? t("Separat abgerechnet") : (detailNight.settlementListId
+                ? settlementLists.find(l=>l.id===detailNight.settlementListId)?.name ?? t("Abrechnungsliste")
+                : t("Riga-Abrechnung"))}</span>
               {detailNight.status === "completed" && detailNight.settlementMode === "separate" && (
                 <button type="button" className="secondary-button" aria-expanded={sessionSettlementOpen}
                   onClick={() => setSessionSettlementOpen(open => !open)}>
