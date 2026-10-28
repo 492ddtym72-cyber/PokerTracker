@@ -31,6 +31,7 @@ export interface NightSnapshot {
   playedAt: string;
   status?: NightStatus;
   settlementMode?: SettlementMode;
+  settlementListId?: string | null;
   players: NightPlayerInput[];
 }
 
@@ -40,6 +41,7 @@ interface SnapshotRow {
   played_at: string;
   status: NightStatus;
   settlement_mode: SettlementMode;
+  settlement_list_id: string | null;
   player_name: string | null;
   stake_cents: number | null;
   cash_out_cents: number | null;
@@ -66,6 +68,7 @@ function snapshotFromInput(id: string, input: NightInput): NightSnapshot {
     playedAt: input.playedAt,
     status: input.status,
     settlementMode: input.settlementMode,
+    settlementListId: input.settlementListId,
     players: input.players.map((player) => ({ ...player })),
   };
 }
@@ -348,10 +351,12 @@ export async function loadNightSnapshot(env: Env, nightId: string) {
        n.played_at,
        n.status,
        n.settlement_mode,
+       m.list_id AS settlement_list_id,
        p.name AS player_name,
        r.stake_cents,
        r.cash_out_cents
      FROM poker_nights n
+     LEFT JOIN settlement_list_nights m ON m.night_id = n.id
      LEFT JOIN night_results r ON r.night_id = n.id
      LEFT JOIN players p ON p.id = r.player_id
      WHERE n.id = ?
@@ -367,6 +372,7 @@ export async function loadNightSnapshot(env: Env, nightId: string) {
     playedAt: first.played_at,
     status: first.status,
     settlementMode: first.settlement_mode,
+    settlementListId: first.settlement_list_id,
     players: [],
   };
 
@@ -490,6 +496,7 @@ export async function writeNight(
     }
   }
   after.settlementMode = settlementMode;
+  after.settlementListId = listId ?? null;
   const unchangedResults = Boolean(before && sameNightResults(before, after));
   let existingAdjustmentCents = 0;
   if (mode === "update" && unchangedResults && status === "completed") {
