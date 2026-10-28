@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import {
+  createSettlementList,
   createSettlementPayment,
   loadSettlements,
   preparePaymentApp,
@@ -209,6 +210,21 @@ export function SettlementScreen({
   const [copiedTransferKey, setCopiedTransferKey] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [rigaOpen, setRigaOpen] = useState(false);
+  const [newListVersion, setNewListVersion] = useState(0);
+  const [creatingList, setCreatingList] = useState(false);
+
+  async function addNamedList() {
+    const name=window.prompt(t("Name der neuen Abrechnungsliste"));
+    if(name===null) return;
+    setCreatingList(true);
+    setError("");
+    try {
+      await createSettlementList(name);
+      setNewListVersion(v=>v+1);
+    } catch(err) {
+      setError(err instanceof Error ? err.message : t("Liste konnte nicht angelegt werden."));
+    } finally { setCreatingList(false); }
+  }
 
   const profilePhotoByPlayer = useMemo(
     () => new Map(playerProfiles.map((player) => [player.id, player.profilePhoto])),
@@ -509,8 +525,12 @@ export function SettlementScreen({
       ) : data ? (
         <>
           <section className="settlement-ledgers" aria-label={t("Abrechnungslisten")}>
-            <div className="section-title-row">
+            <div className="settlement-lists-topline">
               <h2>{t("Abrechnungslisten")}</h2>
+              <button className="secondary-button" type="button" disabled={creatingList}
+                onClick={()=>void addNamedList()}>
+                + {t("Neue Liste erstellen")}
+              </button>
             </div>
             <article className={"settlement-ledger-item" + (rigaOpen ? " is-expanded" : "")}>
               <button
@@ -1055,7 +1075,7 @@ export function SettlementScreen({
             <NamedSettlementLists
               currentPlayerId={currentPlayerId}
               photoFor={profilePhotoFor}
-              nightsVersion={nights.map(n=>n.id+":"+n.updatedAt).join("|")}
+              nightsVersion={newListVersion+":"+nights.map(n=>n.id+":"+n.updatedAt).join("|")}
             />
           </section>
 
