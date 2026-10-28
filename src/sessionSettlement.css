@@ -133,3 +133,8 @@
   .session-list-picker { grid-template-columns: minmax(0,1fr); }
   .named-ledger-payment-form { padding: 12px; }
 }
+
+.settlement-lists-topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.settlement-lists-topline h2 { margin: 0; font-size: 19px; }
+.settlement-lists-topline .secondary-button { margin: 0; padding: 9px 12px; font-size: 12px; white-space: nowrap; }
+@media (max-width: 460px) { .settlement-lists-topline h2 { font-size: 17px; } .settlement-lists-topline .secondary-button { padding: 9px 10px; font-size: 11px; } }
