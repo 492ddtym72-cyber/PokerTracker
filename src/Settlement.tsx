@@ -8,6 +8,7 @@ import {
 import { formatMoney, parseMoney } from "./lib/money";
 import { SettlementFlow } from "./SettlementFlow";
 import { SeparateSessions } from "./SeparateSessions";
+import { NamedSettlementLists } from "./NamedSettlementLists";
 import { getLocale, t } from "./i18n";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { PaymentRequestDialog } from "./PaymentRequestDialog";
@@ -521,7 +522,6 @@ export function SettlementScreen({
           <section className="settlement-ledgers" aria-label={t("Abrechnungslisten")}>
             <div className="section-title-row">
               <h2>{t("Abrechnungslisten")}</h2>
-              <span>1</span>
             </div>
             <article className={"settlement-ledger-item" + (rigaOpen ? " is-expanded" : "")}>
               <button
@@ -1063,6 +1063,11 @@ export function SettlementScreen({
                 </div>
               )}
             </article>
+            <NamedSettlementLists
+              currentPlayerId={currentPlayerId}
+              photoFor={profilePhotoFor}
+              nightsVersion={nights.map(n=>n.id+":"+n.updatedAt).join("|")}
+            />
           </section>
 
           <SeparateSessions
