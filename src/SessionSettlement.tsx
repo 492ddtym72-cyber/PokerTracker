@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { loadSessionSettlement, recordSessionPayment, voidSessionPayment } from "./lib/api";
 import { formatMoney } from "./lib/money";
+import { SettlementFlow } from "./SettlementFlow";
 import { t } from "./i18n";
 import { PlayerAvatar } from "./PlayerAvatar";
 import type { SettlementResponse, SettlementSuggestion } from "./types";
@@ -85,6 +86,21 @@ export function SessionSettlement({
     }
   }
 
+  // Render outstanding transfers; when settled, retain a read-only diagram of
+  // completed payments instead of showing an empty graph.
+  const pending = data?.suggestions ?? [];
+  const recorded: SettlementSuggestion[] = data?.payments
+    .filter(payment => !payment.voidedAt)
+    .map(payment => ({
+      fromPlayerId: payment.fromPlayerId,
+      fromPlayerName: payment.fromPlayerName,
+      toPlayerId: payment.toPlayerId,
+      toPlayerName: payment.toPlayerName,
+      amountCents: payment.amountCents,
+    })) ?? [];
+  const diagramTransfers = pending.length > 0 ? pending : recorded;
+  const diagramIsHistory = pending.length === 0;
+
   if (loading) return <section className="local-settlement"><p className="local-settlement-muted">{t("Lädt …")}</p></section>;
 
   return (
@@ -102,6 +118,23 @@ export function SessionSettlement({
       )}
       {data && data.groupDifferenceCents === 0 && data.suggestions.length === 0 && (
         <p className="local-settlement-empty">{t("Alles beglichen")}</p>
+      )}
+
+      {data && data.groupDifferenceCents === 0 && diagramTransfers.length > 0 && (
+        <div className="local-settlement-diagram">
+          <div className="local-settlement-diagram-heading">
+            <strong>{diagramIsHistory ? t("Erfasste Zahlungen") : t("Offene Zahlungen")}</strong>
+            <span>{diagramTransfers.length}</span>
+          </div>
+          <SettlementFlow
+            suggestions={diagramTransfers}
+            currentPlayerId={currentPlayerId}
+            profilePhotoFor={photoFor}
+            note={diagramIsHistory
+              ? t("Diese Pfeile zeigen bereits erfasste Zahlungen dieser Session.")
+              : t("Diese Pfeile zeigen nur die offenen Zahlungen dieser Session.")}
+          />
+        </div>
       )}
 
       <div className="local-settlement-transfers">

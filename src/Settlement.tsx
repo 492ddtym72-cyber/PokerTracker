@@ -6,12 +6,14 @@ import {
   voidSettlementPayment,
 } from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
-import { orderSettlementFlow } from "./lib/settlementFlowLayout";
+import { SettlementFlow } from "./SettlementFlow";
+import { SeparateSessions } from "./SeparateSessions";
 import { getLocale, t } from "./i18n";
-import { PlayerAvatar, playerInitials } from "./PlayerAvatar";
+import { PlayerAvatar } from "./PlayerAvatar";
 import { PaymentRequestDialog } from "./PaymentRequestDialog";
 import type {
   PlayerProfile,
+  PokerNight,
   SettlementPaymentInput,
   SettlementResponse,
   SettlementSuggestion,
@@ -111,210 +113,6 @@ function suggestionDraft(suggestion: SettlementSuggestion): PaymentDraft {
   };
 }
 
-function SettlementFlow({
-  suggestions,
-  currentPlayerId,
-  profilePhotoFor,
-  onSelect,
-}: {
-  suggestions: SettlementSuggestion[];
-  currentPlayerId: string | null;
-  profilePhotoFor: (playerId: string) => string | null;
-  onSelect: (suggestion: SettlementSuggestion) => void;
-}) {
-  const { payers, receivers } = orderSettlementFlow(suggestions);
-
-  const rowHeight = 84;
-  const topPadding = 62;
-  const bottomPadding = 62;
-  const height = Math.max(
-    360,
-    Math.max(payers.length, receivers.length) * rowHeight + 72,
-  );
-
-  function distributedY(index: number, count: number) {
-    if (count <= 1) return height / 2;
-    const usable = height - topPadding - bottomPadding;
-    return topPadding + (usable * index) / (count - 1);
-  }
-
-  const payerY = new Map(
-    payers.map((player, index) => [player.id, distributedY(index, payers.length)]),
-  );
-  const receiverY = new Map(
-    receivers.map((player, index) => [
-      player.id,
-      distributedY(index, receivers.length),
-    ]),
-  );
-  const maxAmount = Math.max(1, ...suggestions.map((item) => item.amountCents));
-  const outgoingIndex = new Map<string, number>();
-
-  return (
-    <div className="settlement-flow-card">
-      <div className="settlement-flow-headings" aria-hidden="true">
-        <span>{t("Zahlt")}</span>
-        <span>{t("Erhält")}</span>
-      </div>
-
-      <svg
-        className="settlement-network"
-        viewBox={`0 0 720 ${height}`}
-        role="img"
-        aria-label={t("Visuelle Übersicht der empfohlenen Zahlungen")}
-      >
-        <defs>
-          <marker
-            id="settlement-arrowhead"
-            markerWidth="7"
-            markerHeight="7"
-            refX="6"
-            refY="3.5"
-            orient="auto"
-            markerUnits="strokeWidth"
-          >
-            <path d="M0,0 L7,3.5 L0,7 Z" className="settlement-network-arrowhead" />
-          </marker>
-          {payers.map((player) => {
-            const y = payerY.get(player.id) ?? height / 2;
-            return (
-              <clipPath id={`settlement-payer-avatar-${player.id}`} key={`payer-clip-${player.id}`}>
-                <circle cx="68" cy={y} r="25.5" />
-              </clipPath>
-            );
-          })}
-          {receivers.map((player) => {
-            const y = receiverY.get(player.id) ?? height / 2;
-            return (
-              <clipPath id={`settlement-receiver-avatar-${player.id}`} key={`receiver-clip-${player.id}`}>
-                <circle cx="652" cy={y} r="25.5" />
-              </clipPath>
-            );
-          })}
-        </defs>
-
-        {suggestions.map((suggestion, index) => {
-          const fromY = payerY.get(suggestion.fromPlayerId) ?? height / 2;
-          const toY = receiverY.get(suggestion.toPlayerId) ?? height / 2;
-          const strokeWidth = 2.2 + (suggestion.amountCents / maxAmount) * 4.8;
-          const edgeIndex = outgoingIndex.get(suggestion.fromPlayerId) ?? 0;
-          outgoingIndex.set(suggestion.fromPlayerId, edgeIndex + 1);
-
-          const startX = 118;
-          const endX = 602;
-          const path = `M ${startX} ${fromY} C 250 ${fromY}, 470 ${toY}, ${endX} ${toY}`;
-          const labelX = 258 + Math.min(edgeIndex, 2) * 28;
-          const labelY =
-            fromY + (toY - fromY) * 0.30 - 9 + Math.min(edgeIndex, 2) * 9;
-
-          return (
-            <g
-              key={suggestion.fromPlayerId + ":" + suggestion.toPlayerId + ":" + index}
-              className="settlement-network-transfer"
-              onClick={() => onSelect(suggestion)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  onSelect(suggestion);
-                }
-              }}
-            >
-              <path
-                d={path}
-                className="settlement-network-line"
-                style={{ strokeWidth }}
-                markerEnd="url(#settlement-arrowhead)"
-              />
-              <path d={path} className="settlement-network-hitarea" />
-              <g transform={`translate(${labelX} ${labelY})`}>
-                <rect
-                  className="settlement-network-amount-pill"
-                  x="-36"
-                  y="-13"
-                  width="72"
-                  height="23"
-                  rx="11.5"
-                />
-                <text
-                  x="0"
-                  y="3"
-                  textAnchor="middle"
-                  className="settlement-network-amount"
-                >
-                  {formatMoney(suggestion.amountCents)}
-                </text>
-              </g>
-            </g>
-          );
-        })}
-
-        {payers.map((player) => {
-          const y = payerY.get(player.id) ?? height / 2;
-          const isMe = player.id === currentPlayerId;
-          const photo = profilePhotoFor(player.id);
-          return (
-            <g key={player.id} className={isMe ? "settlement-network-node is-me" : "settlement-network-node"}>
-              <circle cx="68" cy={y} r="28" className="settlement-network-node-circle payer" />
-              {photo ? (
-                <image
-                  href={photo}
-                  x="42.5"
-                  y={y - 25.5}
-                  width="51"
-                  height="51"
-                  preserveAspectRatio="xMidYMid slice"
-                  clipPath={`url(#settlement-payer-avatar-${player.id})`}
-                />
-              ) : (
-                <text x="68" y={y + 5} textAnchor="middle" className="settlement-network-initials">
-                  {playerInitials(player.name)}
-                </text>
-              )}
-              <text x="68" y={y + 42} textAnchor="middle" className="settlement-network-name">
-                {personLabel(player.id, player.name, currentPlayerId)}
-              </text>
-            </g>
-          );
-        })}
-
-        {receivers.map((player) => {
-          const y = receiverY.get(player.id) ?? height / 2;
-          const isMe = player.id === currentPlayerId;
-          const photo = profilePhotoFor(player.id);
-          return (
-            <g key={player.id} className={isMe ? "settlement-network-node is-me" : "settlement-network-node"}>
-              <circle cx="652" cy={y} r="28" className="settlement-network-node-circle receiver" />
-              {photo ? (
-                <image
-                  href={photo}
-                  x="626.5"
-                  y={y - 25.5}
-                  width="51"
-                  height="51"
-                  preserveAspectRatio="xMidYMid slice"
-                  clipPath={`url(#settlement-receiver-avatar-${player.id})`}
-                />
-              ) : (
-                <text x="652" y={y + 5} textAnchor="middle" className="settlement-network-initials">
-                  {playerInitials(player.name)}
-                </text>
-              )}
-              <text x="652" y={y + 42} textAnchor="middle" className="settlement-network-name">
-                {personLabel(player.id, player.name, currentPlayerId)}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-
-      <p className="settlement-flow-note">
-        {t("Die Pfeile zeigen optimierte Ausgleichszahlungen, nicht direkte Schulden aus einzelnen Pokerabenden.")}
-      </p>
-    </div>
-  );
-}
 
 export function SettlementSummary({
   onOpen,
@@ -395,12 +193,14 @@ export function SettlementScreen({
   currentPlayerId,
   onCurrentPlayerChange,
   playerProfiles,
+  nights,
   onDataChange,
 }: {
   onClose: () => void;
   currentPlayerId: string | null;
   onCurrentPlayerChange: (playerId: string | null) => void;
   playerProfiles: PlayerProfile[];
+  nights: PokerNight[];
   onDataChange: (data: SettlementResponse) => void;
 }) {
   const [data, setData] = useState<SettlementResponse | null>(null);
@@ -1223,6 +1023,12 @@ export function SettlementScreen({
               </div>
             )}
           </section>
+
+          <SeparateSessions
+            nights={nights}
+            currentPlayerId={currentPlayerId}
+            photoFor={profilePhotoFor}
+          />
         </>
       ) : null}
 

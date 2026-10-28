@@ -2566,6 +2566,7 @@ export default function App() {
             currentPlayerId={currentPlayerId}
             onCurrentPlayerChange={changeCurrentPlayer}
             playerProfiles={playerProfiles}
+            nights={nights}
             onDataChange={setSettlementData}
           />
         )}
