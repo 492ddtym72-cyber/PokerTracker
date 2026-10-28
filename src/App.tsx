@@ -2362,14 +2362,18 @@ export default function App() {
             <SessionSettlement nightId={detailNight.id} currentPlayerId={currentPlayerId} photoFor={profilePhotoFor} />
           )}
 
-          <div className="detail-actions">
-            <button className="secondary-button" type="button" onClick={() => editNight(detailNight)}>
-              {t("Bearbeiten")}
-            </button>
-            <button className="danger-outline" type="button" onClick={() => removeNight(detailNight)}>
-              {t("Löschen")}
-            </button>
-          </div>
+          {(detailNight.settlementMode === "separate" ||
+            (detailNight.settlementListId &&
+              settlementLists.some(list => list.id === detailNight.settlementListId && list.status === "open")))
+            ? <div className="detail-actions">
+                <button className="secondary-button" type="button" onClick={() => editNight(detailNight)}>
+                  {t("Bearbeiten")}
+                </button>
+                <button className="danger-outline" type="button" onClick={() => removeNight(detailNight)}>
+                  {t("Löschen")}
+                </button>
+              </div>
+            : <p className="settlement-ledger-context">{t("Auszahlung läuft – Ergebnisse sind gesperrt.")}</p>}
 
           {error && <p className="error-banner">{error}</p>}
         </div>
