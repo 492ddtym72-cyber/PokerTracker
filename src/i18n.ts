@@ -4,6 +4,9 @@ const STORAGE_KEY = "pokertracker-language";
 
 const ENGLISH: Record<string, string> = {
   "PokerTracker": "PokerTracker",
+  "Auszahlung läuft – Ergebnisse sind gesperrt.": "Payout in progress — game results are locked.",
+  "Laufende Sessions müssen zuerst abgeschlossen werden.": "Finish all ongoing sessions before starting payouts.",
+  "Diese Abrechnung enthält bereits Zahlungen und ist gesperrt.": "This settlement has payment history and is locked.",
   "Abrechnungsliste": "Settlement list",
   "Liste wählen": "Choose list",
   "Neue Liste erstellen": "Create new list",
