@@ -12,7 +12,7 @@ import {
   updatePlayerProfilePhoto,
 } from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
-import { calculateLeaderboardStats, getCompletedStatisticNights, getPlayerAppearances, type PlayerStats } from "./lib/leaderboard";
+import { calculateLeaderboardStats, getCompletedStatisticNights, getCompletedSessionTotals, getPlayerAppearances, type PlayerStats } from "./lib/leaderboard";
 import {
   getLanguage,
   getLocale,
@@ -919,7 +919,7 @@ export default function App() {
   const [players, setPlayers] = useState<DraftPlayer[]>([emptyPlayer(), emptyPlayer()]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [sessionStatus, setSessionStatus] = useState<NightStatus | "auto">("auto");
-  const [settlementMode, setSettlementMode] = useState<SettlementMode>("pooled");
+  const [settlementMode, setSettlementMode] = useState<SettlementMode>("separate");
   const [sessionSettlementOpen, setSessionSettlementOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -1055,20 +1055,13 @@ export default function App() {
     () => getCompletedStatisticNights(nights),
     [nights],
   );
-  const completedSessionCount = completedNights.filter(
-    (night) => night.recordType === "session",
-  ).length;
+  const { sessionCount: completedSessionCount, totalStakeCents: totalStakeAllTime } = useMemo(
+    () => getCompletedSessionTotals(nights),
+    [nights],
+  );
   const ongoingNights = useMemo(
     () => nights.filter((night) => night.status === "ongoing"),
     [nights],
-  );
-  const totalStakeAllTime = useMemo(
-    () => completedNights.reduce(
-      (nightTotal, night) =>
-        nightTotal + night.players.reduce((sum, player) => sum + player.stakeCents, 0),
-      0,
-    ),
-    [completedNights],
   );
 
   const detailNight = useMemo(
@@ -1236,7 +1229,7 @@ export default function App() {
     setPlayers([emptyPlayer(), emptyPlayer()]);
     setEditingId(null);
     setSessionStatus("auto");
-    setSettlementMode("pooled");
+    setSettlementMode("separate");
     setError("");
   }
 
@@ -2000,7 +1993,7 @@ export default function App() {
               <small>{effectiveSessionStatus === "ongoing"
                 ? t("Wird gespeichert, aber nicht für Zahlungen oder Statistiken berücksichtigt.")
                 : settlementMode === "separate" ? t("Diese Session zählt zur Statistik, wird aber separat abgerechnet.")
-                : t("Abgeschlossene Sessions werden in die Gesamtbilanz übernommen.")}</small>
+                : t("Abgeschlossene Sessions werden der gewählten Abrechnung zugeordnet.")}</small>
             </section>
 
             <section className="session-mode-editor" aria-label={t("Abrechnung")}>
@@ -2008,14 +2001,18 @@ export default function App() {
               <div className="session-mode-options" role="group" aria-label={t("Abrechnung")}>
                 <button type="button" className={settlementMode === "pooled" ? "selected" : ""}
                   aria-pressed={settlementMode === "pooled"}
-                  onClick={() => setSettlementMode("pooled")}>{t("Gesamtbilanz")}</button>
+                  onClick={() => {
+                    if (settlementMode === "pooled" || window.confirm(t("Neue Sessions in dieser Abrechnung verändern die laufende Riga-Auszahlung. Trotzdem hinzufügen?"))) {
+                      setSettlementMode("pooled");
+                    }
+                  }}>{t("Riga-Abrechnung")}</button>
                 <button type="button" className={settlementMode === "separate" ? "selected" : ""}
                   aria-pressed={settlementMode === "separate"}
                   onClick={() => setSettlementMode("separate")}>{t("Nur diese Session")}</button>
               </div>
               <small>{settlementMode === "separate"
                 ? t("Eigene Zahlungen; Ergebnisse zählen zur Rangliste, nicht zur gemeinsamen Abrechnung.")
-                : t("Wie bisher: Ergebnisse fließen in die Gesamtbilanz ein.")}</small>
+                : t("Diese Session wird zur laufenden Riga-Auszahlung hinzugefügt.")}</small>
             </section>
 
             <section className={"reconcile-card " + (draftTotals.differenceCents === 0 ? "balanced-card" : "warning-card")}>
@@ -2301,7 +2298,7 @@ export default function App() {
 
           {detailNight.recordType === "session" && (
             <section className="session-settlement-launcher">
-              <span>{detailNight.settlementMode === "separate" ? t("Separat abgerechnet") : t("Teil der Gesamtbilanz")}</span>
+              <span>{detailNight.settlementMode === "separate" ? t("Separat abgerechnet") : t("Riga-Abrechnung")}</span>
               {detailNight.status === "completed" && detailNight.settlementMode === "separate" && (
                 <button type="button" className="secondary-button" aria-expanded={sessionSettlementOpen}
                   onClick={() => setSessionSettlementOpen(open => !open)}>
