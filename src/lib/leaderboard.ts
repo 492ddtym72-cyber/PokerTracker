@@ -88,3 +88,16 @@ export function getPlayerAppearances(
         a.createdAt.localeCompare(b.createdAt),
     );
 }
+
+/** All played money is summed from completed session buy-ins only.
+ * Lifetime baseline records are legacy result snapshots, not money played. */
+export function getCompletedSessionTotals(nights: readonly PokerNight[]) {
+  let sessionCount = 0;
+  let totalStakeCents = 0;
+  for (const night of nights) {
+    if (night.recordType !== "session" || night.status !== "completed") continue;
+    sessionCount += 1;
+    totalStakeCents += night.players.reduce((sum, player) => sum + player.stakeCents, 0);
+  }
+  return { sessionCount, totalStakeCents };
+}
