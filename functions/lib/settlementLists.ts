@@ -183,6 +183,7 @@ export async function recordListPayment(env:Env,id:string,raw:unknown) {
     return loadListSnapshot(env,id);
   }
   const snapshot=await loadListSnapshot(env,id);
+  if(snapshot.ongoingSessionCount>0) throw new Error("Laufende Sessions müssen zuerst abgeschlossen werden.");
   if(snapshot.groupDifferenceCents!==0) throw new Error("Diese Abrechnung hat noch eine Differenz.");
   const payer=snapshot.players.find(p=>p.id===input.fromPlayerId);
   const receiver=snapshot.players.find(p=>p.id===input.toPlayerId);
