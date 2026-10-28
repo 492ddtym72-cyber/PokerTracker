@@ -189,6 +189,7 @@ export async function loadSettlementSnapshot(env: Env) {
        FROM players p
        JOIN night_results r ON r.player_id = p.id
        JOIN poker_nights n ON n.id=r.night_id AND n.status='completed' AND n.settlement_mode='pooled'
+         AND NOT EXISTS (SELECT 1 FROM settlement_list_nights m WHERE m.night_id=n.id)
        LEFT JOIN night_adjustments a
          ON a.night_id = r.night_id AND a.player_id = r.player_id
        GROUP BY p.id, p.name
@@ -237,8 +238,12 @@ export async function loadSettlementSnapshot(env: Env) {
        LIMIT 200`,
     ).all<PaymentRow>(),
     env.DB.prepare(
-      `SELECT SUM(CASE WHEN status='completed' AND settlement_mode='pooled' THEN 1 ELSE 0 END) AS night_count,
-       MAX(CASE WHEN status='completed' AND settlement_mode='pooled' THEN updated_at END) AS latest_update,
+      `SELECT SUM(CASE WHEN status='completed' AND settlement_mode='pooled'
+        AND NOT EXISTS (SELECT 1 FROM settlement_list_nights m WHERE m.night_id=poker_nights.id)
+        THEN 1 ELSE 0 END) AS night_count,
+       MAX(CASE WHEN status='completed' AND settlement_mode='pooled'
+        AND NOT EXISTS (SELECT 1 FROM settlement_list_nights m WHERE m.night_id=poker_nights.id)
+        THEN updated_at END) AS latest_update,
        SUM(CASE WHEN status='ongoing' THEN 1 ELSE 0 END) AS ongoing_count
      FROM poker_nights`,
     ).first<NightSnapshotRow>(),
