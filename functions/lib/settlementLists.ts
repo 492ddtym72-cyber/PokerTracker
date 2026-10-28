@@ -31,8 +31,8 @@ async function requireList(env: Env, id: string) {
 export async function listSettlementLists(env: Env) {
   const [lists, counts, legacyNights, legacy] = await Promise.all([
     env.DB.prepare("SELECT * FROM settlement_lists ORDER BY created_at DESC").all<ListRow>(),
-    env.DB.prepare(`SELECT m.list_id,COUNT(*) AS total,
-        SUM(CASE WHEN n.status='completed' THEN 1 ELSE 0 END) AS completed,
+    env.DB.prepare(`SELECT m.list_id,COUNT(DISTINCT m.night_id) AS total,
+        COUNT(DISTINCT CASE WHEN n.status='completed' THEN m.night_id END) AS completed,
         COUNT(DISTINCT r.player_id) AS people
       FROM settlement_list_nights m
       JOIN poker_nights n ON n.id=m.night_id
