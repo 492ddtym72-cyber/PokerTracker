@@ -158,8 +158,6 @@ export function SettlementSummary({
     };
   }, [onDataChange]);
 
-  const balanced = data !== null && data.totalOutstandingCents === 0 && data.groupDifferenceCents === 0;
-
   return (
     <button className="dashboard-action-card settlement-summary-card" type="button" onClick={onOpen}>
       <span className="dashboard-action-icon" aria-hidden="true">
@@ -171,16 +169,7 @@ export function SettlementSummary({
       </span>
       <span className="dashboard-action-copy settlement-summary-copy">
         <strong>{t("Ausgleichen")}</strong>
-        {!data ? (
-          <small>{t("Lädt …")}</small>
-        ) : balanced ? (
-          <small>{t("Alles ausgeglichen")}</small>
-        ) : (
-          <span className="settlement-summary-amount">{formatMoney(data.totalOutstandingCents)}</span>
-        )}
-        {data && data.groupDifferenceCents !== 0 && (
-          <em>{t("Offene Session-Differenz")}: {formatMoney(data.groupDifferenceCents)}</em>
-        )}
+        <small>{t("Abrechnungslisten")}</small>
       </span>
       <span className="dashboard-action-arrow" aria-hidden="true">
         <svg viewBox="0 0 24 24" focusable="false"><path d="m9 5 7 7-7 7" /></svg>
