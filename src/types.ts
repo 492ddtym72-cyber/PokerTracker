@@ -24,6 +24,7 @@ export interface PokerNight {
   recordType: "session" | "baseline";
   status: NightStatus;
   settlementMode: SettlementMode;
+  settlementListId?: string | null;
   players: PlayerResult[];
 }
 
@@ -40,6 +41,7 @@ export interface NightInput {
   players: NightPlayerInput[];
   status?: NightStatus;
   settlementMode?: SettlementMode;
+  settlementListId?: string | null;
 }
 
 export interface NightAdjustmentInput {
@@ -133,6 +135,22 @@ export interface SettlementPayment {
   voidedAt: string | null;
 }
 
+export interface SettlementListSummary {
+  id: string;
+  name: string;
+  status: "open" | "paying_out" | "closed";
+  totalSessions: number;
+  completedSessions: number;
+  playerCount: number;
+  totalOutstandingCents: number;
+  groupDifferenceCents: number;
+  legacy: boolean;
+}
+export interface NamedSettlementResponse extends SettlementResponse {
+  listId: string;
+  listName: string;
+  status: "open" | "paying_out" | "closed";
+}
 export interface SettlementResponse {
   players: SettlementPlayer[];
   suggestions: SettlementSuggestion[];
