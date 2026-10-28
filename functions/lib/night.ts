@@ -652,8 +652,14 @@ async function assertNightMutable(env: Env, nightId: string): Promise<string | n
   const row = await env.DB.prepare("SELECT settlement_mode,record_type FROM poker_nights WHERE id=?")
     .bind(nightId).first<{settlement_mode:SettlementMode;record_type:string}>();
   const listId = await requireEditableNightDestination(env,nightId);
-  if (row?.settlement_mode==="pooled" && !listId && row.record_type==="session") {
+  if (row?.settlement_mode==="pooled" && !listId) {
     throw new Error("Riga wird ausgezahlt. Bestehende Ergebnisse sind geschützt.");
+  }
+  if (listId) {
+    const paid = await env.DB.prepare(
+      "SELECT 1 AS found FROM settlement_list_payments WHERE list_id=? LIMIT 1"
+    ).bind(listId).first<{found:number}>();
+    if (paid) throw new Error("Diese Abrechnung enthält bereits Zahlungen und ist gesperrt.");
   }
   return listId;
 }
