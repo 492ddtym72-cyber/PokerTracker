@@ -87,6 +87,12 @@ export async function setSettlementListStatus(env:Env,id:string,raw:unknown) {
   if (list.status==="closed" || (status==="paying_out" && list.status!=="open")
     || (status==="closed" && list.status!=="paying_out"))
     throw new Error("Diese Statusänderung ist nicht erlaubt.");
+  if (status==="paying_out") {
+    const unfinished=await env.DB.prepare(`SELECT 1 AS found FROM settlement_list_nights m
+      JOIN poker_nights n ON n.id=m.night_id WHERE m.list_id=? AND n.status='ongoing' LIMIT 1`)
+      .bind(id).first<{found:number}>();
+    if (unfinished) throw new Error("Laufende Sessions müssen zuerst abgeschlossen werden.");
+  }
   if (status==="closed") {
     const snapshot=await loadListSnapshot(env,id);
     if (snapshot.totalOutstandingCents!==0 || snapshot.groupDifferenceCents!==0)
@@ -102,6 +108,9 @@ export async function setSettlementListStatus(env:Env,id:string,raw:unknown) {
 export async function requireOpenList(env: Env,id:string) {
   const list=await requireList(env,id);
   if (list.status!=="open") throw new Error("Diese Abrechnungsliste nimmt keine Sessions mehr an.");
+  const paid = await env.DB.prepare("SELECT 1 AS found FROM settlement_list_payments WHERE list_id=? LIMIT 1")
+    .bind(id).first<{found:number}>();
+  if (paid) throw new Error("Diese Abrechnung enthält bereits Zahlungen und ist gesperrt.");
   return list;
 }
 
@@ -181,11 +190,18 @@ export async function recordListPayment(env:Env,id:string,raw:unknown) {
     throw new Error("Für diese Personen besteht kein offener Ausgleich.");
   if(input.amountCents>Math.min(-payer.openBalanceCents,receiver.openBalanceCents))
     throw new Error("Der Betrag übersteigt den offenen Ausgleich.");
-  await env.DB.prepare(`INSERT INTO settlement_list_payments
-    (id,list_id,from_player_id,to_player_id,amount_cents,paid_at,note,client_token,created_at,voided_at)
-    VALUES (?,?,?,?,?,?,?,?,?,NULL)`)
-    .bind(crypto.randomUUID(),id,input.fromPlayerId,input.toPlayerId,
-      input.amountCents,input.paidAt,input.note??null,input.clientToken,new Date().toISOString()).run();
+  // The first recorded payment starts payout automatically. The batch ensures the
+  // payment and lock are committed together, with no partial transition.
+  const now=new Date().toISOString();
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO settlement_list_payments
+      (id,list_id,from_player_id,to_player_id,amount_cents,paid_at,note,client_token,created_at,voided_at)
+      VALUES (?,?,?,?,?,?,?,?,?,NULL)`)
+      .bind(crypto.randomUUID(),id,input.fromPlayerId,input.toPlayerId,
+        input.amountCents,input.paidAt,input.note??null,input.clientToken,now),
+    env.DB.prepare("UPDATE settlement_lists SET status='paying_out',updated_at=? WHERE id=? AND status='open'")
+      .bind(now,id),
+  ]);
   return loadListSnapshot(env,id);
 }
 
