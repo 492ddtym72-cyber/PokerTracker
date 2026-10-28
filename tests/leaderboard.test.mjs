@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   calculateLeaderboardStats,
   getCompletedStatisticNights,
+  getCompletedSessionTotals,
   getPlayerAppearances,
 } from "../src/lib/leaderboard.ts";
 
@@ -75,4 +76,15 @@ test("baseline records never count as played games; no double-counting when stat
   assert.equal(calculateLeaderboardStats([completed, baseline])[0].nights, 1);
   assert.deepEqual(getPlayerAppearances([pending, baseline], "A"), []);
   assert.deepEqual(calculateLeaderboardStats([]), []);
+});
+
+test("home volume includes every completed game but excludes old baselines and ongoing sessions", () => {
+  const sessions = [
+    night("riga", "pooled", "completed", "session", "2025-06-01", [player("A", 2500, 1500), player("B", 2500, 3500)]),
+    night("new-group", "separate", "completed", "session", "2026-10-28", [player("A", 3500, 4500), player("C", 3500, 2500)]),
+    night("live", "pooled", "ongoing", "session", "2026-10-29", [player("B", 8000, 8000)]),
+    night("historical", "pooled", "completed", "baseline", "2025-01-01", [player("A", 100000, 100500)]),
+  ];
+  assert.deepEqual(getCompletedSessionTotals(sessions), { sessionCount: 2, totalStakeCents: 12000 });
+  assert.deepEqual(getCompletedSessionTotals([]), { sessionCount: 0, totalStakeCents: 0 });
 });
