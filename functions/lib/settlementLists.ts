@@ -38,15 +38,18 @@ export async function listSettlementLists(env: Env) {
       JOIN poker_nights n ON n.id=m.night_id
       LEFT JOIN night_results r ON r.night_id=n.id
       GROUP BY m.list_id`).all<CountRow>(),
-    env.DB.prepare(`SELECT COUNT(*) AS count FROM poker_nights n
+    env.DB.prepare(`SELECT COUNT(*) AS count,
+        SUM(CASE WHEN n.status='completed' THEN 1 ELSE 0 END) AS completed
+      FROM poker_nights n
       WHERE n.settlement_mode='pooled' AND n.record_type='session'
-      AND NOT EXISTS (SELECT 1 FROM settlement_list_nights m WHERE m.night_id=n.id)`).first<{count:number}>(),
+      AND NOT EXISTS (SELECT 1 FROM settlement_list_nights m WHERE m.night_id=n.id)`)
+      .first<{count:number;completed:number}>(),
     loadSettlementSnapshot(env),
   ]);
   const countsById = new Map(counts.results.map(row=>[row.list_id,row]));
   const result = [{
     id: RIGA_LIST_ID, name: "Riga", status: "paying_out" as ListStatus,
-    totalSessions: Number(legacyNights?.count)||0, completedSessions: 0,
+    totalSessions: Number(legacyNights?.count)||0, completedSessions: Number(legacyNights?.completed)||0,
     playerCount: legacy.players.length,
     totalOutstandingCents: legacy.totalOutstandingCents,
     groupDifferenceCents: legacy.groupDifferenceCents,
