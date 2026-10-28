@@ -123,6 +123,31 @@ class SettlementListMigration(unittest.TestCase):
               (id,list_id,from_player_id,to_player_id,amount_cents,paid_at,client_token,created_at)
               VALUES ('pay2','list2','A','C',200,'2026-10-29','token-1','now')""")
 
+    def test_db_guard_rejects_enrollment_after_first_payment(self):
+        db = prepare()
+        db.execute("INSERT INTO poker_nights VALUES ('game1','session','completed','pooled')")
+        db.execute("INSERT INTO settlement_list_nights VALUES ('game1','list1','now')")
+        db.execute("""INSERT INTO settlement_list_payments
+          (id,list_id,from_player_id,to_player_id,amount_cents,paid_at,client_token,created_at)
+          VALUES ('pay1','list1','A','B',100,'2026-10-29','t-1','now')""")
+        db.execute("INSERT INTO poker_nights VALUES ('game2','session','completed','pooled')")
+        with self.assertRaises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO settlement_list_nights VALUES ('game2','list1','now')")
+
+    def test_db_guard_rejects_payments_on_unfinished_or_closed_lists(self):
+        db = prepare()
+        db.execute("INSERT INTO poker_nights VALUES ('live','session','ongoing','pooled')")
+        db.execute("INSERT INTO settlement_list_nights VALUES ('live','list1','now')")
+        with self.assertRaises(sqlite3.IntegrityError):
+            db.execute("""INSERT INTO settlement_list_payments
+              (id,list_id,from_player_id,to_player_id,amount_cents,paid_at,client_token,created_at)
+              VALUES ('pay1','list1','A','B',100,'2026-10-29','t-1','now')""")
+        db.execute("UPDATE settlement_lists SET status='closed' WHERE id='list2'")
+        with self.assertRaises(sqlite3.IntegrityError):
+            db.execute("""INSERT INTO settlement_list_payments
+              (id,list_id,from_player_id,to_player_id,amount_cents,paid_at,client_token,created_at)
+              VALUES ('pay2','list2','A','B',100,'2026-10-29','t-2','now')""")
+
 
 if __name__ == "__main__":
     unittest.main()
