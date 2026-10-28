@@ -4,6 +4,14 @@ const STORAGE_KEY = "pokertracker-language";
 
 const ENGLISH: Record<string, string> = {
   "PokerTracker": "PokerTracker",
+  "Abrechnungslisten": "Settlement lists",
+  "Riga-Abrechnung": "Riga settlement",
+  "Bestehende Abrechnung": "Existing settlement",
+  "Auszahlung läuft": "Payout in progress",
+  "Alle bisherigen gemeinsamen Sessions und Zahlungen bleiben unverändert in dieser Abrechnung.": "All existing shared sessions and payments remain unchanged in this settlement.",
+  "Neue Sessions in dieser Abrechnung verändern die laufende Riga-Auszahlung. Trotzdem hinzufügen?": "Adding a new session here will change the ongoing Riga payout. Add it anyway?",
+  "Diese Session wird zur laufenden Riga-Auszahlung hinzugefügt.": "This session will be added to the ongoing Riga payout.",
+  "Abgeschlossene Sessions werden der gewählten Abrechnung zugeordnet.": "Completed sessions are added to the selected settlement.",
   "Status": "Status",
   "Abrechnung": "Settlement",
   "Nur diese Session": "This session only",
