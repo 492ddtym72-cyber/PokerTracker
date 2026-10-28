@@ -1,4 +1,5 @@
 import type { Env } from "../auth";
+import { requireEditableNightDestination, requireOpenList } from "./settlementLists";
 
 export interface NightPlayerInput {
   playerId?: string;
@@ -16,6 +17,7 @@ export interface NightInput {
   players: NightPlayerInput[];
   status?: NightStatus;
   settlementMode?: SettlementMode;
+  settlementListId?: string | null;
 }
 
 export interface NightAdjustmentInput {
@@ -113,6 +115,14 @@ export function validateNightInput(value: unknown): NightInput {
   const players = Array.isArray(raw.players) ? raw.players : [];
   const status = raw.status === undefined ? undefined : raw.status;
   const settlementMode = raw.settlementMode === undefined ? undefined : raw.settlementMode;
+  const settlementListId = raw.settlementListId === undefined ? undefined : raw.settlementListId;
+  if (settlementListId !== undefined && settlementListId !== null &&
+    (typeof settlementListId !== "string" || !/^[a-f0-9-]{36}$/i.test(settlementListId))) {
+    throw new Error("Ungültige Abrechnungsliste.");
+  }
+  if (settlementListId && settlementMode === "separate") {
+    throw new Error("Eine einzelne Session kann keiner Abrechnungsliste angehören.");
+  }
   if (settlementMode !== undefined && settlementMode !== "pooled" && settlementMode !== "separate") {
     throw new Error("Ungültige Abrechnungsart.");
   }
@@ -180,7 +190,8 @@ export function validateNightInput(value: unknown): NightInput {
   }
 
   return { title, playedAt, players: cleanPlayers, ...(status ? { status } : {}),
-    ...(settlementMode ? { settlementMode } : {}) };
+    ...(settlementMode ? { settlementMode } : {}),
+    ...(settlementListId !== undefined ? { settlementListId: settlementListId as string | null } : {}) };
 }
 
 export function validateNightAdjustments(value: unknown): NightAdjustmentInput[] {
@@ -239,6 +250,7 @@ export async function writeNightAdjustments(
   adjustments: NightAdjustmentInput[],
 ) {
   await rejectIfSessionHasPayments(env, nightId);
+  await assertNightMutable(env, nightId);
   const rows = await env.DB.prepare(
     `SELECT player_id, stake_cents, cash_out_cents
      FROM night_results
@@ -379,6 +391,7 @@ export async function writeNight(
 ) {
   const now = new Date().toISOString();
   const before = mode === "update" ? await loadNightSnapshot(env, nightId) : null;
+  const previousListId = mode === "update" ? await assertNightMutable(env, nightId) : null;
 
   if (mode === "update" && !before) {
     throw new Error("Pokerabend nicht gefunden.");
@@ -442,7 +455,15 @@ export async function writeNight(
   const status: NightStatus = input.status ??
     (mode === "update" ? before?.status ?? "completed" :
       differenceCents === 0 ? "completed" : "ongoing");
-  const settlementMode: SettlementMode = input.settlementMode ?? before?.settlementMode ?? "pooled";
+  const settlementMode: SettlementMode = input.settlementMode ?? before?.settlementMode ?? "separate";
+  const listId = input.settlementListId === undefined ? previousListId : input.settlementListId;
+  if (settlementMode === "separate" && listId) throw new Error("Ungültige Abrechnungsliste.");
+  if (mode === "create" && settlementMode === "pooled" && !listId)
+    throw new Error("Die Riga-Auszahlung ist gesperrt. Bitte eine neue Abrechnungsliste wählen.");
+  if (mode === "update" && listId !== previousListId && (before?.status === "completed" || Boolean(previousListId)))
+    throw new Error("Die Zuordnung einer abgeschlossenen oder bereits zugeordneten Session kann nicht geändert werden.");
+  if (listId) await requireOpenList(env, listId);
+
   // Reclassifying an already completed night is permitted only while it has not
   // been settled in either ledger. Earlier in-app requests remain auditable; new
   // requests referencing the completed night block reclassification.
@@ -535,6 +556,12 @@ export async function writeNight(
     );
   }
 
+  if (listId && !previousListId) {
+    // Atomic with session creation/update: a failed membership insert rolls everything back.
+    statements.push(env.DB.prepare(
+      "INSERT INTO settlement_list_nights(night_id,list_id,created_at) VALUES (?,?,?)"
+    ).bind(nightId,listId,now));
+  }
   statements.push(
     auditStatement(
       env,
@@ -554,6 +581,7 @@ export async function writeNightStatus(env: Env, nightId: string, status: NightS
   if (!before) throw new Error("Pokerabend nicht gefunden.");
   if (before.status === status) return;
   await rejectIfSessionHasPayments(env, nightId);
+  await assertNightMutable(env, nightId);
   if (status === "completed") {
     const totals = await env.DB.prepare(
       `SELECT COUNT(*) AS player_count,
@@ -576,6 +604,7 @@ export async function writeNightStatus(env: Env, nightId: string, status: NightS
 export async function deleteNightWithAudit(env: Env, nightId: string) {
   const before = await loadNightSnapshot(env, nightId);
   if (!before) return false;
+  const membership = await assertNightMutable(env, nightId);
   // Keep voided transfers in the audit history; even cancelled payment records
   // are retained, so deleting their parent session would silently orphan them.
   const paymentHistory = await env.DB.prepare(
@@ -589,6 +618,7 @@ export async function deleteNightWithAudit(env: Env, nightId: string) {
 
   await env.DB.batch([
     auditStatement(env, "night.deleted", nightId, now, before, null),
+    ...(membership ? [env.DB.prepare("DELETE FROM settlement_list_nights WHERE night_id=?").bind(nightId)] : []),
     env.DB.prepare("DELETE FROM poker_nights WHERE id = ?").bind(nightId),
   ]);
 
@@ -615,4 +645,15 @@ async function rejectIfSessionHasPayments(env: Env, nightId: string) {
   if (await hasSessionPayments(env, nightId)) {
     throw new Error("Diese Session hat bereits Zahlungen. Bitte Zahlungen zuerst stornieren.");
   }
+}
+
+/** Riga's in-progress payout is immutable; named lists can be edited only while open. */
+async function assertNightMutable(env: Env, nightId: string): Promise<string | null> {
+  const row = await env.DB.prepare("SELECT settlement_mode,record_type FROM poker_nights WHERE id=?")
+    .bind(nightId).first<{settlement_mode:SettlementMode;record_type:string}>();
+  const listId = await requireEditableNightDestination(env,nightId);
+  if (row?.settlement_mode==="pooled" && !listId && row.record_type==="session") {
+    throw new Error("Riga wird ausgezahlt. Bestehende Ergebnisse sind geschützt.");
+  }
+  return listId;
 }
