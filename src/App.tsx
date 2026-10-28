@@ -12,6 +12,7 @@ import {
   updatePlayerProfilePhoto,
 } from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
+import { calculateLeaderboardStats, getCompletedStatisticNights, getPlayerAppearances, type PlayerStats } from "./lib/leaderboard";
 import {
   getLanguage,
   getLocale,
@@ -57,16 +58,6 @@ type DraftPlayer = {
   cashOut: string;
 };
 
-type PlayerStats = {
-  id: string;
-  name: string;
-  nights: number;
-  stakeCents: number;
-  cashOutCents: number;
-  profitCents: number;
-  wins: number;
-};
-
 type PlayerCardDetails = PlayerStats & {
   rank: number | null;
   winRate: number;
@@ -99,23 +90,7 @@ function calculatePlayerCardDetails(
       return sum + (result ? playerResultCents(result) : 0);
     }, 0);
 
-  const appearances = nights
-    .filter((night) => night.recordType === "session" && night.status === "completed" && night.settlementMode !== "separate")
-    .flatMap((night) => {
-      const result = night.players.find((candidate) => candidate.id === player.id);
-      return result
-        ? [{
-            playedAt: night.playedAt,
-            createdAt: night.createdAt,
-            resultCents: playerResultCents(result),
-          }]
-        : [];
-    })
-    .sort(
-      (a, b) =>
-        a.playedAt.localeCompare(b.playedAt) ||
-        a.createdAt.localeCompare(b.createdAt),
-    );
+  const appearances = getPlayerAppearances(nights, player.id);
 
   let cumulative = baselineCents;
   let runningWinStreak = 0;
@@ -1052,46 +1027,7 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);
 
-  const stats = useMemo(() => {
-    const byPlayer = new Map<string, PlayerStats>();
-
-    for (const night of nights) {
-      if (night.status !== "completed" || night.settlementMode === "separate") continue;
-      const countsAsSession = night.recordType === "session";
-
-      for (const player of night.players) {
-        const existing = byPlayer.get(player.id) ?? {
-          id: player.id,
-          name: player.name,
-          nights: 0,
-          stakeCents: 0,
-          cashOutCents: 0,
-          profitCents: 0,
-          wins: 0,
-        };
-
-        const profit = playerResultCents(player);
-        existing.name = player.name;
-        existing.profitCents += profit;
-        existing.stakeCents += player.stakeCents;
-        existing.cashOutCents += player.cashOutCents;
-
-        if (countsAsSession) {
-          existing.nights += 1;
-          if (profit > 0) existing.wins += 1;
-        }
-
-        byPlayer.set(player.id, existing);
-      }
-    }
-
-    return Array.from(byPlayer.values()).sort(
-      (a, b) =>
-        b.profitCents - a.profitCents ||
-        b.nights - a.nights ||
-        a.name.localeCompare(b.name),
-    );
-  }, [nights]);
+  const stats = useMemo(() => calculateLeaderboardStats(nights), [nights]);
 
   const knownPlayers = useMemo<Array<{ id: string; name: string }>>(
     () => {
@@ -1116,11 +1052,11 @@ export default function App() {
   }
 
   const completedNights = useMemo(
-    () => nights.filter((night) => night.status === "completed"),
+    () => getCompletedStatisticNights(nights),
     [nights],
   );
   const completedSessionCount = completedNights.filter(
-    (night) => night.recordType === "session" && night.settlementMode !== "separate",
+    (night) => night.recordType === "session",
   ).length;
   const ongoingNights = useMemo(
     () => nights.filter((night) => night.status === "ongoing"),
@@ -1129,7 +1065,7 @@ export default function App() {
   const totalStakeAllTime = useMemo(
     () => completedNights.reduce(
       (nightTotal, night) =>
-        nightTotal + (night.settlementMode === "separate" ? 0 : night.players.reduce((sum, player) => sum + player.stakeCents, 0)),
+        nightTotal + night.players.reduce((sum, player) => sum + player.stakeCents, 0),
       0,
     ),
     [completedNights],
@@ -2063,7 +1999,7 @@ export default function App() {
               </div>
               <small>{effectiveSessionStatus === "ongoing"
                 ? t("Wird gespeichert, aber nicht für Zahlungen oder Statistiken berücksichtigt.")
-                : settlementMode === "separate" ? t("Diese Session bleibt außerhalb der Gesamtstatistik.")
+                : settlementMode === "separate" ? t("Diese Session zählt zur Statistik, wird aber separat abgerechnet.")
                 : t("Abgeschlossene Sessions werden in die Gesamtbilanz übernommen.")}</small>
             </section>
 
@@ -2078,7 +2014,7 @@ export default function App() {
                   onClick={() => setSettlementMode("separate")}>{t("Nur diese Session")}</button>
               </div>
               <small>{settlementMode === "separate"
-                ? t("Eigene Zahlungen, keine Auswirkung auf Rangliste oder Gesamtbilanz.")
+                ? t("Eigene Zahlungen; Ergebnisse zählen zur Rangliste, nicht zur gemeinsamen Abrechnung.")
                 : t("Wie bisher: Ergebnisse fließen in die Gesamtbilanz ein.")}</small>
             </section>
 
