@@ -48,3 +48,37 @@
 .session-settlement-launcher { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid rgba(255,255,255,.10); border-radius: 14px; padding: 12px 14px; margin: 16px 0; background: #09251b; }
 .session-settlement-launcher span { font-size: 13px; color: #abc2b2; }
 .session-settlement-launcher .secondary-button { margin: 0; white-space: nowrap; }
+
+
+/* Isolated games in the Abrechnung screen */
+.separate-sessions {
+  margin-top: 34px;
+  padding-top: 23px;
+  border-top: 1px solid rgba(215, 190, 119, .19);
+}
+.separate-sessions-intro { color: #9bac9f; font-size: 12px; line-height: 1.5; margin: 4px 0 15px; }
+.separate-session-list { display: grid; gap: 9px; }
+.separate-session-item { overflow: hidden; border-radius: 15px; border: 1px solid rgba(215,190,119,.14); background: #09221a; }
+.separate-session-item.is-expanded { border-color: rgba(215,190,119,.32); }
+.separate-session-trigger { display: flex; align-items: center; width: 100%; min-height: 76px; gap: 13px; padding: 12px 15px; text-align: left; color: #ecf0e8; background: transparent; border: 0; font: inherit; cursor: pointer; }
+.separate-session-trigger:focus-visible { outline: 2px solid #e7c675; outline-offset: -3px; }
+.separate-session-trigger:disabled { cursor: default; opacity: .65; }
+.separate-session-symbol { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; border-radius: 11px; background: #13382a; color: #d6bc83; }
+.separate-session-symbol svg { width: 25px; height: 25px; }
+.separate-session-label { min-width: 0; flex: 1; display: grid; gap: 5px; }
+.separate-session-label strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 650; }
+.separate-session-label small { color: #9daf9f; font-size: 11px; }
+.separate-session-state { color: #b6b8a2; font-size: 11px; }
+.separate-session-chevron { font-size: 25px; line-height: 1; color: #c8b483; transition: transform .2s ease; }
+.separate-session-chevron.is-open { transform: rotate(180deg); }
+.separate-session-detail .local-settlement { margin: 0; border: 0; border-top: 1px solid rgba(255,255,255,.08); border-radius: 0; padding: 19px 16px; background: #0b261d; box-shadow: none; }
+.local-settlement-diagram { margin-bottom: 18px; }
+.local-settlement-diagram-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 10px; color: #e6d5b0; font-size: 13px; }
+.local-settlement-diagram-heading span { font-size: 11px; color: #a8ad9d; }
+.local-settlement-diagram .settlement-flow-card { border-color: rgba(215,190,119,.16); }
+.settlement-network-transfer.is-static { cursor: default; }
+@media (max-width: 460px) {
+  .separate-session-trigger { padding: 11px 12px; gap: 10px; }
+  .separate-session-symbol { flex-basis: 39px; width: 39px; height: 39px; }
+  .separate-session-detail .local-settlement { padding: 16px 10px; }
+}
