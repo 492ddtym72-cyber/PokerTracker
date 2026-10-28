@@ -9,6 +9,7 @@ import {
 import { formatMoney } from "./lib/money";
 import { getLocale, t } from "./i18n";
 import { SettlementFlow } from "./SettlementFlow";
+import { PlayerAvatar } from "./PlayerAvatar";
 import type { NamedSettlementResponse, SettlementListSummary, SettlementSuggestion } from "./types";
 
 function localToday() {
@@ -175,6 +176,23 @@ function NamedSettlement({
                   </div>
                 </form>
               )}
+              <div className="section-title-row named-ledger-history-title">
+                <h3>{t("Offene Salden")}</h3><span>{data.players.length}</span>
+              </div>
+              <div className="settlement-balance-list">
+                {data.players.map(player=>(
+                  <article key={player.id} className={player.id===currentPlayerId?"is-current-player":""}>
+                    <PlayerAvatar name={player.name} photo={photoFor(player.id)} />
+                    <div>
+                      <strong>{player.name}</strong>
+                      <small>{t("Pokerbilanz")} {player.pokerBalanceCents>0?"+":""}{formatMoney(player.pokerBalanceCents)}</small>
+                    </div>
+                    <b className={player.openBalanceCents>0?"positive":player.openBalanceCents<0?"negative":""}>
+                      {formatMoney(player.openBalanceCents)} 
+                    </b>
+                  </article>
+                ))}
+              </div>
               <div className="section-title-row named-ledger-history-title">
                 <h3>{t("Zahlungsverlauf")}</h3><span>{data.payments.length}</span>
               </div>
