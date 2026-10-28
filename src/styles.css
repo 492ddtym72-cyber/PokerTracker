@@ -3543,8 +3543,8 @@ select:focus {
   stroke-width: 24;
 }
 
-.settlement-network-transfer:focus .settlement-network-line,
-.settlement-network-transfer:hover .settlement-network-line {
+.settlement-network-transfer:not(.is-static):focus .settlement-network-line,
+.settlement-network-transfer:not(.is-static):hover .settlement-network-line {
   stroke: rgba(231,198,117,.9);
 }
 
