@@ -7,11 +7,13 @@ import {
 } from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
 import { SettlementFlow } from "./SettlementFlow";
+import { SeparateSessions } from "./SeparateSessions";
 import { getLocale, t } from "./i18n";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { PaymentRequestDialog } from "./PaymentRequestDialog";
 import type {
   PlayerProfile,
+  PokerNight,
   SettlementPaymentInput,
   SettlementResponse,
   SettlementSuggestion,
@@ -191,12 +193,14 @@ export function SettlementScreen({
   currentPlayerId,
   onCurrentPlayerChange,
   playerProfiles,
+  nights,
   onDataChange,
 }: {
   onClose: () => void;
   currentPlayerId: string | null;
   onCurrentPlayerChange: (playerId: string | null) => void;
   playerProfiles: PlayerProfile[];
+  nights: PokerNight[];
   onDataChange: (data: SettlementResponse) => void;
 }) {
   const [data, setData] = useState<SettlementResponse | null>(null);
@@ -1019,6 +1023,12 @@ export function SettlementScreen({
               </div>
             )}
           </section>
+
+          <SeparateSessions
+            nights={nights}
+            currentPlayerId={currentPlayerId}
+            photoFor={profilePhotoFor}
+          />
         </>
       ) : null}
 
