@@ -9,6 +9,9 @@ import {
 import { formatMoney } from "./lib/money";
 import { getLocale, t } from "./i18n";
 import { SettlementFlow } from "./SettlementFlow";
+import { SettlementBalanceHero } from "./SettlementBalanceHero";
+import { SettlementViewToggle, type SettlementView } from "./SettlementViewToggle";
+import { personalSettlementBalance } from "./lib/settlementPresentation";
 import { SettlementCard } from "./SettlementCard";
 import { PlayerAvatar } from "./PlayerAvatar";
 import type { NamedSettlementResponse, SettlementListSummary, SettlementSuggestion } from "./types";
@@ -30,6 +33,7 @@ function NamedSettlement({
   onChanged:()=>void;
 }) {
   const [open,setOpen]=useState(false);
+  const [view,setView]=useState<SettlementView>("list");
   const [data,setData]=useState<NamedSettlementResponse|null>(null);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(false);
@@ -104,6 +108,10 @@ function NamedSettlement({
     finally{setSaving(false);}
   }
 
+  const personalBalance = data
+    ? personalSettlementBalance(data.players, currentPlayerId)
+    : null;
+
   return (
     <SettlementCard
       title={item.name}
@@ -113,46 +121,55 @@ function NamedSettlement({
       panelId={"named-list-" + item.id}
       onToggle={() => { setOpen((value) => !value); setError(""); }}
     >
-                {loading && !data && <p className="settlement-ledger-context">{t("Lädt …")}</p>}
-          {data && (
-            <>
-              <div className="named-ledger-stats">
-                <span>{data.players.length} {t("Spieler")}</span>
-                <span>{settlementStatus(data.status)}</span>
-              </div>
-              {data.ongoingSessionCount>0 && (
-                <p className="settlement-ledger-context">{data.ongoingSessionCount} {t("laufende Sessions")} · {t("Vorläufig")}</p>
-              )}
-              {data.groupDifferenceCents!==0 && (
-                <p className="local-settlement-error">{t("Offene Session-Differenz")}: {formatMoney(data.groupDifferenceCents)}</p>
-              )}
-              {data.plan.length>0 ? (
-                <>
-                  <SettlementFlow
-                    suggestions={data.plan}
-                    currentPlayerId={currentPlayerId}
-                    profilePhotoFor={photoFor}
-                    onSelect={data.status==="closed"?undefined:(transfer)=>{
-                      const remaining="remainingCents" in transfer ? Number(transfer.remainingCents) : transfer.amountCents;
-                      if(remaining>0) selectTransfer({...transfer,amountCents:remaining});
-                    }}
-                  />
-                  {data.status!=="closed" && (
-                    <div className="named-ledger-transfers">
-                      {data.plan.map((s,index)=>(
-                        <button type="button" key={s.fromPlayerId+":"+s.toPlayerId+":"+index}
-                          disabled={s.remainingCents===0}
-                          onClick={()=>selectTransfer({...s,amountCents:s.remainingCents})}>
-                          <span>{s.fromPlayerName} → {s.toPlayerName}</span>
-                          <strong>{formatMoney(s.amountCents)}</strong>
-                          {s.remainingCents===0 && <small>✓ {t("gezahlt")}</small>}
-                          {s.paidCents>0 && s.remainingCents>0 && <small>{formatMoney(s.remainingCents)} {t("zu zahlen")}</small>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ):<div className="settlement-empty-inline">{t("Keine Zahlungen nötig.")}</div>}
+      {loading && !data && <p className="settlement-ledger-context">{t("Lädt …")}</p>}
+      {data && (
+        <>
+          {personalBalance !== null && <SettlementBalanceHero balanceCents={personalBalance} />}
+          {data.ongoingSessionCount > 0 && (
+            <p className="settlement-ledger-context">
+              {data.ongoingSessionCount} {t("laufende Sessions")}
+            </p>
+          )}
+          {data.groupDifferenceCents !== 0 && (
+            <p className="local-settlement-error">
+              {t("Offene Session-Differenz")}: {formatMoney(data.groupDifferenceCents)}
+            </p>
+          )}
+          <div className="settlement-section-head named-ledger-view-head">
+            <SettlementViewToggle view={view} onChange={setView} />
+          </div>
+          {data.plan.length === 0 ? (
+            <div className="settlement-empty-inline">{t("Keine Zahlungen nötig.")}</div>
+          ) : view === "flow" ? (
+            <SettlementFlow
+              suggestions={data.plan}
+              currentPlayerId={currentPlayerId}
+              profilePhotoFor={photoFor}
+              onSelect={data.status === "closed" ? undefined : (transfer) => {
+                const remaining = "remainingCents" in transfer ? Number(transfer.remainingCents) : transfer.amountCents;
+                if (remaining <= 0) return;
+                selectTransfer({ ...transfer, amountCents: remaining });
+                setView("list");
+              }}
+            />
+          ) : (
+            <div className="named-ledger-transfers">
+              {data.plan.map((transfer,index) => (
+                <button
+                  type="button"
+                  key={transfer.fromPlayerId+":"+transfer.toPlayerId+":"+index}
+                  disabled={data.status==="closed" || transfer.remainingCents === 0}
+                  onClick={() => selectTransfer({ ...transfer, amountCents: transfer.remainingCents })}
+                >
+                  <span>{transfer.fromPlayerName} → {transfer.toPlayerName}</span>
+                  <strong>{formatMoney(transfer.amountCents)}</strong>
+                  {transfer.remainingCents === 0 && <small>✓ {t("gezahlt")}</small>}
+                  {transfer.paidCents > 0 && transfer.remainingCents > 0 &&
+                    <small>{formatMoney(transfer.remainingCents)} {t("zu zahlen")}</small>}
+                </button>
+              ))}
+            </div>
+          )}
               {selected && data.status!=="closed" && (
                 <form className="named-ledger-payment-form" onSubmit={savePayment}>
                   <strong>{selected.fromPlayerName} → {selected.toPlayerName}</strong>
