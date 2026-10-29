@@ -15,7 +15,10 @@ import { personalSettlementPlayer } from "./lib/settlementPresentation";
 import { SettlementPlayerResults } from "./SettlementPlayerResults";
 import { SettlementCard } from "./SettlementCard";
 import { PlayerAvatar } from "./PlayerAvatar";
-import type { NamedSettlementResponse, SettlementListSummary, SettlementSuggestion } from "./types";
+import { SettlementTransferCard } from "./SettlementTransferCard";
+import { useSettlementWallet, PaymentWalletFallback } from "./SettlementWallet";
+import { PaymentRequestDialog } from "./PaymentRequestDialog";
+import type { NamedSettlementResponse, SettlementListSummary, SettlementSuggestion, PlayerProfile } from "./types";
 
 function localToday() {
   const d=new Date();
@@ -23,11 +26,12 @@ function localToday() {
 }
 
 function NamedSettlement({
-  item,currentPlayerId,photoFor,onChanged,
+  item,currentPlayerId,photoFor,playerProfiles,onChanged,
 }:{
   item:SettlementListSummary;
   currentPlayerId:string|null;
   photoFor:(id:string)=>string|null;
+  playerProfiles:PlayerProfile[];
   onChanged:()=>void;
 }) {
   const [open,setOpen]=useState(false);
@@ -37,10 +41,13 @@ function NamedSettlement({
   const [loading,setLoading]=useState(false);
   const [saving,setSaving]=useState(false);
   const [selected,setSelected]=useState<SettlementSuggestion|null>(null);
+  const [requestDraft,setRequestDraft]=useState<SettlementSuggestion|null>(null);
   const [amount,setAmount]=useState("");
   const [paymentDate,setPaymentDate]=useState(localToday);
   const [note,setNote]=useState("");
   const [clientToken,setClientToken]=useState(()=>crypto.randomUUID());
+
+  const wallet=useSettlementWallet({kind:"list",id:item.id},()=>{void refresh().catch(()=>undefined);});
 
   async function refresh() {
     const snapshot=await loadNamedSettlement(item.id);
@@ -152,21 +159,25 @@ function NamedSettlement({
               }}
             />
           ) : (
-            <div className="named-ledger-transfers">
-              {data.plan.map((transfer,index) => (
-                <button
-                  type="button"
-                  key={transfer.fromPlayerId+":"+transfer.toPlayerId+":"+index}
-                  disabled={data.status==="closed" || transfer.remainingCents === 0}
-                  onClick={() => selectTransfer({ ...transfer, amountCents: transfer.remainingCents })}
-                >
-                  <span>{transfer.fromPlayerName} → {transfer.toPlayerName}</span>
-                  <strong>{formatMoney(transfer.amountCents)}</strong>
-                  {transfer.remainingCents === 0 && <small>✓ {t("gezahlt")}</small>}
-                  {transfer.paidCents > 0 && transfer.remainingCents > 0 &&
-                    <small>{formatMoney(transfer.remainingCents)} {t("zu zahlen")}</small>}
-                </button>
-              ))}
+            <div className="settlement-suggestion-list">
+              {data.plan.map((entry,index) => {
+                const key=entry.fromPlayerId+":"+entry.toPlayerId;
+                return <SettlementTransferCard
+                  key={key+":"+index}
+                  transfer={entry}
+                  currentPlayerId={currentPlayerId}
+                  photoFor={photoFor}
+                  disabled={data.status==="closed"}
+                  onCopy={remaining=>{void wallet.copy(remaining);}}
+                  onWallet={(remaining,app)=>{void wallet.open(remaining,app);}}
+                  onRecord={selectTransfer}
+                  onRequest={currentPlayerId?setRequestDraft:undefined}
+                  copied={wallet.copiedKey===key}
+                  copying={wallet.copyingKey===key}
+                  openingApp={wallet.openingKey===key+":paypal"?"paypal":
+                    wallet.openingKey===key+":revolut"?"revolut":null}
+                />;
+              })}
             </div>
           )}
               {view === "list" && selected && data.status!=="closed" && (
@@ -182,6 +193,9 @@ function NamedSettlement({
                 </form>
               )}
               <SettlementPlayerResults players={data.players} currentPlayerId={currentPlayerId} photoFor={photoFor} />
+              {wallet.fallback && <PaymentWalletFallback fallback={wallet.fallback}
+                onCancel={wallet.clearFallback} onContinue={()=>{void wallet.continueFallback();}} />}
+              {wallet.error && <p className="local-settlement-error" role="alert">{wallet.error}</p>}
               <div className="section-title-row named-ledger-history-title">
                 <h3>{t("Zahlungsverlauf")}</h3><span>{data.payments.length}</span>
               </div>
@@ -212,15 +226,20 @@ function NamedSettlement({
             </>
           )}
       {error && <p className="local-settlement-error" role="alert">{error}</p>}
+      {requestDraft && currentPlayerId === requestDraft.toPlayerId &&
+        <PaymentRequestDialog suggestion={requestDraft} currentPlayerId={currentPlayerId}
+          profiles={playerProfiles} scope={{kind:"list",id:item.id}}
+          onClose={()=>setRequestDraft(null)} />}
     </SettlementCard>
   );
 }
 
 export function NamedSettlementLists({
-  currentPlayerId,photoFor,nightsVersion,
+  currentPlayerId,photoFor,playerProfiles,nightsVersion,
 }: {
   currentPlayerId:string|null;
   photoFor:(id:string)=>string|null;
+  playerProfiles:PlayerProfile[];
   nightsVersion:string;
 }) {
   const [lists,setLists]=useState<SettlementListSummary[]>([]);
@@ -234,7 +253,7 @@ export function NamedSettlementLists({
     <>
       {lists.map(item=>(
         <NamedSettlement key={item.id} item={item}
-          currentPlayerId={currentPlayerId} photoFor={photoFor} onChanged={()=>{void refresh();window.dispatchEvent(new Event("pokertracker:lists-updated"));}}/>
+          currentPlayerId={currentPlayerId} photoFor={photoFor} playerProfiles={playerProfiles} onChanged={()=>{void refresh();window.dispatchEvent(new Event("pokertracker:lists-updated"));}}/>
       ))}
       {error && <p className="local-settlement-error">{error}</p>}
     </>
