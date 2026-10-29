@@ -9,6 +9,7 @@ import {
 import { formatMoney, parseMoney } from "./lib/money";
 import { SettlementFlow } from "./SettlementFlow";
 import { SettlementBalanceHero } from "./SettlementBalanceHero";
+import { SettlementPlayerResults } from "./SettlementPlayerResults";
 import { SettlementViewToggle, type SettlementView } from "./SettlementViewToggle";
 import { SeparateSessions } from "./SeparateSessions";
 import { SettlementCard } from "./SettlementCard";
@@ -535,7 +536,7 @@ export function SettlementScreen({
               panelId="riga-settlement-detail"
               onToggle={() => setRigaOpen((open) => !open)}
             >
-              {currentPlayer && <SettlementBalanceHero balanceCents={currentPlayer.openBalanceCents} />}
+              {currentPlayer && <SettlementBalanceHero player={currentPlayer} />}
 
           {!currentPlayer && (
             <section className="settlement-profile-nudge">
@@ -888,52 +889,7 @@ export function SettlementScreen({
             </section>
           )}
 
-          <section className="settlement-section">
-            <div className="section-title-row">
-              <h2>{t("Offene Salden")}</h2>
-              <span>{data.players.length} {t("Spieler")}</span>
-            </div>
-            <div className="settlement-balance-list">
-              {data.players
-                .slice()
-                .sort((a, b) =>
-                  Number(b.id === currentPlayerId) - Number(a.id === currentPlayerId) ||
-                  b.openBalanceCents - a.openBalanceCents ||
-                  a.name.localeCompare(b.name)
-                )
-                .map((player) => (
-                  <article className={player.id === currentPlayerId ? "is-current-player" : ""} key={player.id}>
-                    <PlayerAvatar name={player.name} photo={profilePhotoFor(player.id)} />
-                    <div>
-                      <strong>{personLabel(player.id, player.name, currentPlayerId)}</strong>
-                      <small>
-                        {t("Pokerbilanz")} {player.pokerBalanceCents > 0 ? "+" : ""}
-                        {formatMoney(player.pokerBalanceCents)}
-                        {player.paidOutCents > 0
-                          ? " · " + t("gezahlt") + " " + formatMoney(player.paidOutCents)
-                          : ""}
-                        {player.receivedCents > 0
-                          ? " · " + t("erhalten") + " " + formatMoney(player.receivedCents)
-                          : ""}
-                      </small>
-                    </div>
-                    <b className={
-                      player.openBalanceCents > 0
-                        ? "positive"
-                        : player.openBalanceCents < 0
-                          ? "negative"
-                          : ""
-                    }>
-                      {player.openBalanceCents > 0
-                        ? formatMoney(player.openBalanceCents) + " " + t("zu bekommen")
-                        : player.openBalanceCents < 0
-                          ? formatMoney(Math.abs(player.openBalanceCents)) + " " + t("zu zahlen")
-                          : t("ausgeglichen")}
-                    </b>
-                  </article>
-                ))}
-            </div>
-          </section>
+          <SettlementPlayerResults players={data.players} currentPlayerId={currentPlayerId} photoFor={profilePhotoFor} />
 
           <section className="settlement-section">
             <div className="section-title-row">
