@@ -1,6 +1,8 @@
 import type { Env } from "../../auth";
 import { apiError, json } from "../../lib/http";
 import { loadSettlementSnapshot } from "../../lib/settlement";
+import { loadSessionSettlement } from "../../lib/sessionSettlement";
+import { loadListSnapshot } from "../../lib/settlementLists";
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   try {
@@ -8,14 +10,22 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     const fromPlayerId = url.searchParams.get("fromPlayerId")?.trim() ?? "";
     const toPlayerId = url.searchParams.get("toPlayerId")?.trim() ?? "";
 
-    const snapshot = await loadSettlementSnapshot(env);
+    const kind = url.searchParams.get("ledgerKind") ?? "legacy";
+    const ledgerId = url.searchParams.get("ledgerId") ?? "";
+    if (!["legacy","session","list"].includes(kind) ||
+        (kind !== "legacy" && !/^[a-f0-9-]{36}$/i.test(ledgerId))) {
+      return apiError("Ungültige Abrechnung.", 400);
+    }
+    const snapshot = kind === "session" ? await loadSessionSettlement(env, ledgerId)
+      : kind === "list" ? await loadListSnapshot(env, ledgerId)
+      : await loadSettlementSnapshot(env);
     const suggestion = snapshot.suggestions.find(
       (entry) =>
         entry.fromPlayerId === fromPlayerId &&
         entry.toPlayerId === toPlayerId,
     );
 
-    if (!suggestion) {
+    if (!suggestion || ("status" in snapshot && snapshot.status === "closed")) {
       return apiError(
         "Die offene Zahlung hat sich geändert. Bitte den Ausgleich neu laden.",
         409,
