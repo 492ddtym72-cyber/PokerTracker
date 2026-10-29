@@ -3,15 +3,16 @@ import { sendPaymentRequest } from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
 import { t } from "./i18n";
 import { PlayerAvatar } from "./PlayerAvatar";
-import type { SettlementSuggestion, PlayerProfile } from "./types";
+import type { SettlementSuggestion, PlayerProfile, PaymentLedgerScope } from "./types";
 
 export function PaymentRequestDialog({
-  suggestion, currentPlayerId, profiles, onClose,
+  suggestion, currentPlayerId, profiles, onClose, scope = {kind:"legacy"},
 }: {
   suggestion: SettlementSuggestion;
   currentPlayerId: string;
   profiles: PlayerProfile[];
   onClose: () => void;
+  scope?: PaymentLedgerScope;
 }) {
   const [amount,setAmount]=useState((suggestion.amountCents/100).toFixed(2).replace(".",","));
   const [message,setMessage]=useState("");
@@ -35,6 +36,7 @@ export function PaymentRequestDialog({
       await sendPaymentRequest({
         fromPlayerId:suggestion.fromPlayerId,toPlayerId:suggestion.toPlayerId,
         actorPlayerId:currentPlayerId,amountCents:cents,message,paymentUrl,clientToken,
+        ledgerKind:scope.kind,ledgerId:scope.kind==="legacy"?undefined:scope.id,
       });
       window.dispatchEvent(new Event("pokertracker:inbox-updated"));
       onClose();
