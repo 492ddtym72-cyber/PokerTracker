@@ -511,7 +511,6 @@ export function SettlementScreen({
         <button className="back-button" type="button" onClick={onClose} aria-label={t("Zurück")}>‹</button>
         <div className="screen-heading">
           <h1>{t("Ausgleichen")}</h1>
-          <p>{t("Offene Zahlungen und bereits erfasste Auszahlungen.")}</p>
         </div>
       </div>
 
@@ -531,7 +530,7 @@ export function SettlementScreen({
               <h2>{t("Abrechnungslisten")}</h2>
               <button className="secondary-button" type="button" disabled={creatingList}
                 onClick={()=>void addNamedList()}>
-                + {t("Neue Liste erstellen")}
+                + {t("Neue Liste")}
               </button>
             </div>
             <SettlementCard
