@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { loadSessionSettlement, recordSessionPayment, voidSessionPayment } from "./lib/api";
 import { formatMoney } from "./lib/money";
 import { SettlementFlow } from "./SettlementFlow";
+import { SettlementBalanceHero } from "./SettlementBalanceHero";
+import { SettlementViewToggle, type SettlementView } from "./SettlementViewToggle";
+import { personalSettlementBalance } from "./lib/settlementPresentation";
 import { t } from "./i18n";
 import { PlayerAvatar } from "./PlayerAvatar";
 import type { SettlementResponse, SettlementSuggestion } from "./types";
@@ -29,6 +32,7 @@ export function SessionSettlement({
   const [error, setError] = useState("");
   const [confirmKey, setConfirmKey] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [view, setView] = useState<SettlementView>("list");
 
   useEffect(() => {
     let live = true;
@@ -91,46 +95,51 @@ export function SessionSettlement({
     }
   }
 
-  // Always display the original session routes, including paid transfers.
+  // Payment plans remain frozen; the view switch never recalculates transfers.
   const pending = data?.suggestions ?? [];
   const diagramTransfers = data?.plan ?? [];
-  const diagramIsHistory = pending.length === 0;
+  const personalBalance = data
+    ? personalSettlementBalance(data.players, currentPlayerId)
+    : null;
 
   if (loading) return <section className="local-settlement"><p className="local-settlement-muted">{t("Lädt …")}</p></section>;
 
   return (
     <section className="local-settlement" aria-label={t("Session-Abrechnung")}>
-      <header className="local-settlement-heading">
-        <div>
-          <h2>{t("Wer zahlt wem?")}</h2>
-        </div>
-        {data && <strong className="local-settlement-total">{formatMoney(data.totalOutstandingCents)}</strong>}
-      </header>
+      {personalBalance !== null && <SettlementBalanceHero balanceCents={personalBalance} />}
 
       {data && data.groupDifferenceCents !== 0 && (
         <p className="local-settlement-error">{t("Die Session hat eine offene Differenz.")}</p>
       )}
-      {data && data.groupDifferenceCents === 0 && data.suggestions.length === 0 && (
+
+      {data && (
+        <div className="settlement-section-head local-settlement-view-head">
+          <SettlementViewToggle view={view} onChange={setView} />
+        </div>
+      )}
+
+      {data && data.groupDifferenceCents === 0 && diagramTransfers.length === 0 && (
         <p className="local-settlement-empty">{t("Alles beglichen")}</p>
       )}
 
-      {data && data.groupDifferenceCents === 0 && diagramTransfers.length > 0 && (
+      {view === "flow" && data && data.groupDifferenceCents === 0 && diagramTransfers.length > 0 && (
         <div className="local-settlement-diagram">
-          <div className="local-settlement-diagram-heading">
-            <strong>{diagramIsHistory ? t("Erfasste Zahlungen") : t("Offene Zahlungen")}</strong>
-            <span>{diagramTransfers.length}</span>
-          </div>
           <SettlementFlow
             suggestions={diagramTransfers}
             currentPlayerId={currentPlayerId}
             profilePhotoFor={photoFor}
-            note={diagramIsHistory
-              ? t("Diese Pfeile zeigen bereits erfasste Zahlungen dieser Session.")
-              : t("Diese Pfeile zeigen nur die offenen Zahlungen dieser Session.")}
+            onSelect={(transfer) => {
+              const remaining = "remainingCents" in transfer ? Number(transfer.remainingCents) : transfer.amountCents;
+              if (remaining <= 0) return;
+              setConfirmKey(keyFor(transfer));
+              setView("list");
+            }}
+            note={pending.length === 0 ? t("Erfasste Zahlungen") : t("Offene Zahlungen")}
           />
         </div>
       )}
 
+      {view === "list" && (
       <div className="local-settlement-transfers">
         {data?.plan.map(entry => {
           const key = keyFor(entry);
@@ -174,6 +183,7 @@ export function SessionSettlement({
           );
         })}
       </div>
+      )}
 
       {data && data.payments.length > 0 && (
         <div className="local-settlement-history">
