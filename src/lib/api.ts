@@ -7,6 +7,8 @@ import type {
   PreparedPaymentApp,
   SettlementPaymentInput,
   SettlementResponse,
+  SettlementListSummary,
+  NamedSettlementResponse,
 } from "../types";
 import { t } from "../i18n";
 
@@ -193,5 +195,33 @@ export function paymentRequestAction(requestId:string, action:string, data:Recor
 export function markPaymentEventsRead(playerId:string,ids:string[]) {
   return api<{ok:boolean}>("/api/payment-requests/events",{
     method:"POST",body:JSON.stringify({playerId,ids}),
+  });
+}
+
+export async function loadSettlementLists(): Promise<SettlementListSummary[]> {
+  const response = await api<{ lists: SettlementListSummary[] }>("/api/settlement-lists");
+  return response.lists;
+}
+export function createSettlementList(name: string) {
+  return api<{id:string;name:string;status:"open"}>("/api/settlement-lists",{
+    method:"POST",body:JSON.stringify({name}),
+  });
+}
+export function loadNamedSettlement(id: string) {
+  return api<NamedSettlementResponse>("/api/settlement-lists/"+encodeURIComponent(id));
+}
+export function recordNamedSettlementPayment(id:string,input:SettlementPaymentInput) {
+  return api<NamedSettlementResponse>("/api/settlement-lists/"+encodeURIComponent(id)+"/payments",{
+    method:"POST",body:JSON.stringify(input),
+  });
+}
+export function voidNamedSettlementPayment(id:string,paymentId:string) {
+  return api<NamedSettlementResponse>("/api/settlement-lists/"+encodeURIComponent(id)+"/payments/"+encodeURIComponent(paymentId),{
+    method:"DELETE",
+  });
+}
+export function advanceSettlementList(id:string,status:"paying_out"|"closed") {
+  return api<{id:string;status:string}>("/api/settlement-lists/"+encodeURIComponent(id),{
+    method:"PATCH",body:JSON.stringify({status}),
   });
 }

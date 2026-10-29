@@ -11,6 +11,7 @@ interface NightRow {
   record_type: "session" | "baseline";
   status: "ongoing" | "completed";
   settlement_mode: "pooled" | "separate";
+  settlement_list_id: string | null;
   result_id: string | null;
   player_id: string | null;
   player_name: string | null;
@@ -30,6 +31,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
       n.record_type,
       n.status,
       n.settlement_mode,
+      m.list_id AS settlement_list_id,
       r.id AS result_id,
       p.id AS player_id,
       p.name AS player_name,
@@ -37,6 +39,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
       r.cash_out_cents,
       COALESCE(a.amount_cents, 0) AS adjustment_cents
     FROM poker_nights n
+    LEFT JOIN settlement_list_nights m ON m.night_id=n.id
     LEFT JOIN night_results r ON r.night_id = n.id
     LEFT JOIN players p ON p.id = r.player_id
     LEFT JOIN night_adjustments a
@@ -53,6 +56,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
     recordType: "session" | "baseline";
     status: "ongoing" | "completed";
     settlementMode: "pooled" | "separate";
+    settlementListId: string | null;
     players: Array<{
       id: string;
       name: string;
@@ -75,6 +79,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
         recordType: row.record_type,
         status: row.status,
         settlementMode: row.settlement_mode,
+        settlementListId: row.settlement_list_id,
         players: [],
       };
       nightMap.set(row.night_id, night);

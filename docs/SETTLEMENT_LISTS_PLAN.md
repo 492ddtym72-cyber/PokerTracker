@@ -1,65 +1,67 @@
-# Settlement lists: independently payable friend groups
+# Parallel settlement lists — implementation and data safety
 
-Status: design specification. **Only the Riga section, the safe default and the home-volume fix are implemented in the initial PR.** Parallel-list APIs and database migration described below are NOT yet shipped.
+Status: **implemented in PR #29**, gated by the additive D1 migration `0012_parallel_settlement_lists.sql`. Tested against a SQLite fixture and verified unchanged legacy-table fingerprints in production after applying the additive schema.
 
-## Product contract
+## Business rules
 
-PokerTracker has one global game history and leaderboard, but multiple independent payment ledgers.
+There is **one global poker history and leaderboard**, and **several payment ledgers**. A completed game contributes once to global player profit, win rate, appearances and total buy-ins. An unfinished game contributes nothing. Imported historical baseline results contribute to lifetime profit and buy-in volume, but are not counted as played evenings.
 
-- Every **completed** game contributes once to player lifetime statistics, regardless of payment destination. An ongoing game contributes nothing until finalized; historical baseline records contribute to cumulative player profit, not to games played or played volume.
-- Every session belongs to exactly one settlement destination:
-  1. **Single session** — existing `settlement_mode='separate'`, existing per-session payment table/diagram.
-  2. **Named settlement list** — pooled with other selected sessions in the same list. Lists exist in parallel, and payments in one cannot offset debt in another.
-- A settlement list may contain sessions involving different overlapping sets of players; only those involved have balances in that list.
-- **Riga** is the initial named settlement list built from the existing shared pool. Its outstanding amounts, manually recorded payments, payment requests and route preferences must remain financially identical after migration. Riga is *paying out*, so new sessions cannot silently join it.
-- Lists have statuses `open` (accept more sessions), `paying_out` (no new sessions or result edits; existing payments can be recorded/voided), and `closed` (read-only; manual confirmation to close once reconciled). Never auto-close because a fully paid list may need reconciliation.
-- An existing completed game must not be reassigned if it has payments or has already entered a paying-out/closed list, absent an explicit audited reversal workflow. No double membership.
+Each game is either:
+- **Standalone** (`settlement_mode='separate'`): paid within its own existing `session_settlement_payments` ledger and graph.
+- **Named settlement list** (`settlement_mode='pooled'` with a row in `settlement_list_nights`): aggregated with only the other games in the same named list, with its own payment history/graph.
+- **Legacy Riga** (`settlement_mode='pooled'` *without* a row in `settlement_list_nights`): the existing in-progress payout, still calculated by the existing `/api/settlements` endpoint and recorded in `settlement_payments`.
 
-## UI workflow
+This is an **additive** approach: Riga and its old payment requests, payment reports, route preferences and game records are never backfilled, retagged or rewritten. New lists occupy their own tables, so old Riga suggestions and outstanding amounts do not change.
 
-**Abrechnung landing page:** section `Abrechnungslisten` with cards for Riga and every new named list (e.g. `Hamburg`, `Freunde`). Each card shows list name, status, session count, number of participating players, and outstanding amount; click to expand into the familiar list/flow payment diagram, open balances, payment history, reminders, PayPal handoff, and pay/undo actions. Each list has its own local state and API requests. Below: existing `Separate Sessions` section with their own expandable diagrams.
+## New schema
 
-**Checkout / new night:** choose `Einzelne Session` (standalone) or `Zur Abrechnungsliste`, then a second selector listing **only open lists** with option `Neue Liste erstellen`. Show selection clearly in the session details. A finalized session enters its selected ledger once. For an ongoing game, destination can be edited until finalized. Do not offer Riga, or any paying-out/closed list, as a destination. In the interim, until list creation ships, the UI defaults new sessions to standalone and requires an explicit confirmation before adding to legacy Riga.
+`settlement_lists`: named lists, unique case-insensitive names, status `open | paying_out | closed`.
+`settlement_list_nights`: one primary-key row per game, with a foreign key to the named list. Insertion trigger enforces a valid pooled session and an open list; updates are forbidden; deletions are forbidden if any payment history exists or the list is no longer open.
+`settlement_list_payments`: independent recorded/voided transfers, global idempotency token, list ID foreign key, date/note, payer/receiver. No old payment rows are moved.
 
-**Creation:** name a new list, optional description, optional initial participants; actual financial membership is defined by assigned session results. Allow renaming with audit trail, prohibit deletion while sessions/payments exist. Show `Archiviert` filter separately, never mix closed lists with outstanding ones.
+The D1 migration uses `CREATE ... IF NOT EXISTS` and no `DELETE`, `UPDATE` or `ALTER TABLE` statements on legacy data. It can be safely encountered again by the standard Wrangler migrations process.
 
-**Home summary:** `Einsätze gesamt` sums buy-ins across ALL completed real sessions, regardless of destination; exclude baseline records and ongoing sessions. The home settlement shortcut must identify its actual scope (currently Riga), not imply a group-agnostic global debt. Once lists exist, use outstanding lists count or a list chooser, not a sum that permits cross-list netting.
+## API
 
-## Persistence and data migration (Cloudflare D1)
+- `GET/POST /api/settlement-lists`: list summaries and create an open list.
+- `GET/PATCH /api/settlement-lists/:id`: list-specific balance/flow/history and status transitions.
+- `POST /api/settlement-lists/:id/payments`: validate payer, recipient, amount and list; record a payment; automatically mark the list as paying out after the first payment.
+- `DELETE /api/settlement-lists/:id/payments/:paymentId`: void a payment only from that list.
+- Existing `/api/settlements`, requests, PayPal handoff and payment history remain **Riga-only**.
+- Existing `/api/nights` accepts `settlementListId` and returns it with each game. The session and its list-membership row are written atomically using D1 `batch()`. The server validates list ownership and status independently of frontend selections.
 
-1. Take a backup/export and record **before** snapshots for the old main settlement: result sum per player, outstanding sum, every recorded payment/void, pending request and current route preference. Use consistent transaction/snapshot, and verify against current API response.
-2. Create `settlement_lists(id PRIMARY KEY, name NOT NULL, description, status CHECK(...), created_at, updated_at, closed_at)`; insert a **stable** Riga legacy ID with status `paying_out`.
-3. Add `poker_nights.settlement_list_id` nullable FK. Backfill **all existing pooled sessions** to Riga (including ongoing, then require explicit action before finalization); standalone ones must remain NULL. Add CHECK at application level: `separate` implies NULL, `pooled` requires a valid list, then add DB constraints via table rebuild if needed. Unique assignment is guaranteed by a single FK column, not a many-to-many table.
-4. Add `settlement_payments.settlement_list_id` and backfill every existing shared payment to Riga, preserving IDs, tokens, void status, amounts and dates. Create list-aware indexes. No attempt to convert local session payments.
-5. Bind existing `payment_requests` and related inbox reporting to their exact list (requests must never be considered evidence of payment in a different list). Backfill old requests to Riga. Review all APIs that infer payer/recipient balances from the legacy endpoint.
-6. Preserve `settlement_route_priorities` for Riga, including its original v1 snapshot key, so its current diagram/order is not disturbed by a mere UI/data migration. New lists use a list-ID-prefixed, versioned snapshot key; route preferences are never shared across lists.
-7. Make list assignment immutable for sessions that have any payments, or whose list is `paying_out`/`closed`. Lock Riga's completed source results as part of payout protection; allow audited corrections only through a purpose-built reversal process.
-8. Pre/post-assert identical Riga per-player poker balances, open balances, total outstanding, transfers/order, payment IDs and amounts, active/voided history, and inbox requests. Abort or restore if any mismatch. Test local D1 migration with realistic fixtures before applying to production.
+The named-list balances sum only results from completed linked games and subtract/add only that list's active payments. A player in two lists can owe in one and receive in the other without netting the two groups.
 
-## API contract
+## Status / safeguards
 
-- `GET /api/settlement-lists`: headers and counts; `POST`: create one (open).
-- `GET /api/settlement-lists/:id`: list-scoped player balances, payments and suggested transfers; `PATCH`: rename/status transition with validation.
-- `POST /api/settlement-lists/:id/payments`, `DELETE .../payments/:paymentId` (void): authorize list membership and cap payments to that list's current outstanding balances.
-- `POST /api/nights`, `PUT /api/nights/:id`: accept a discriminated `destination: {kind:'session'} | {kind:'list',listId}`. Validate server-side; do not trust the frontend; legacy request formats map explicitly to Riga only for historical compatibility and should be deprecated after migration.
-- `GET /api/settlements` remains a compatibility alias **for Riga only** during rollout. Existing payment and PayPal-hand-off routes must either explicitly resolve Riga or accept a validated list ID; they must never combine lists.
-- Settlement suggestions compute SQL aggregates using `WHERE settlement_list_id = ? AND status='completed'`, with payments also filtered by the same list ID, including void semantics. Use consistent/read-safe snapshots, validate in the same transaction as mutations, and retain idempotent client tokens.
-- Each reminder/request and external payment-app preparation must be scoped to the selected list. Notify/report/confirm actions must never apply across list boundaries.
+1. **Open**: can accept new games and edits while no payments have been recorded. Opening a game in checkout defaults to standalone; choosing a list is explicit.
+2. **Paying out**: no new games, result edits or reassignment. Existing recorded payments can be managed and voided.
+3. **Closed**: fully settled, read-only. Can only close from paying-out status with zero outstanding transfers and zero unresolved result discrepancy.
+4. Cannot start payout or record a payment while a linked game is unfinished.
+5. Recording the first group payment automatically begins payout and freezes assignments.
+6. Existing Riga results—including the imported baseline—are immutable while the old payout is underway, but existing Riga payment/void/request routes stay functional.
+7. Named list assignments are immutable once made; existing completed or paid games cannot be silently moved. Sessions are never counted twice in separate group payouts.
 
-## Acceptance / regression tests
+## User interface
 
-- Migration: identical Riga snapshot and payment histories before/after; overlapping players across Riga and Hamburg produce independent debts; legacy route preferences unchanged.
-- List isolation: A pays B in Hamburg; Riga suggestions and open balances remain byte-for-byte unchanged, and vice versa. Two independently open lists and a standalone session may exist concurrently.
-- Lifecycle: open -> paying_out -> closed; no new games added once payout begins; payment/undo allowed while paying_out; closed immutable.
-- Enrollment: selecting a list requires an explicit choice; duplicate session membership impossible; changing assignment after a payment fails; concurrent finalization cannot double-count.
-- Leaderboard: all completed sessions from every destination included exactly once; baseline excluded from game count/volume; ongoing excluded; payment recording does not change leaderboard.
-- API integrity: invalid IDs, unauthorized transitions, stale snapshot and replayed tokens, cross-list request IDs and handoffs rejected.
-- End-to-end: checkout creates new list, add two games, inspect diagram, record partial payment, add independent game to separate list, settle it, reopen both, compare values after refresh.
+- Home shows the **all-time buy-in volume**, including the historical baseline, but does not display Riga's remaining payout amount. That balance lives inside **Abrechnung → Riga**.
+- Abrechnung has an expandable **Riga** card; separate named list cards each show their own balance, payment flow, payment history and manual payment/undo functionality. Existing standalone session cards remain below.
+- Game editor: choose **Nur diese Session** or **Abrechnungsliste**. For a named list, choose an open list or create one. For existing Riga games, the payout is displayed as locked.
+- **Parity deliberately deferred:** named lists currently support manual payment recording but not the existing Riga-only inbox reminders and PayPal/Revolut handoff. Those are not exposed for named groups until their request validation, return flow and ledger-specific routing are built/tested.
 
-## Proposed implementation sequence
+## Validation
 
-1. **Shipped foundation:** Riga card scoped to current pooled settlement; new sessions default to standalone; home volume and counts cover all completed sessions; no DB/payment API change.
-2. **Migration & read-only list-scoped snapshots:** D1 tables and backfill with golden-snapshot tests, read API for Riga + second fixture list; release with existing payment UI unchanged behind compatibility route.
-3. **Write isolation:** list-scoped payment, preferences, reminders, PayPal and undo endpoints; integration tests for no cross-list effects.
-4. **Checkout & management UI:** create lists, select destination, status transitions; show list cards and diagrams with updated payment flows.
-5. **Migration verification & rollout:** back up, verify pre/post hashes and cents, activate UI after CI and D1 checks, monitor and preserve rollback path. Keep legacy Riga out of the set of selectable open lists throughout payout.
+- Before production schema change: Cloudflare D1 SQL export completed and hashes recorded for nine legacy tables. No edits to old records.
+- After schema change: all nine old table counts and content fingerprints matched exactly, including the saved payment requests and existing route preferences.
+- Automated CI: TS frontend and Pages Functions builds, Node stats/settlement-flow tests, Python legacy D1 tests, SQLite migration isolation tests.
+- New APIs must never be deployed before the additive D1 migration. Deployment succeeds only once the new table presence and legacy fingerprint checks pass.
+
+## Future work
+
+- Scoped inbox payment requests, reminders, PayPal/Revolut handoff, and payment-report confirmation for named lists, implemented only after adding explicit `list_id` validation to every affected endpoint.
+- Optional player identity disambiguation when different friend groups contain different people with the same name; the current global player registry is shared.
+- Group list names/management enhancements and read-only completed-list archive.
+
+## Rollback
+
+Old data and old endpoints remain intact. Rolling back the Pages deployment to the previous version disables new-list UI but will not remove new tables. If new groups have made payments, **do not drop their tables**; preserve them and restore the new UI later. Never rollback by merging named payments into Riga.

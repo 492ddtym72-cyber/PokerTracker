@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import {
+  createSettlementList,
   createSettlementPayment,
   loadSettlements,
   preparePaymentApp,
@@ -8,6 +9,7 @@ import {
 import { formatMoney, parseMoney } from "./lib/money";
 import { SettlementFlow } from "./SettlementFlow";
 import { SeparateSessions } from "./SeparateSessions";
+import { NamedSettlementLists } from "./NamedSettlementLists";
 import { getLocale, t } from "./i18n";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { PaymentRequestDialog } from "./PaymentRequestDialog";
@@ -157,8 +159,6 @@ export function SettlementSummary({
     };
   }, [onDataChange]);
 
-  const balanced = data !== null && data.totalOutstandingCents === 0 && data.groupDifferenceCents === 0;
-
   return (
     <button className="dashboard-action-card settlement-summary-card" type="button" onClick={onOpen}>
       <span className="dashboard-action-icon" aria-hidden="true">
@@ -170,16 +170,7 @@ export function SettlementSummary({
       </span>
       <span className="dashboard-action-copy settlement-summary-copy">
         <strong>{t("Ausgleichen")}</strong>
-        {!data ? (
-          <small>{t("Lädt …")}</small>
-        ) : balanced ? (
-          <small>{t("Alles ausgeglichen")}</small>
-        ) : (
-          <span className="settlement-summary-amount">{formatMoney(data.totalOutstandingCents)}</span>
-        )}
-        {data && data.groupDifferenceCents !== 0 && (
-          <em>{t("Offene Session-Differenz")}: {formatMoney(data.groupDifferenceCents)}</em>
-        )}
+        <small>{t("Abrechnungslisten")}</small>
       </span>
       <span className="dashboard-action-arrow" aria-hidden="true">
         <svg viewBox="0 0 24 24" focusable="false"><path d="m9 5 7 7-7 7" /></svg>
@@ -219,6 +210,22 @@ export function SettlementScreen({
   const [copiedTransferKey, setCopiedTransferKey] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [rigaOpen, setRigaOpen] = useState(false);
+  const [newListVersion, setNewListVersion] = useState(0);
+  const [creatingList, setCreatingList] = useState(false);
+
+  async function addNamedList() {
+    const name=window.prompt(t("Name der neuen Abrechnungsliste"));
+    if(name===null) return;
+    setCreatingList(true);
+    setError("");
+    try {
+      await createSettlementList(name);
+      setNewListVersion(v=>v+1);
+      window.dispatchEvent(new Event("pokertracker:lists-updated"));
+    } catch(err) {
+      setError(err instanceof Error ? err.message : t("Liste konnte nicht angelegt werden."));
+    } finally { setCreatingList(false); }
+  }
 
   const profilePhotoByPlayer = useMemo(
     () => new Map(playerProfiles.map((player) => [player.id, player.profilePhoto])),
@@ -293,7 +300,7 @@ export function SettlementScreen({
     return () => window.clearTimeout(timeout);
   }, [paymentAppNotice]);
 
-  const rigaSessionCount = nights.filter((night) => night.recordType === "session" && night.settlementMode === "pooled" && night.status === "completed").length;
+  const rigaSessionCount = nights.filter((night) => night.recordType === "session" && night.settlementMode === "pooled" && night.status === "completed" && !night.settlementListId).length;
 
   const currentPlayer = useMemo(
     () => data?.players.find((player) => player.id === currentPlayerId) ?? null,
@@ -519,9 +526,12 @@ export function SettlementScreen({
       ) : data ? (
         <>
           <section className="settlement-ledgers" aria-label={t("Abrechnungslisten")}>
-            <div className="section-title-row">
+            <div className="settlement-lists-topline">
               <h2>{t("Abrechnungslisten")}</h2>
-              <span>1</span>
+              <button className="secondary-button" type="button" disabled={creatingList}
+                onClick={()=>void addNamedList()}>
+                + {t("Neue Liste erstellen")}
+              </button>
             </div>
             <article className={"settlement-ledger-item" + (rigaOpen ? " is-expanded" : "")}>
               <button
@@ -1063,6 +1073,11 @@ export function SettlementScreen({
                 </div>
               )}
             </article>
+            <NamedSettlementLists
+              currentPlayerId={currentPlayerId}
+              photoFor={profilePhotoFor}
+              nightsVersion={newListVersion+":"+nights.map(n=>n.id+":"+n.updatedAt).join("|")}
+            />
           </section>
 
           <SeparateSessions

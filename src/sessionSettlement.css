@@ -111,3 +111,30 @@
   .settlement-ledger-amount small { font-size: 10px; }
   .settlement-ledger-detail { padding: 10px 9px 19px; }
 }
+
+/* Named settlements keep the same visual language as Riga, with isolated data. */
+.session-list-picker { display: grid; gap: 9px; grid-template-columns: minmax(0,1fr) auto; }
+.session-list-picker > select { width: 100%; min-width: 0; border: 1px solid rgba(231,198,117,.24); border-radius: 10px; padding: 12px; color: #f6f0e1; background: #102e22; font: inherit; font-size: 13px; }
+.session-list-picker > span { grid-column: 1/-1; font-size: 13px; color: #dabf88; }
+.session-list-picker .secondary-button { margin: 0; border-radius: 10px; padding: 10px 12px; font-size: 12px; white-space: nowrap; }
+.named-ledger-stats { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 2px 14px; color: #9daf9f; font-size: 12px; }
+.named-ledger-transfers { display: grid; gap: 7px; margin-top: 10px; }
+.named-ledger-transfers button { width: 100%; display: flex; justify-content: space-between; gap: 10px; padding: 12px; border: 1px solid rgba(255,255,255,.10); border-radius: 10px; background: #0c2b20; color: #ecede3; font: inherit; font-size: 13px; text-align: left; }
+.named-ledger-transfers button strong { color: #edcf8a; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.named-ledger-payment-form { display: grid; gap: 11px; padding: 15px; margin: 14px 0; border: 1px solid rgba(215,190,119,.22); border-radius: 13px; background: #09251b; }
+.named-ledger-payment-form > strong { font-size: 14px; color: #e9ce8e; }
+.named-ledger-payment-form label { display: grid; gap: 5px; font-size: 12px; color: #a9beac; }
+.named-ledger-payment-form input { min-width: 0; border-radius: 9px; padding: 10px; border: 1px solid rgba(255,255,255,.14); background: #082117; color: #f3eee2; font: inherit; }
+.named-ledger-history-title { margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,.08); }
+.named-ledger-history-title h3 { margin: 0; font-size: 15px; }
+.named-ledger-status-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+.named-ledger-status-actions .secondary-button { margin: 0; }
+@media (max-width: 460px) {
+  .session-list-picker { grid-template-columns: minmax(0,1fr); }
+  .named-ledger-payment-form { padding: 12px; }
+}
+
+.settlement-lists-topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.settlement-lists-topline h2 { margin: 0; font-size: 19px; }
+.settlement-lists-topline .secondary-button { margin: 0; padding: 9px 12px; font-size: 12px; white-space: nowrap; }
+@media (max-width: 460px) { .settlement-lists-topline h2 { font-size: 17px; } .settlement-lists-topline .secondary-button { padding: 9px 10px; font-size: 11px; } }

@@ -89,14 +89,16 @@ export function getPlayerAppearances(
     );
 }
 
-/** All played money is summed from completed session buy-ins only.
- * Lifetime baseline records are legacy result snapshots, not money played. */
+/** Include completed session and imported historical buy-ins in lifetime turnover.
+ * Lifetime baseline records describe past poker volume, but not a counted game. */
 export function getCompletedSessionTotals(nights: readonly PokerNight[]) {
   let sessionCount = 0;
   let totalStakeCents = 0;
   for (const night of nights) {
-    if (night.recordType !== "session" || night.status !== "completed") continue;
-    sessionCount += 1;
+    if (night.status !== "completed") continue;
+    // The imported baseline represents earlier buy-ins and contributes to
+    // lifetime money played, but must never count as a poker evening.
+    if (night.recordType === "session") sessionCount += 1;
     totalStakeCents += night.players.reduce((sum, player) => sum + player.stakeCents, 0);
   }
   return { sessionCount, totalStakeCents };
