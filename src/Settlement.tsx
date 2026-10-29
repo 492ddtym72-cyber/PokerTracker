@@ -308,18 +308,6 @@ export function SettlementScreen({
     [data, currentPlayerId],
   );
 
-  const suggestions = useMemo(() => {
-    if (!data) return [];
-    if (!currentPlayerId) return data.suggestions;
-    return data.suggestions
-      .map((suggestion, index) => ({ suggestion, index }))
-      .sort((a, b) =>
-        Number(b.suggestion.fromPlayerId === currentPlayerId || b.suggestion.toPlayerId === currentPlayerId) -
-        Number(a.suggestion.fromPlayerId === currentPlayerId || a.suggestion.toPlayerId === currentPlayerId) ||
-        a.index - b.index
-      ).map(({ suggestion }) => suggestion);
-  }, [data, currentPlayerId]);
-
   // Keep the original list in view, including completed transfers. Only the
   // selected transfer's remaining amount changes; nobody is reassigned.
   const plannedTransfers = useMemo(() => {
