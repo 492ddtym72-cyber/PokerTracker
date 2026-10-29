@@ -797,12 +797,14 @@ export function SettlementScreen({
             <NamedSettlementLists
               currentPlayerId={currentPlayerId}
               photoFor={profilePhotoFor}
+              playerProfiles={playerProfiles}
               nightsVersion={newListVersion+":"+nights.map(n=>n.id+":"+n.updatedAt).join("|")}
             />
             <SeparateSessions
               nights={nights}
               currentPlayerId={currentPlayerId}
               photoFor={profilePhotoFor}
+              playerProfiles={playerProfiles}
             />
           </section>
         </>
