@@ -8,6 +8,7 @@ const ENGLISH: Record<string, string> = {
   "Laufende Sessions müssen zuerst abgeschlossen werden.": "Finish all ongoing sessions before starting payouts.",
   "Diese Abrechnung enthält bereits Zahlungen und ist gesperrt.": "This settlement has payment history and is locked.",
   "Abrechnungsliste": "Settlement list",
+  "Neue Liste": "New list",
   "Liste wählen": "Choose list",
   "Neue Liste erstellen": "Create new list",
   "Name der neuen Abrechnungsliste": "Name of the new settlement list",
