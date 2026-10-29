@@ -1,5 +1,7 @@
 import type { Env } from "../auth";
 import { loadSettlementSnapshot } from "./settlement";
+import { loadSessionSettlement } from "./sessionSettlement";
+import { loadListSnapshot } from "./settlementLists";
 
 const ID = /^player_[a-f0-9]{24}$/;
 const TOKEN = /^[a-f0-9-]{20,80}$/i;
@@ -47,6 +49,7 @@ interface RequestRow {
   message: string | null; payment_url: string | null; created_at: string;
   cancelled_at: string | null; last_reminded_at: string | null;
   paid_cents: number;
+  ledger_kind: LedgerKind; ledger_id: string | null;
 }
 interface ReportRow {
   id: string; request_id: string; amount_cents: number; status: "reported" | "confirmed" | "rejected";
@@ -55,14 +58,43 @@ interface ReportRow {
 interface EventRow {
   id: string; request_id: string; kind: string; created_at: string; read_at: string | null;
 }
-const requestTotals = `(SELECT COALESCE(SUM(sp.amount_cents),0)
-  FROM payment_reports report
-  JOIN settlement_payments sp ON sp.payment_report_id = report.id AND sp.voided_at IS NULL
-  WHERE report.request_id = pr.id)`;
+type LedgerKind = "legacy" | "session" | "list";
+const requestTotals = `(CASE pr.ledger_kind
+  WHEN 'session' THEN (SELECT COALESCE(SUM(sp.amount_cents),0)
+    FROM payment_reports report JOIN session_settlement_payments sp
+      ON sp.payment_report_id=report.id AND sp.voided_at IS NULL WHERE report.request_id=pr.id)
+  WHEN 'list' THEN (SELECT COALESCE(SUM(sp.amount_cents),0)
+    FROM payment_reports report JOIN settlement_list_payments sp
+      ON sp.payment_report_id=report.id AND sp.voided_at IS NULL WHERE report.request_id=pr.id)
+  ELSE (SELECT COALESCE(SUM(sp.amount_cents),0)
+    FROM payment_reports report JOIN settlement_payments sp
+      ON sp.payment_report_id=report.id AND sp.voided_at IS NULL WHERE report.request_id=pr.id)
+  END)`;
+
+function validatedScope(data: Record<string, unknown>): { kind: LedgerKind; id: string | null } {
+  const kind = data.ledgerKind ?? "legacy";
+  if (kind !== "legacy" && kind !== "session" && kind !== "list") throw new Error("Ungültige Abrechnung.");
+  if (kind === "legacy") return {kind, id:null};
+  if (typeof data.ledgerId !== "string" || !isId(data.ledgerId)) {
+    throw new Error("Ungültige Abrechnung.");
+  }
+  return {kind, id:data.ledgerId};
+}
+async function scopedSnapshot(env: Env, kind: LedgerKind, id: string | null) {
+  if (kind === "session" && id) return loadSessionSettlement(env,id);
+  if (kind === "list" && id) return loadListSnapshot(env,id);
+  if (kind === "legacy") return loadSettlementSnapshot(env);
+  throw new Error("Abrechnung nicht gefunden.");
+}
+function scopedRouteAmount(snapshot: Awaited<ReturnType<typeof scopedSnapshot>>, from:string, to:string) {
+  return snapshot.suggestions.filter(s=>s.fromPlayerId===from&&s.toPlayerId===to)
+    .reduce((total,s)=>total+s.amountCents,0);
+}
+
 
 export async function loadPaymentRequests(env: Env, playerId: string) {
   player(playerId);
-  const [requests, reports, events, settlement] = await Promise.all([
+  const [requests, reports, events] = await Promise.all([
     env.DB.prepare(`SELECT pr.*, debtor.name AS from_player_name, creditor.name AS to_player_name,
       ${requestTotals} AS paid_cents
       FROM payment_requests pr
@@ -70,10 +102,12 @@ export async function loadPaymentRequests(env: Env, playerId: string) {
       JOIN players creditor ON creditor.id=pr.to_player_id
       WHERE pr.to_player_id=? OR (pr.from_player_id=? AND pr.cancelled_at IS NULL)
       ORDER BY pr.created_at DESC LIMIT 100`).bind(playerId, playerId).all<RequestRow>(),
-    env.DB.prepare(`SELECT report.*, sp.voided_at
+    env.DB.prepare(`SELECT report.*, COALESCE(sp.voided_at,ssp.voided_at,lsp.voided_at) AS voided_at
       FROM payment_reports report
       JOIN payment_requests pr ON pr.id=report.request_id
       LEFT JOIN settlement_payments sp ON sp.payment_report_id=report.id
+      LEFT JOIN session_settlement_payments ssp ON ssp.payment_report_id=report.id
+      LEFT JOIN settlement_list_payments lsp ON lsp.payment_report_id=report.id
       WHERE pr.to_player_id=? OR (pr.from_player_id=? AND pr.cancelled_at IS NULL)
       ORDER BY report.created_at DESC LIMIT 200`).bind(playerId,playerId).all<ReportRow>(),
     // Keep cancelled requests (and their old notifications) out of the payer's inbox.
@@ -84,27 +118,39 @@ export async function loadPaymentRequests(env: Env, playerId: string) {
       WHERE event.to_player_id=?
         AND (pr.from_player_id<>? OR pr.cancelled_at IS NULL)
       ORDER BY event.created_at DESC LIMIT 200`).bind(playerId,playerId).all<EventRow>(),
-    loadSettlementSnapshot(env),
   ]);
+  const cache=new Map<string, ReturnType<typeof scopedSnapshot>>();
+  async function readScope(kind:LedgerKind,id:string|null) {
+    const key=kind+":"+(id??"");
+    if(!cache.has(key)) cache.set(key,scopedSnapshot(env,kind,id));
+    return cache.get(key)!;
+  }
   return {
-    requests: requests.results.map(r => {
-      const payer=settlement.players.find(p=>p.id===r.from_player_id);
-      const creditor=settlement.players.find(p=>p.id===r.to_player_id);
-      const liveLimit=Math.max(0,Math.min(
-        payer ? -payer.openBalanceCents : 0,
-        creditor ? creditor.openBalanceCents : 0,
-      ));
+    requests: await Promise.all(requests.results.map(async r => {
+      let liveLimit=0;
+      try {
+        const snapshot=await readScope(r.ledger_kind,r.ledger_id);
+        const payer=snapshot.players.find(p=>p.id===r.from_player_id);
+        const creditor=snapshot.players.find(p=>p.id===r.to_player_id);
+        liveLimit=Math.max(0,Math.min(
+          scopedRouteAmount(snapshot,r.from_player_id,r.to_player_id),
+          payer ? -payer.openBalanceCents : 0,
+          creditor ? creditor.openBalanceCents : 0,
+        ));
+        if ("status" in snapshot && snapshot.status==="closed") liveLimit=0;
+      } catch { liveLimit=0; }
       const unpaid=Math.max(0,r.amount_cents-r.paid_cents);
-      return ({
-      id:r.id, fromPlayerId:r.from_player_id, toPlayerId:r.to_player_id,
-      fromPlayerName:r.from_player_name,toPlayerName:r.to_player_name,
-      amountCents:r.amount_cents,paidCents:r.paid_cents,
-      remainingCents:Math.min(unpaid,liveLimit),
-      stale:unpaid>liveLimit,
-      message:r.message, paymentUrl:r.payment_url,
-      createdAt:r.created_at,cancelledAt:r.cancelled_at,lastRemindedAt:r.last_reminded_at,
-    });
-    }),
+      return {
+        id:r.id, fromPlayerId:r.from_player_id, toPlayerId:r.to_player_id,
+        fromPlayerName:r.from_player_name,toPlayerName:r.to_player_name,
+        ledgerKind:r.ledger_kind,ledgerId:r.ledger_id,
+        amountCents:r.amount_cents,paidCents:r.paid_cents,
+        remainingCents:Math.min(unpaid,liveLimit),
+        stale:unpaid>liveLimit,
+        message:r.message, paymentUrl:r.payment_url,
+        createdAt:r.created_at,cancelledAt:r.cancelled_at,lastRemindedAt:r.last_reminded_at,
+      };
+    })),
     reports: reports.results.map(r => ({
       id:r.id,requestId:r.request_id,amountCents:r.amount_cents,status:r.status,
       createdAt:r.created_at,decidedAt:r.decided_at,voidedAt:r.voided_at,
@@ -122,14 +168,16 @@ async function getRequest(env: Env, requestId: string) {
   if (!result) throw new Error("Zahlungsanforderung nicht gefunden.");
   return result;
 }
-async function balances(env: Env, from: string, to: string) {
-  const snapshot = await loadSettlementSnapshot(env);
+async function balances(env: Env, from: string, to: string, kind: LedgerKind, id: string | null) {
+  const snapshot = await scopedSnapshot(env,kind,id);
   const debtor = snapshot.players.find(p => p.id === from);
   const creditor = snapshot.players.find(p => p.id === to);
-  if (!debtor || !creditor || debtor.openBalanceCents >= 0 || creditor.openBalanceCents <= 0) {
+  if (!debtor || !creditor || debtor.openBalanceCents >= 0 || creditor.openBalanceCents <= 0 ||
+      ("status" in snapshot && snapshot.status==="closed")) {
     throw new Error("Für diese Spieler besteht kein offener Ausgleich mehr.");
   }
-  return Math.min(-debtor.openBalanceCents, creditor.openBalanceCents);
+  return Math.min(-debtor.openBalanceCents, creditor.openBalanceCents,
+    scopedRouteAmount(snapshot,from,to));
 }
 
 export async function createPaymentRequest(env: Env, value: unknown) {
@@ -145,7 +193,10 @@ export async function createPaymentRequest(env: Env, value: unknown) {
   const existing = await env.DB.prepare("SELECT id FROM payment_requests WHERE client_token=?")
     .bind(clientToken).first<{id:string}>();
   if (existing) return {id:existing.id};
-  const snapshot = await loadSettlementSnapshot(env);
+  const scope=validatedScope(data);
+  const snapshot=await scopedSnapshot(env,scope.kind,scope.id);
+  if (("status" in snapshot && snapshot.status==="closed") || snapshot.ongoingSessionCount>0)
+    throw new Error("Diese Abrechnung nimmt keine Anforderungen an.");
   const suggestion = snapshot.suggestions.find(s=>s.fromPlayerId===from && s.toPlayerId===to);
   if (!suggestion || cents > suggestion.amountCents) {
     throw new Error("Der Zahlungsvorschlag hat sich geändert. Bitte Ausgleich neu laden.");
@@ -154,12 +205,14 @@ export async function createPaymentRequest(env: Env, value: unknown) {
   const createdAt = now();
   const results = await env.DB.batch([
     env.DB.prepare(`INSERT INTO payment_requests
-      (id,from_player_id,to_player_id,amount_cents,message,payment_url,created_at,client_token)
-      SELECT ?,?,?,?,?,?,?,? WHERE NOT EXISTS (
+      (id,from_player_id,to_player_id,amount_cents,message,payment_url,created_at,client_token,ledger_kind,ledger_id)
+      SELECT ?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS (
         SELECT 1 FROM payment_requests pr
         WHERE pr.from_player_id=? AND pr.to_player_id=? AND pr.cancelled_at IS NULL
+          AND pr.ledger_kind=? AND COALESCE(pr.ledger_id,'')=COALESCE(?,'')
           AND pr.amount_cents > ${requestTotals}
-      )`).bind(id,from,to,cents,message || null,paymentUrl,createdAt,clientToken,from,to),
+      )`).bind(id,from,to,cents,message || null,paymentUrl,createdAt,clientToken,
+        scope.kind,scope.id,from,to,scope.kind,scope.id),
     env.DB.prepare(`INSERT INTO payment_request_events(id,request_id,to_player_id,kind,created_at)
       SELECT ?,id,from_player_id,'request',? FROM payment_requests WHERE id=?`)
       .bind(crypto.randomUUID(),createdAt,id),
@@ -173,7 +226,7 @@ export async function remindPaymentRequest(env: Env, id: string, actorPlayerId: 
   if (player(actorPlayerId) !== request.to_player_id) throw new Error("Falsches Spielerprofil.");
   if (request.cancelled_at || request.amount_cents <= request.paid_cents) throw new Error("Diese Anforderung ist nicht mehr offen.");
   const outstanding=request.amount_cents-request.paid_cents;
-  if ((await balances(env,request.from_player_id,request.to_player_id)) < outstanding) {
+  if ((await balances(env,request.from_player_id,request.to_player_id,request.ledger_kind,request.ledger_id)) < outstanding) {
     throw new Error("Die Bilanz hat sich verändert. Bitte diese Anforderung zurückziehen und neu erstellen.");
   }
   const marker=crypto.randomUUID(), at=now();
@@ -211,7 +264,7 @@ export async function reportPayment(env:Env,id:string,value:unknown) {
     .bind(clientToken).first<{id:string}>();
   if (existing) return {id:existing.id};
   const remaining=Math.max(0,request.amount_cents-request.paid_cents);
-  if (cents>remaining || cents>await balances(env,request.from_player_id,request.to_player_id)) {
+  if (cents>remaining || cents>await balances(env,request.from_player_id,request.to_player_id,request.ledger_kind,request.ledger_id)) {
     throw new Error("Der Betrag ist nicht mehr offen. Bitte aktualisieren.");
   }
   const reportId=crypto.randomUUID(),at=now();
