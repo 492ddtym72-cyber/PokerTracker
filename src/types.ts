@@ -177,6 +177,10 @@ export interface SettlementPaymentInput {
 }
 
 
+export type PaymentLedgerScope =
+  | { kind: "legacy"; id?: never }
+  | { kind: "session" | "list"; id: string };
+
 export interface PreparedPaymentApp {
   fromPlayerId: string;
   fromPlayerName: string;
@@ -187,6 +191,8 @@ export interface PreparedPaymentApp {
 }
 
 export interface PaymentRequest {
+  ledgerKind: "legacy" | "session" | "list";
+  ledgerId: string | null;
   id: string;
   fromPlayerId: string;
   toPlayerId: string;
