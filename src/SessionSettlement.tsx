@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { loadSessionSettlement, recordSessionPayment, voidSessionPayment } from "./lib/api";
-import { formatMoney } from "./lib/money";
+import { formatMoney, parseMoney } from "./lib/money";
 import { SettlementFlow } from "./SettlementFlow";
 import { SettlementBalanceHero } from "./SettlementBalanceHero";
 import { SettlementViewToggle, type SettlementView } from "./SettlementViewToggle";
 import { personalSettlementPlayer } from "./lib/settlementPresentation";
 import { SettlementPlayerResults } from "./SettlementPlayerResults";
 import { t } from "./i18n";
-import { PlayerAvatar } from "./PlayerAvatar";
-import type { SettlementResponse, SettlementSuggestion } from "./types";
+import { SettlementTransferCard } from "./SettlementTransferCard";
+import { useSettlementWallet, PaymentWalletFallback } from "./SettlementWallet";
+import { PaymentRequestDialog } from "./PaymentRequestDialog";
+import type { PlayerProfile, SettlementResponse, SettlementSuggestion } from "./types";
 import "./sessionSettlement.css";
 
 function localDate() {
@@ -20,19 +22,24 @@ export function SessionSettlement({
   nightId,
   currentPlayerId,
   photoFor,
+  playerProfiles,
   onDataChange,
 }: {
   nightId: string;
   currentPlayerId: string | null;
   photoFor: (playerId: string) => string | null;
+  playerProfiles: PlayerProfile[];
   onDataChange?: (snapshot: SettlementResponse) => void;
 }) {
   const [data, setData] = useState<SettlementResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [confirmKey, setConfirmKey] = useState<string | null>(null);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [selected, setSelected] = useState<SettlementSuggestion | null>(null);
+  const [amount, setAmount] = useState("");
+  const [paidAt, setPaidAt] = useState(localDate);
+  const [note, setNote] = useState("");
+  const [requestDraft, setRequestDraft] = useState<SettlementSuggestion | null>(null);
   const [view, setView] = useState<SettlementView>("list");
 
   useEffect(() => {
@@ -47,23 +54,42 @@ export function SessionSettlement({
     return () => { live = false; };
   }, [nightId]);
 
-  const keyFor = (entry: SettlementSuggestion) => entry.fromPlayerId + ":" + entry.toPlayerId;
+  async function refresh() {
+    const updated = await loadSessionSettlement(nightId);
+    setData(updated);
+    onDataChange?.(updated);
+  }
+  const wallet = useSettlementWallet({kind: "session", id: nightId}, () => { void refresh().catch(() => undefined); });
 
-  async function markPaid(entry: SettlementSuggestion) {
-    if (busy) return;
+  function selectTransfer(entry: SettlementSuggestion) {
+    setSelected(entry);
+    setAmount((entry.amountCents / 100).toFixed(2).replace(".", ","));
+    setPaidAt(localDate());
+    setNote("");
+  }
+
+  async function markPaid(event: React.FormEvent) {
+    event.preventDefault();
+    if (busy || !selected) return;
+    const cents = parseMoney(amount);
+    if (cents === null || cents <= 0 || cents > selected.amountCents) {
+      setError(t("Bitte einen Betrag bis zur offenen Summe angeben."));
+      return;
+    }
     setBusy(true);
     setError("");
     try {
       const updated = await recordSessionPayment(nightId, {
-        fromPlayerId: entry.fromPlayerId,
-        toPlayerId: entry.toPlayerId,
-        amountCents: entry.amountCents,
-        paidAt: localDate(),
+        fromPlayerId: selected.fromPlayerId,
+        toPlayerId: selected.toPlayerId,
+        amountCents: cents,
+        paidAt,
+        note,
         clientToken: crypto.randomUUID(),
       });
       setData(updated);
       onDataChange?.(updated);
-      setConfirmKey(null);
+      setSelected(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Zahlung konnte nicht gespeichert werden."));
     } finally {
@@ -83,16 +109,6 @@ export function SessionSettlement({
       setError(err instanceof Error ? err.message : t("Zahlung konnte nicht storniert werden."));
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function copyAmount(entry: SettlementSuggestion) {
-    const key = keyFor(entry);
-    try {
-      await navigator.clipboard.writeText((entry.amountCents / 100).toFixed(2).replace(".", ","));
-      setCopiedKey(key);
-    } catch {
-      setError(t("Betrag konnte nicht kopiert werden."));
     }
   }
 
@@ -132,7 +148,7 @@ export function SessionSettlement({
             onSelect={(transfer) => {
               const remaining = "remainingCents" in transfer ? Number(transfer.remainingCents) : transfer.amountCents;
               if (remaining <= 0) return;
-              setConfirmKey(keyFor(transfer));
+              selectTransfer({ ...transfer, amountCents: remaining });
               setView("list");
             }}
             note={pending.length === 0 ? t("Erfasste Zahlungen") : t("Offene Zahlungen")}
@@ -140,53 +156,48 @@ export function SessionSettlement({
         </div>
       )}
 
-      {view === "list" && (
-      <div className="local-settlement-transfers">
-        {data?.plan.map(entry => {
-          const key = keyFor(entry);
-          const isPaid = entry.remainingCents === 0;
-          const openTransfer = { ...entry, amountCents: entry.remainingCents };
-          const isConfirming = confirmKey === key;
-          return (
-            <article className="local-settlement-transfer" key={key}>
-              <div className="local-settlement-people">
-                <div className="local-settlement-person">
-                  <PlayerAvatar className="local-settlement-avatar" name={entry.fromPlayerName} photo={photoFor(entry.fromPlayerId)} />
-                  <span>{entry.fromPlayerId === currentPlayerId ? t("Du") : entry.fromPlayerName}</span>
-                </div>
-                <span className="local-settlement-arrow" aria-hidden="true">→</span>
-                <div className="local-settlement-person">
-                  <PlayerAvatar className="local-settlement-avatar" name={entry.toPlayerName} photo={photoFor(entry.toPlayerId)} />
-                  <span>{entry.toPlayerId === currentPlayerId ? t("Du") : entry.toPlayerName}</span>
-                </div>
-                <strong className="local-settlement-amount">{formatMoney(entry.amountCents)}</strong>
-              </div>
-              <div className="local-settlement-actions">
-                {isPaid ? <small className="settlement-transfer-state">✓ {t("gezahlt")}</small> : <>
-                <button type="button" onClick={() => void copyAmount(openTransfer)} disabled={busy}>
-                  {copiedKey === key ? t("Betrag kopiert") : t("Betrag kopieren")}
-                </button>
-                {isConfirming ? (
-                  <>
-                    <button type="button" onClick={() => setConfirmKey(null)} disabled={busy}>{t("Abbrechen")}</button>
-                    <button type="button" className="local-settlement-primary" onClick={() => void markPaid(openTransfer)} disabled={busy}>
-                      {busy ? t("Speichert …") : t("Zahlung bestätigen")}
-                    </button>
-                  </>
-                ) : (
-                  <button type="button" className="local-settlement-primary" onClick={() => setConfirmKey(key)} disabled={busy}>
-                    {t("Als bezahlt markieren")}
-                  </button>
-                )}
-                </>}
-              </div>
-            </article>
-          );
+      {view === "list" && <div className="settlement-suggestion-list">
+        {data?.plan.map((entry, index) => {
+          const key = entry.fromPlayerId + ":" + entry.toPlayerId;
+          return <SettlementTransferCard key={key + ":" + index}
+            transfer={entry} currentPlayerId={currentPlayerId} photoFor={photoFor}
+            onCopy={(remaining) => { void wallet.copy(remaining); }}
+            onWallet={(remaining, app) => { void wallet.open(remaining, app); }}
+            onRecord={selectTransfer}
+            onRequest={currentPlayerId ? setRequestDraft : undefined}
+            copied={wallet.copiedKey === key} copying={wallet.copyingKey === key}
+            openingApp={wallet.openingKey === key + ":paypal" ? "paypal" :
+              wallet.openingKey === key + ":revolut" ? "revolut" : null}
+          />;
         })}
-      </div>
+      </div>}
+
+      {view === "list" && selected && (
+        <form className="named-ledger-payment-form" onSubmit={markPaid}>
+          <strong>{selected.fromPlayerName} → {selected.toPlayerName}</strong>
+          <label>{t("Betrag")}
+            <input required inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} />
+          </label>
+          <label>{t("Datum")}
+            <input type="date" required value={paidAt} onChange={event => setPaidAt(event.target.value)} />
+          </label>
+          <label>{t("Notiz (optional)")}
+            <input maxLength={200} value={note} onChange={event => setNote(event.target.value)} />
+          </label>
+          <div className="payment-editor-actions">
+            <button type="button" className="secondary-button" onClick={() => setSelected(null)}>
+              {t("Abbrechen")}
+            </button>
+            <button type="submit" className="gold-cta" disabled={busy}>
+              {busy ? t("Speichert …") : t("Zahlung speichern")}
+            </button>
+          </div>
+        </form>
       )}
 
-      {data && <SettlementPlayerResults players={data.players} currentPlayerId={currentPlayerId} photoFor={photoFor} />}
+      {wallet.fallback && <PaymentWalletFallback fallback={wallet.fallback}
+        onCancel={wallet.clearFallback} onContinue={() => { void wallet.continueFallback(); }} />}
+      {wallet.error && <p className="local-settlement-error" role="alert">{wallet.error}</p>}
 
       {data && data.payments.length > 0 && (
         <div className="local-settlement-history">
@@ -204,6 +215,10 @@ export function SessionSettlement({
       )}
 
       {error && <p className="local-settlement-error" role="alert">{error}</p>}
+      {requestDraft && currentPlayerId === requestDraft.toPlayerId && <PaymentRequestDialog
+        suggestion={requestDraft} currentPlayerId={currentPlayerId}
+        profiles={playerProfiles} scope={{kind: "session", id: nightId}}
+        onClose={() => setRequestDraft(null)} />}
     </section>
   );
 }
