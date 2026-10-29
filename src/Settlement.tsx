@@ -9,6 +9,7 @@ import {
 import { formatMoney, parseMoney } from "./lib/money";
 import { SettlementFlow } from "./SettlementFlow";
 import { SeparateSessions } from "./SeparateSessions";
+import { SettlementCard } from "./SettlementCard";
 import { NamedSettlementLists } from "./NamedSettlementLists";
 import { getLocale, t } from "./i18n";
 import { PlayerAvatar } from "./PlayerAvatar";
@@ -510,7 +511,6 @@ export function SettlementScreen({
         <button className="back-button" type="button" onClick={onClose} aria-label={t("Zurück")}>‹</button>
         <div className="screen-heading">
           <h1>{t("Ausgleichen")}</h1>
-          <p>{t("Offene Zahlungen und bereits erfasste Auszahlungen.")}</p>
         </div>
       </div>
 
@@ -530,39 +530,18 @@ export function SettlementScreen({
               <h2>{t("Abrechnungslisten")}</h2>
               <button className="secondary-button" type="button" disabled={creatingList}
                 onClick={()=>void addNamedList()}>
-                + {t("Neue Liste erstellen")}
+                + {t("Neue Liste")}
               </button>
             </div>
-            <article className={"settlement-ledger-item" + (rigaOpen ? " is-expanded" : "")}>
-              <button
-                className="settlement-ledger-trigger"
-                type="button"
-                aria-expanded={rigaOpen}
-                aria-controls="riga-settlement-detail"
-                onClick={() => setRigaOpen((open) => !open)}
-              >
-                <span className="settlement-ledger-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="4" y="3" width="16" height="18" rx="3" />
-                    <path d="M8 8h8M8 12h8M8 16h5" />
-                  </svg>
-                </span>
-                <span className="settlement-ledger-name">
-                  <strong>Riga</strong>
-                  <small>{rigaSessionCount} {t("Sessions")} · {t("Bestehende Abrechnung")}</small>
-                </span>
-                <span className="settlement-ledger-amount">
-                  <strong>{formatMoney(data.totalOutstandingCents)}</strong>
-                  <small>{data.totalOutstandingCents !== 0 || data.groupDifferenceCents !== 0
-                    ? t("Auszahlung läuft")
-                    : t("Alles ausgeglichen")}</small>
-                </span>
-                <svg className={"settlement-ledger-chevron" + (rigaOpen ? " is-open" : "")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
-              </button>
-              {rigaOpen && (
-                <div id="riga-settlement-detail" className="settlement-ledger-detail">
-                  <p className="settlement-ledger-context">{t("Alle bisherigen gemeinsamen Sessions und Zahlungen bleiben unverändert in dieser Abrechnung.")}</p>
-                  {currentPlayer && (
+            <SettlementCard
+              title="Riga"
+              meta={rigaSessionCount + " " + t("Sessions")}
+              amount={formatMoney(data.totalOutstandingCents)}
+              expanded={rigaOpen}
+              panelId="riga-settlement-detail"
+              onToggle={() => setRigaOpen((open) => !open)}
+            >
+              {currentPlayer && (
             <section className="settlement-overview-card">
               <div className="settlement-overview-copy">
                 <span className="settlement-overview-label">
@@ -1070,9 +1049,7 @@ export function SettlementScreen({
               </div>
             )}
           </section>
-                </div>
-              )}
-            </article>
+            </SettlementCard>
             <NamedSettlementLists
               currentPlayerId={currentPlayerId}
               photoFor={profilePhotoFor}

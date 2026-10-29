@@ -56,44 +56,25 @@
   padding-top: 23px;
   border-top: 1px solid rgba(215, 190, 119, .19);
 }
-.separate-sessions-intro { color: #9bac9f; font-size: 12px; line-height: 1.5; margin: 4px 0 15px; }
 .separate-session-list { display: grid; gap: 9px; }
-.separate-session-item { overflow: hidden; border-radius: 15px; border: 1px solid rgba(215,190,119,.14); background: #09221a; }
-.separate-session-item.is-expanded { border-color: rgba(215,190,119,.32); }
-.separate-session-trigger { display: flex; align-items: center; width: 100%; min-height: 76px; gap: 13px; padding: 12px 15px; text-align: left; color: #ecf0e8; background: transparent; border: 0; font: inherit; cursor: pointer; }
-.separate-session-trigger:focus-visible { outline: 2px solid #e7c675; outline-offset: -3px; }
-.separate-session-trigger:disabled { cursor: default; opacity: .65; }
-.separate-session-symbol { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; border-radius: 11px; background: #13382a; color: #d6bc83; }
-.separate-session-symbol svg { width: 25px; height: 25px; }
-.separate-session-label { min-width: 0; flex: 1; display: grid; gap: 5px; }
-.separate-session-label strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 650; }
-.separate-session-label small { color: #9daf9f; font-size: 11px; }
-.separate-session-state { color: #b6b8a2; font-size: 11px; }
-.separate-session-chevron { font-size: 25px; line-height: 1; color: #c8b483; transition: transform .2s ease; }
-.separate-session-chevron.is-open { transform: rotate(180deg); }
-.separate-session-detail .local-settlement { margin: 0; border: 0; border-top: 1px solid rgba(255,255,255,.08); border-radius: 0; padding: 19px 16px; background: #0b261d; box-shadow: none; }
 .local-settlement-diagram { margin-bottom: 18px; }
 .local-settlement-diagram-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 10px; color: #e6d5b0; font-size: 13px; }
 .local-settlement-diagram-heading span { font-size: 11px; color: #a8ad9d; }
 .local-settlement-diagram .settlement-flow-card { border-color: rgba(215,190,119,.16); }
 .settlement-network-transfer.is-static { cursor: default; }
-@media (max-width: 460px) {
-  .separate-session-trigger { padding: 11px 12px; gap: 10px; }
-  .separate-session-symbol { flex-basis: 39px; width: 39px; height: 39px; }
-  .separate-session-detail .local-settlement { padding: 16px 10px; }
-}
-
 /* Independent settlement lists: Riga's legacy payout stays in its own scope. */
 .settlement-ledgers { margin-top: 22px; }
 .settlement-ledgers > .section-title-row { margin-bottom: 12px; }
+.settlement-ledgers > .settlement-ledger-item + .settlement-ledger-item { margin-top: 9px; }
 .settlement-ledger-item { overflow: hidden; border: 1px solid rgba(215,190,119,.23); border-radius: 18px; background: #09221a; }
 .settlement-ledger-item.is-expanded { border-color: rgba(215,190,119,.38); }
-.settlement-ledger-trigger { display: flex; gap: 13px; align-items: center; width: 100%; min-height: 88px; padding: 15px 16px; background: transparent; color: #f0efe5; font: inherit; text-align: left; border: 0; cursor: pointer; }
+.settlement-ledger-trigger { display: flex; gap: 13px; align-items: center; width: 100%; min-height: 78px; padding: 12px 15px; background: transparent; color: #f0efe5; font: inherit; text-align: left; border: 0; cursor: pointer; }
+.settlement-ledger-trigger:disabled { cursor: default; opacity: .67; }
 .settlement-ledger-trigger:focus-visible { outline: 2px solid #e7c675; outline-offset: -4px; }
 .settlement-ledger-icon { display: grid; place-items: center; width: 43px; height: 43px; flex: 0 0 43px; border: 1px solid rgba(215,190,119,.12); border-radius: 12px; color: #dcc187; background: #16382a; }
 .settlement-ledger-icon svg { width: 24px; height: 24px; }
 .settlement-ledger-name { display: grid; gap: 5px; flex: 1 1 auto; min-width: 0; }
-.settlement-ledger-name strong { font-size: 17px; font-weight: 660; }
+.settlement-ledger-name strong { font-size: 16px; font-weight: 660; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settlement-ledger-name small { font-size: 11px; line-height: 1.45; color: #a5b8a9; }
 .settlement-ledger-amount { display: grid; gap: 5px; text-align: right; flex: 0 0 auto; }
 .settlement-ledger-amount strong { font-size: 16px; color: #edcf8a; font-variant-numeric: tabular-nums; }
@@ -101,15 +82,17 @@
 .settlement-ledger-chevron { width: 17px; height: 17px; flex: 0 0 17px; color: #b4a47a; transition: transform .18s ease; }
 .settlement-ledger-chevron.is-open { transform: rotate(180deg); }
 .settlement-ledger-detail { padding: 10px 14px 23px; border-top: 1px solid rgba(255,255,255,.075); }
+.settlement-ledger-detail > .local-settlement { margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; padding: 6px 0; }
 .settlement-ledger-context { font-size: 12px; line-height: 1.5; color: #9aafa1; margin: 8px 2px 18px; }
 @media (max-width: 460px) {
-  .settlement-ledger-trigger { padding: 12px; gap: 10px; min-height: 82px; }
+  .settlement-ledger-trigger { padding: 12px; gap: 10px; min-height: 76px; }
   .settlement-ledger-icon { width: 37px; height: 37px; flex-basis: 37px; }
   .settlement-ledger-name strong { font-size: 15px; }
   .settlement-ledger-name small { font-size: 10px; }
   .settlement-ledger-amount strong { font-size: 14px; }
   .settlement-ledger-amount small { font-size: 10px; }
-  .settlement-ledger-detail { padding: 10px 9px 19px; }
+  .settlement-ledger-detail { padding: 10px 12px 18px; }
+  .settlement-ledger-detail > .local-settlement { padding: 3px 0; }
 }
 
 /* Named settlements keep the same visual language as Riga, with isolated data. */

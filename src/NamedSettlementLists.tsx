@@ -9,6 +9,7 @@ import {
 import { formatMoney } from "./lib/money";
 import { getLocale, t } from "./i18n";
 import { SettlementFlow } from "./SettlementFlow";
+import { SettlementCard } from "./SettlementCard";
 import { PlayerAvatar } from "./PlayerAvatar";
 import type { NamedSettlementResponse, SettlementListSummary, SettlementSuggestion } from "./types";
 
@@ -103,34 +104,16 @@ function NamedSettlement({
     finally{setSaving(false);}
   }
 
-  const currentStatus=data?.status??item.status;
   return (
-    <article className={"settlement-ledger-item"+(open?" is-expanded":"")}>
-      <button className="settlement-ledger-trigger" type="button"
-        aria-expanded={open} aria-controls={"named-list-"+item.id}
-        onClick={()=>{setOpen(v=>!v);setError("");}}>
-        <span className="settlement-ledger-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" strokeWidth="1.7">
-            <rect x="3.5" y="4" width="17" height="16" rx="3"/>
-            <path d="M7 9h10M7 13h10M7 17h7"/>
-          </svg>
-        </span>
-        <span className="settlement-ledger-name">
-          <strong>{item.name}</strong>
-          <small>{item.totalSessions} {t("Sessions")} · {settlementStatus(currentStatus)}</small>
-        </span>
-        <span className="settlement-ledger-amount">
-          <strong>{formatMoney(data?.totalOutstandingCents??item.totalOutstandingCents)}</strong>
-          <small>{t("Noch auszugleichen")}</small>
-        </span>
-        <svg className={"settlement-ledger-chevron"+(open?" is-open":"")}
-          viewBox="0 0 24 24" stroke="currentColor" fill="none" strokeWidth="2" aria-hidden="true">
-          <path d="m6 9 6 6 6-6"/>
-        </svg>
-      </button>
-      {open && (
-        <div id={"named-list-"+item.id} className="settlement-ledger-detail">
-          {loading && !data && <p className="settlement-ledger-context">{t("Lädt …")}</p>}
+    <SettlementCard
+      title={item.name}
+      meta={item.totalSessions + " " + t("Sessions")}
+      amount={formatMoney(data?.totalOutstandingCents ?? item.totalOutstandingCents)}
+      expanded={open}
+      panelId={"named-list-" + item.id}
+      onToggle={() => { setOpen((value) => !value); setError(""); }}
+    >
+                {loading && !data && <p className="settlement-ledger-context">{t("Lädt …")}</p>}
           {data && (
             <>
               <div className="named-ledger-stats">
@@ -222,10 +205,8 @@ function NamedSettlement({
               </div>
             </>
           )}
-          {error && <p className="local-settlement-error" role="alert">{error}</p>}
-        </div>
-      )}
-    </article>
+      {error && <p className="local-settlement-error" role="alert">{error}</p>}
+    </SettlementCard>
   );
 }
 

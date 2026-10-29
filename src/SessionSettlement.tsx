@@ -16,10 +16,12 @@ export function SessionSettlement({
   nightId,
   currentPlayerId,
   photoFor,
+  onDataChange,
 }: {
   nightId: string;
   currentPlayerId: string | null;
   photoFor: (playerId: string) => string | null;
+  onDataChange?: (snapshot: SettlementResponse) => void;
 }) {
   const [data, setData] = useState<SettlementResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,6 +57,7 @@ export function SessionSettlement({
         clientToken: crypto.randomUUID(),
       });
       setData(updated);
+      onDataChange?.(updated);
       setConfirmKey(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Zahlung konnte nicht gespeichert werden."));
@@ -68,7 +71,9 @@ export function SessionSettlement({
     setBusy(true);
     setError("");
     try {
-      setData(await voidSessionPayment(nightId, paymentId));
+      const updated = await voidSessionPayment(nightId, paymentId);
+      setData(updated);
+      onDataChange?.(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Zahlung konnte nicht storniert werden."));
     } finally {
@@ -107,7 +112,6 @@ export function SessionSettlement({
     <section className="local-settlement" aria-label={t("Session-Abrechnung")}>
       <header className="local-settlement-heading">
         <div>
-          <span className="local-settlement-kicker">{t("Nur diese Session")}</span>
           <h2>{t("Wer zahlt wem?")}</h2>
         </div>
         {data && <strong className="local-settlement-total">{formatMoney(data.totalOutstandingCents)}</strong>}
@@ -193,7 +197,6 @@ export function SessionSettlement({
       )}
 
       {error && <p className="local-settlement-error" role="alert">{error}</p>}
-      <p className="local-settlement-muted">{t("Diese Zahlungen verändern nicht die Gesamtbilanz.")}</p>
     </section>
   );
 }
