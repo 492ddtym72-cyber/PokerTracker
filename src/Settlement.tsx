@@ -525,7 +525,7 @@ export function SettlementScreen({
         <div className="empty-card">{t("Lädt …")}</div>
       ) : data ? (
         <>
-          <section className="settlement-ledgers" aria-label={t("Abrechnungslisten")}>
+          <section className="settlement-ledgers" aria-label={t("Abrechnungen")}>
             <div className="settlement-lists-topline">
               <h2>{t("Abrechnungen")}</h2>
               <button className="secondary-button" type="button" disabled={creatingList}
