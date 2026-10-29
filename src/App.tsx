@@ -1036,7 +1036,10 @@ export default function App() {
   }
 
   useEffect(() => {
-    void refreshSettlementLists().catch(err=>console.error("Settlement list refresh failed",err));
+    const reload=()=>{void refreshSettlementLists().catch(err=>console.error("Settlement list refresh failed",err));};
+    reload();
+    window.addEventListener("pokertracker:lists-updated",reload);
+    return ()=>window.removeEventListener("pokertracker:lists-updated",reload);
   }, []);
 
   useEffect(() => {
