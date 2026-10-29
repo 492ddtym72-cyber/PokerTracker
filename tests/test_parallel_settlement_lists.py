@@ -90,6 +90,27 @@ class SettlementListMigration(unittest.TestCase):
             db.execute("INSERT INTO settlement_list_nights VALUES ('h1','list2','now')")
         self.assertEqual(db.execute("SELECT COUNT(*) FROM settlement_list_nights").fetchone()[0], 2)
 
+    def test_group_session_counts_are_not_multiplied_by_player_count(self):
+        db = prepare()
+        db.execute("INSERT INTO poker_nights VALUES ('h1','session','completed','pooled')")
+        db.execute("INSERT INTO poker_nights VALUES ('h2','session','completed','pooled')")
+        db.executemany("INSERT INTO night_results VALUES (?,?,?,?)", [
+            ('h1','A',100,100),('h1','B',100,100),
+            ('h2','A',100,100),('h2','C',100,100),
+        ])
+        db.execute("INSERT INTO settlement_list_nights VALUES ('h1','list1','now')")
+        db.execute("INSERT INTO settlement_list_nights VALUES ('h2','list1','now')")
+        row = db.execute("""
+            SELECT COUNT(DISTINCT m.night_id),
+              COUNT(DISTINCT CASE WHEN n.status='completed' THEN m.night_id END),
+              COUNT(DISTINCT r.player_id)
+            FROM settlement_list_nights m
+            JOIN poker_nights n ON n.id=m.night_id
+            LEFT JOIN night_results r ON r.night_id=n.id
+            WHERE m.list_id='list1'
+        """).fetchone()
+        self.assertEqual(row,(2,2,3))
+
     def test_reject_invalid_or_frozen_assignments(self):
         db = prepare()
         with self.assertRaises(sqlite3.IntegrityError):
