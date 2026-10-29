@@ -1,4 +1,5 @@
 import type { Env } from "../auth";
+import { reconcileFixedTransfers } from "./fixedTransfers";
 import {
   buildSuggestions,
   validateSettlementPaymentInput,
@@ -91,11 +92,15 @@ export async function loadSessionSettlement(env: Env, nightId: string) {
   }
 
   const groupDifferenceCents = players.reduce((sum, player) => sum + player.pokerBalanceCents, 0);
-  const suggestions = groupDifferenceCents === 0 ? buildSuggestions(players) : [];
+  const {plan,suggestions,unmatchedPaymentCents} = groupDifferenceCents === 0
+    ? reconcileFixedTransfers(buildSuggestions(players.map(p=>({...p,openBalanceCents:p.pokerBalanceCents}))),paymentRows.results)
+    : {plan:[],suggestions:[],unmatchedPaymentCents:0};
   return {
     nightId,
     players,
+    plan,
     suggestions,
+    unmatchedPaymentCents,
     payments: paymentRows.results.map(payment => ({
       id: payment.id,
       fromPlayerId: payment.from_player_id,
@@ -126,6 +131,10 @@ export async function recordSessionPayment(env: Env, nightId: string, raw: unkno
   const snapshot = await loadSessionSettlement(env, nightId);
   if (snapshot.groupDifferenceCents !== 0) {
     throw new Error("Die Session ist noch nicht vollständig ausgeglichen.");
+  }
+  const transfer = snapshot.suggestions.find(s => s.fromPlayerId === input.fromPlayerId && s.toPlayerId === input.toPlayerId);
+  if (!transfer || input.amountCents > transfer.amountCents) {
+    throw new Error("Diese Zahlung gehört nicht zum offenen Ausgleichsplan.");
   }
   const payer = snapshot.players.find(player => player.id === input.fromPlayerId);
   const receiver = snapshot.players.find(player => player.id === input.toPlayerId);
