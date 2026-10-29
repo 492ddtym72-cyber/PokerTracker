@@ -266,6 +266,7 @@ const ENGLISH: Record<string, string> = {
   "Ergebnisse": "Results",
   "noch zu bekommen": "still to receive",
   "noch zu zahlen": "still to pay",
+  "bezahlt": "paid",
   "Noch auszugleichen": "Still to settle",
   "Offene Session-Differenz": "Outstanding session difference",
   "Offene Zahlungen und bereits erfasste Auszahlungen.": "Outstanding payments and recorded settlements.",
