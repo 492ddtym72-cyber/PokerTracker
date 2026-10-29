@@ -73,48 +73,39 @@ export function SeparateSessions({
     return () => { active = false; };
   }, [sessions]);
 
+  // Render cards directly beside the named lists: the settlement type is an
+  // accounting detail, not a separate visual hierarchy.
   return (
-    <section className="settlement-section separate-sessions" aria-label={t("Separate Sessions")}>
-      <div className="section-title-row">
-        <h2>{t("Separate Sessions")}</h2>
-        <span>{sessions.length}</span>
-      </div>
-
-      {sessions.length === 0 ? (
-        <div className="settlement-empty-inline">{t("Noch keine separaten Sessions.")}</div>
-      ) : (
-        <div className="separate-session-list">
-          {sessions.map((night) => {
-            const completed = night.status === "completed";
-            const expanded = completed && openId === night.id;
-            const summary = amounts[night.id];
-            const amount = !completed
-              ? t("Läuft")
-              : summary?.status === "ready" && summary.differenceCents === 0
-                ? formatMoney(summary.outstandingCents)
-                : "—";
-            return (
-              <SettlementCard
-                key={night.id}
-                title={night.title}
-                meta={sessionDate(night.playedAt) + " · " + night.players.length + " " + t("Spieler")}
-                amount={amount}
-                expanded={expanded}
-                panelId={"separate-session-" + night.id}
-                disabled={!completed}
-                onToggle={() => setOpenId(expanded ? null : night.id)}
-              >
-                <SessionSettlement
-                  nightId={night.id}
-                  currentPlayerId={currentPlayerId}
-                  photoFor={photoFor}
-                  onDataChange={(snapshot) => updateAmount(night.id, snapshot)}
-                />
-              </SettlementCard>
-            );
-          })}
-        </div>
-      )}
-    </section>
+    <>
+      {sessions.map((night) => {
+        const completed = night.status === "completed";
+        const expanded = completed && openId === night.id;
+        const summary = amounts[night.id];
+        const amount = !completed
+          ? t("Läuft")
+          : summary?.status === "ready" && summary.differenceCents === 0
+            ? formatMoney(summary.outstandingCents)
+            : "—";
+        return (
+          <SettlementCard
+            key={night.id}
+            title={night.title}
+            meta={sessionDate(night.playedAt) + " · " + night.players.length + " " + t("Spieler")}
+            amount={amount}
+            expanded={expanded}
+            panelId={"separate-session-" + night.id}
+            disabled={!completed}
+            onToggle={() => setOpenId(expanded ? null : night.id)}
+          >
+            <SessionSettlement
+              nightId={night.id}
+              currentPlayerId={currentPlayerId}
+              photoFor={photoFor}
+              onDataChange={(snapshot) => updateAmount(night.id, snapshot)}
+            />
+          </SettlementCard>
+        );
+      })}
+    </>
   );
 }
