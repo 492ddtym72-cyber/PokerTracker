@@ -1,29 +1,20 @@
-import { formatMoney } from "./lib/money";
-import { t } from "./i18n";
+import { signedPokerResult, playerPaymentCaption } from "./SettlementPlayerResults";
+import type { SettlementPlayer } from "./types";
 
-/** Open balance in this one settlement: positive = receives, negative = pays. */
-export function SettlementBalanceHero({ balanceCents }: { balanceCents: number }) {
+/** The main figure is the immutable poker result, not the remaining payment. */
+export function SettlementBalanceHero({ player }: { player: SettlementPlayer }) {
+  const caption = playerPaymentCaption(player);
   return (
     <section className="settlement-overview-card">
-              <div className="settlement-overview-copy">
-                <span className="settlement-overview-label">
-                  {balanceCents > 0
-                    ? t("Du bekommst")
-                    : balanceCents < 0
-                      ? t("Du zahlst")
-                      : t("Alles ausgeglichen")}
-                </span>
-                <strong className={
-                  "settlement-overview-value" +
-                  (balanceCents > 0
-                    ? " positive"
-                    : balanceCents < 0
-                      ? " negative"
-                      : "")
-                }>
-                  {formatMoney(Math.abs(balanceCents))}
-                </strong>
-              </div>
+      <div className="settlement-overview-copy">
+        <strong className={
+          "settlement-overview-value" +
+          (player.pokerBalanceCents > 0 ? " positive" : player.pokerBalanceCents < 0 ? " negative" : "")
+        }>
+          {signedPokerResult(player.pokerBalanceCents)}
+        </strong>
+        {caption && <span className="settlement-overview-label">{caption}</span>}
+      </div>
             <svg
               className="settlement-overview-chip"
               viewBox="0 0 120 120"
