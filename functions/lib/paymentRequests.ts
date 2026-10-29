@@ -49,7 +49,7 @@ interface RequestRow {
   message: string | null; payment_url: string | null; created_at: string;
   cancelled_at: string | null; last_reminded_at: string | null;
   paid_cents: number;
-  ledger_kind: LedgerKind; ledger_id: string | null;
+  ledger_kind: LedgerKind; ledger_id: string | null; ledger_title: string;
 }
 interface ReportRow {
   id: string; request_id: string; amount_cents: number; status: "reported" | "confirmed" | "rejected";
@@ -96,10 +96,13 @@ export async function loadPaymentRequests(env: Env, playerId: string) {
   player(playerId);
   const [requests, reports, events] = await Promise.all([
     env.DB.prepare(`SELECT pr.*, debtor.name AS from_player_name, creditor.name AS to_player_name,
+      COALESCE(n.title,l.name,'Riga') AS ledger_title,
       ${requestTotals} AS paid_cents
       FROM payment_requests pr
       JOIN players debtor ON debtor.id=pr.from_player_id
       JOIN players creditor ON creditor.id=pr.to_player_id
+      LEFT JOIN poker_nights n ON pr.ledger_kind='session' AND n.id=pr.ledger_id
+      LEFT JOIN settlement_lists l ON pr.ledger_kind='list' AND l.id=pr.ledger_id
       WHERE pr.to_player_id=? OR (pr.from_player_id=? AND pr.cancelled_at IS NULL)
       ORDER BY pr.created_at DESC LIMIT 100`).bind(playerId, playerId).all<RequestRow>(),
     env.DB.prepare(`SELECT report.*, COALESCE(sp.voided_at,ssp.voided_at,lsp.voided_at) AS voided_at
@@ -143,7 +146,7 @@ export async function loadPaymentRequests(env: Env, playerId: string) {
       return {
         id:r.id, fromPlayerId:r.from_player_id, toPlayerId:r.to_player_id,
         fromPlayerName:r.from_player_name,toPlayerName:r.to_player_name,
-        ledgerKind:r.ledger_kind,ledgerId:r.ledger_id,
+        ledgerKind:r.ledger_kind,ledgerId:r.ledger_id,ledgerTitle:r.ledger_title,
         amountCents:r.amount_cents,paidCents:r.paid_cents,
         remainingCents:Math.min(unpaid,liveLimit),
         stale:unpaid>liveLimit,
