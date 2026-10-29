@@ -170,8 +170,7 @@ export function SettlementSummary({
         </svg>
       </span>
       <span className="dashboard-action-copy settlement-summary-copy">
-        <strong>{t("Ausgleichen")}</strong>
-        <small>{t("Abrechnungslisten")}</small>
+        <strong>{t("Abrechnungen")}</strong>
       </span>
       <span className="dashboard-action-arrow" aria-hidden="true">
         <svg viewBox="0 0 24 24" focusable="false"><path d="m9 5 7 7-7 7" /></svg>
