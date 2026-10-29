@@ -247,7 +247,7 @@ export function NamedSettlementLists({
     <>
       {lists.map(item=>(
         <NamedSettlement key={item.id} item={item}
-          currentPlayerId={currentPlayerId} photoFor={photoFor} onChanged={()=>void refresh()}/>
+          currentPlayerId={currentPlayerId} photoFor={photoFor} onChanged={()=>{void refresh();window.dispatchEvent(new Event("pokertracker:lists-updated"));}}/>
       ))}
       {error && <p className="local-settlement-error">{error}</p>}
     </>
