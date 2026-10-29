@@ -299,6 +299,54 @@ function openSql(playerColumn:string) {
   )`;
 }
 
+// Keep a reported payment in its original session or named list, with guards
+// that re-check the live scoped balance at the moment of insertion.
+function scopedOpenSql(kind: "session" | "list", playerColumn: string) {
+  const profit = kind === "session" ? `(
+    SELECT COALESCE(SUM(r.cash_out_cents-r.stake_cents+COALESCE(a.amount_cents,0)),0)
+    FROM night_results r
+    LEFT JOIN night_adjustments a ON a.night_id=r.night_id AND a.player_id=r.player_id
+    WHERE r.night_id=pr.ledger_id AND r.player_id=${playerColumn}
+  )` : `(
+    SELECT COALESCE(SUM(r.cash_out_cents-r.stake_cents+COALESCE(a.amount_cents,0)),0)
+    FROM settlement_list_nights m
+    JOIN poker_nights n ON n.id=m.night_id AND n.status='completed'
+    JOIN night_results r ON r.night_id=n.id
+    LEFT JOIN night_adjustments a ON a.night_id=r.night_id AND a.player_id=r.player_id
+    WHERE m.list_id=pr.ledger_id AND r.player_id=${playerColumn}
+  )`;
+  const table = kind === "session" ? "session_settlement_payments" : "settlement_list_payments";
+  const scopeColumn = kind === "session" ? "night_id" : "list_id";
+  return `(${profit} +
+    (SELECT COALESCE(SUM(p.amount_cents),0) FROM ${table} p
+      WHERE p.${scopeColumn}=pr.ledger_id AND p.from_player_id=${playerColumn} AND p.voided_at IS NULL)
+    - (SELECT COALESCE(SUM(p.amount_cents),0) FROM ${table} p
+      WHERE p.${scopeColumn}=pr.ledger_id AND p.to_player_id=${playerColumn} AND p.voided_at IS NULL)
+  )`;
+}
+
+function scopedConfirmInsert(kind: "session" | "list") {
+  const table = kind === "session" ? "session_settlement_payments" : "settlement_list_payments";
+  const scopeColumn = kind === "session" ? "night_id" : "list_id";
+  const enabled = kind === "session"
+    ? `EXISTS(SELECT 1 FROM poker_nights n WHERE n.id=pr.ledger_id
+      AND n.record_type='session' AND n.settlement_mode='separate' AND n.status='completed')`
+    : `EXISTS(SELECT 1 FROM settlement_lists l WHERE l.id=pr.ledger_id
+      AND l.status IN ('open','paying_out')
+      AND NOT EXISTS(SELECT 1 FROM settlement_list_nights m
+        JOIN poker_nights n ON n.id=m.night_id
+        WHERE m.list_id=l.id AND n.status='ongoing'))`;
+  return `INSERT INTO ${table}
+    (id,${scopeColumn},from_player_id,to_player_id,amount_cents,paid_at,note,client_token,created_at,voided_at,payment_report_id)
+    SELECT ?,pr.ledger_id,pr.from_player_id,pr.to_player_id,report.amount_cents,?,NULL,?,?,NULL,report.id
+    FROM payment_reports report JOIN payment_requests pr ON pr.id=report.request_id
+    WHERE report.id=? AND pr.id=? AND report.status='reported' AND pr.cancelled_at IS NULL
+      AND pr.ledger_kind='${kind}' AND ${enabled}
+      AND report.amount_cents<=pr.amount_cents-${requestTotals}
+      AND ${scopedOpenSql(kind,"pr.from_player_id")} <= -report.amount_cents
+      AND ${scopedOpenSql(kind,"pr.to_player_id")} >= report.amount_cents`;
+}
+
 export async function decidePayment(env:Env,id:string,reportId:string,value:unknown,confirm:boolean) {
   const data=object(value),request=await getRequest(env,id);
   if (player(data.actorPlayerId)!==request.to_player_id) throw new Error("Bitte das empfangende Spielerprofil wählen.");
@@ -310,31 +358,37 @@ export async function decidePayment(env:Env,id:string,reportId:string,value:unkn
   if (report.status!=="reported") throw new Error("Diese Zahlung wurde bereits bearbeitet.");
   const at=now(),paymentId=crypto.randomUUID();
   if (confirm) {
-    // Confirmation is a payment too: it cannot bypass the fixed route plan.
-    const ledger=await loadSettlementSnapshot(env);
-    const remainingOnRoute=ledger.suggestions
-      .filter(s=>s.fromPlayerId===request.from_player_id && s.toPlayerId===request.to_player_id)
-      .reduce((sum,s)=>sum+s.amountCents,0);
-    if(report.amount_cents>remainingOnRoute)
+    // The fixed transfer plan is not recalculated or reassigned when a report is confirmed.
+    const ledger=await scopedSnapshot(env,request.ledger_kind,request.ledger_id);
+    const remainingOnRoute=scopedRouteAmount(ledger,request.from_player_id,request.to_player_id);
+    if (report.amount_cents>remainingOnRoute ||
+        ("status" in ledger && ledger.status==="closed") || ledger.ongoingSessionCount>0)
       throw new Error("Diese Zahlung gehört nicht mehr zum offenen Ausgleichsplan.");
+
+    const table = request.ledger_kind === "session" ? "session_settlement_payments" :
+      request.ledger_kind === "list" ? "settlement_list_payments" : "settlement_payments";
+
+    const insert = request.ledger_kind === "legacy"
+      ? env.DB.prepare(`INSERT INTO settlement_payments
+        (id,from_player_id,to_player_id,amount_cents,paid_at,note,client_token,created_at,voided_at,payment_report_id)
+        SELECT ?,pr.from_player_id,pr.to_player_id,report.amount_cents,?,NULL,?,?,NULL,report.id
+        FROM payment_reports report JOIN payment_requests pr ON pr.id=report.request_id
+        WHERE report.id=? AND pr.id=? AND report.status='reported'
+          AND pr.cancelled_at IS NULL AND pr.ledger_kind='legacy'
+          AND report.amount_cents<=pr.amount_cents-${requestTotals}
+          AND ${openSql("pr.from_player_id")} <= -report.amount_cents
+          AND ${openSql("pr.to_player_id")} >= report.amount_cents`)
+      : env.DB.prepare(scopedConfirmInsert(request.ledger_kind));
     const results=await env.DB.batch([
-      env.DB.prepare(`INSERT INTO settlement_payments
-       (id,from_player_id,to_player_id,amount_cents,paid_at,note,client_token,created_at,voided_at,payment_report_id)
-       SELECT ?,pr.from_player_id,pr.to_player_id,report.amount_cents,?,NULL,?, ?,NULL,report.id
-       FROM payment_reports report JOIN payment_requests pr ON pr.id=report.request_id
-       WHERE report.id=? AND pr.id=? AND report.status='reported' AND pr.cancelled_at IS NULL
-         AND report.amount_cents<=pr.amount_cents-${requestTotals}
-         AND ${openSql("pr.from_player_id")} <= -report.amount_cents
-         AND ${openSql("pr.to_player_id")} >= report.amount_cents`)
-        .bind(paymentId,at.slice(0,10),crypto.randomUUID(),at,reportId,id),
+      insert.bind(paymentId,at.slice(0,10),crypto.randomUUID(),at,reportId,id),
       env.DB.prepare(`UPDATE payment_reports SET status='confirmed',decided_at=?
         WHERE id=? AND status='reported' AND EXISTS
-        (SELECT 1 FROM settlement_payments WHERE id=? AND payment_report_id=?)`)
+        (SELECT 1 FROM ${table} WHERE id=? AND payment_report_id=?)`)
         .bind(at,reportId,paymentId,reportId),
       env.DB.prepare(`INSERT INTO payment_request_events(id,request_id,to_player_id,kind,created_at)
         SELECT ?,pr.id,pr.from_player_id,'confirmed',?
         FROM payment_requests pr JOIN payment_reports report ON report.request_id=pr.id
-        JOIN settlement_payments sp ON sp.payment_report_id=report.id
+        JOIN ${table} sp ON sp.payment_report_id=report.id
         WHERE report.id=? AND sp.id=?`).bind(crypto.randomUUID(),at,reportId,paymentId),
     ]);
     if (results[0].meta.changes!==1 || results[1].meta.changes!==1) {
