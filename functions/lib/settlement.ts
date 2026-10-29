@@ -328,11 +328,10 @@ export async function writeSettlementPayment(env: Env, input: SettlementPaymentI
   }
 
   const snapshot = await loadSettlementSnapshot(env);
-  const transfer = snapshot.suggestions.find((suggestion) =>
-    suggestion.fromPlayerId === input.fromPlayerId &&
-    suggestion.toPlayerId === input.toPlayerId,
-  );
-  if (!transfer || input.amountCents > transfer.amountCents) {
+  const remainingOnRoute = snapshot.suggestions
+    .filter(s => s.fromPlayerId === input.fromPlayerId && s.toPlayerId === input.toPlayerId)
+    .reduce((total, s) => total + s.amountCents, 0);
+  if (remainingOnRoute < input.amountCents) {
     throw new Error("Diese Zahlung gehört nicht zum offenen Ausgleichsplan.");
   }
 
