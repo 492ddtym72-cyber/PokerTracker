@@ -8,6 +8,8 @@ import {
 } from "./lib/api";
 import { formatMoney, parseMoney } from "./lib/money";
 import { SettlementFlow } from "./SettlementFlow";
+import { SettlementBalanceHero } from "./SettlementBalanceHero";
+import { SettlementViewToggle, type SettlementView } from "./SettlementViewToggle";
 import { SeparateSessions } from "./SeparateSessions";
 import { SettlementCard } from "./SettlementCard";
 import { NamedSettlementLists } from "./NamedSettlementLists";
@@ -34,8 +36,6 @@ const PAYMENT_APP_URLS: Record<PaymentApp, string> = {
   paypal: "https://www.paypal.com/myaccount/transfer/homepage",
   revolut: "https://revolut.com/app",
 };
-
-type SettlementView = "list" | "flow";
 
 type PaymentDraft = {
   fromPlayerId: string;
@@ -536,49 +536,7 @@ export function SettlementScreen({
               panelId="riga-settlement-detail"
               onToggle={() => setRigaOpen((open) => !open)}
             >
-              {currentPlayer && (
-            <section className="settlement-overview-card">
-              <div className="settlement-overview-copy">
-                <span className="settlement-overview-label">
-                  {currentPlayer.openBalanceCents > 0
-                    ? t("Du bekommst")
-                    : currentPlayer.openBalanceCents < 0
-                      ? t("Du zahlst")
-                      : t("Alles ausgeglichen")}
-                </span>
-                <strong className={
-                  "settlement-overview-value" +
-                  (currentPlayer.openBalanceCents > 0
-                    ? " positive"
-                    : currentPlayer.openBalanceCents < 0
-                      ? " negative"
-                      : "")
-                }>
-                  {formatMoney(Math.abs(currentPlayer.openBalanceCents))}
-                </strong>
-              </div>
-            <svg
-              className="settlement-overview-chip"
-              viewBox="0 0 120 120"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <circle cx="60" cy="60" r="53" fill="#071b15" stroke="#315942" strokeWidth="5" />
-              <circle cx="60" cy="60" r="47" fill="#103b2a" stroke="#528768" strokeWidth="1.5" />
-              <g stroke="#8adaaa" strokeWidth="9" opacity=".6">
-                <path d="M60 10v13M60 97v13M10 60h13M97 60h13M24 24l9 9M87 87l9 9M24 96l9-9M87 33l9-9" />
-              </g>
-              <circle cx="60" cy="60" r="34" fill="#092b1f" stroke="#45765b" strokeWidth="2" />
-              <circle cx="60" cy="60" r="29" fill="none" stroke="#194b34" strokeWidth="2" />
-              <g fill="#82d69d">
-                <circle cx="60" cy="47" r="8" />
-                <circle cx="51" cy="59" r="8" />
-                <circle cx="69" cy="59" r="8" />
-                <path d="M57.7 61h4.6c.1 10 2 15 7 19H50.7c5-4 7-9 7-19Z" />
-              </g>
-            </svg>
-            </section>
-          )}
+              {currentPlayer && <SettlementBalanceHero balanceCents={currentPlayer.openBalanceCents} />}
 
           {!currentPlayer && (
             <section className="settlement-profile-nudge">
@@ -620,41 +578,7 @@ export function SettlementScreen({
 
           <section className="settlement-section">
             <div className="settlement-section-head">
-              <div
-                className="settlement-view-toggle"
-                data-view={view}
-                role="group"
-                aria-label={t("Ansicht")}
-              >
-                <button
-                  type="button"
-                  className={view === "list" ? "active" : ""}
-                  aria-pressed={view === "list"}
-                  onClick={() => changeView("list")}
-                >
-                  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 6h11M9 12h11M9 18h11" />
-                    <circle cx="4.5" cy="6" r="1.3" fill="currentColor" stroke="none" />
-                    <circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none" />
-                    <circle cx="4.5" cy="18" r="1.3" fill="currentColor" stroke="none" />
-                  </svg>
-                  <span>{t("Liste")}</span>
-                </button>
-                <button
-                  type="button"
-                  className={view === "flow" ? "active" : ""}
-                  aria-pressed={view === "flow"}
-                  onClick={() => changeView("flow")}
-                >
-                  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="8" height="8" rx="2" />
-                    <rect x="13" y="13" width="8" height="8" rx="2" />
-                    <path d="M7 11v4a2 2 0 0 0 2 2h4" />
-                    <path d="M11 7h3a3 3 0 0 1 3 3v3" />
-                  </svg>
-                  <span>{t("Fluss")}</span>
-                </button>
-              </div>
+              <SettlementViewToggle view={view} onChange={changeView} />
             </div>
 
             {plannedTransfers.length === 0 ? (
