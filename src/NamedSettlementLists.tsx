@@ -20,9 +20,6 @@ function localToday() {
   const d=new Date();
   return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
 }
-function settlementStatus(status:SettlementListSummary["status"]) {
-  return status==="open" ? t("Offen für Sessions") : status==="paying_out" ? t("Auszahlung läuft") : t("Abgeschlossen");
-}
 
 function NamedSettlement({
   item,currentPlayerId,photoFor,onChanged,
@@ -145,6 +142,7 @@ function NamedSettlement({
               suggestions={data.plan}
               currentPlayerId={currentPlayerId}
               profilePhotoFor={photoFor}
+              note={data.suggestions.length > 0 ? t("Offene Zahlungen") : t("Erfasste Zahlungen")}
               onSelect={data.status === "closed" ? undefined : (transfer) => {
                 const remaining = "remainingCents" in transfer ? Number(transfer.remainingCents) : transfer.amountCents;
                 if (remaining <= 0) return;
@@ -170,7 +168,7 @@ function NamedSettlement({
               ))}
             </div>
           )}
-              {selected && data.status!=="closed" && (
+              {view === "list" && selected && data.status!=="closed" && (
                 <form className="named-ledger-payment-form" onSubmit={savePayment}>
                   <strong>{selected.fromPlayerName} → {selected.toPlayerName}</strong>
                   <label>{t("Betrag")} <input required inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)}/></label>
