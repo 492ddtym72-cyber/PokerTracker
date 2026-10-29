@@ -1,4 +1,5 @@
 import type { Env } from "../auth";
+import { reconcileFixedTransfers } from "./fixedTransfers";
 import {
   buildSuggestions,
   loadSettlementSnapshot,
@@ -161,11 +162,13 @@ export async function loadListSnapshot(env:Env,id:string) {
     if(receiver) {receiver.receivedCents+=payment.amount_cents;receiver.openBalanceCents-=payment.amount_cents;}
   }
   const groupDifferenceCents=players.reduce((sum,p)=>sum+p.pokerBalanceCents,0);
-  const suggestions=groupDifferenceCents===0?buildSuggestions(players):[];
+  const {plan,suggestions,unmatchedPaymentCents}=groupDifferenceCents===0
+    ? reconcileFixedTransfers(buildSuggestions(players.map(p=>({...p,openBalanceCents:p.pokerBalanceCents}))),payments.results)
+    : {plan:[],suggestions:[],unmatchedPaymentCents:0};
   const totalOutstandingCents=suggestions.reduce((sum,p)=>sum+p.amountCents,0);
   return {
     listId:id,listName:list.name,status:list.status,
-    players,suggestions,payments:payments.results.map(p=>({
+    players,plan,suggestions,unmatchedPaymentCents,payments:payments.results.map(p=>({
       id:p.id,fromPlayerId:p.from_player_id,fromPlayerName:p.from_player_name,
       toPlayerId:p.to_player_id,toPlayerName:p.to_player_name,
       amountCents:p.amount_cents,paidAt:p.paid_at,note:p.note,
@@ -188,6 +191,10 @@ export async function recordListPayment(env:Env,id:string,raw:unknown) {
   const snapshot=await loadListSnapshot(env,id);
   if(snapshot.ongoingSessionCount>0) throw new Error("Laufende Sessions müssen zuerst abgeschlossen werden.");
   if(snapshot.groupDifferenceCents!==0) throw new Error("Diese Abrechnung hat noch eine Differenz.");
+  const remainingOnRoute=snapshot.suggestions.filter(s=>s.fromPlayerId===input.fromPlayerId && s.toPlayerId===input.toPlayerId)
+    .reduce((sum,s)=>sum+s.amountCents,0);
+  if(input.amountCents>remainingOnRoute)
+    throw new Error("Diese Zahlung gehört nicht zum offenen Ausgleichsplan.");
   const payer=snapshot.players.find(p=>p.id===input.fromPlayerId);
   const receiver=snapshot.players.find(p=>p.id===input.toPlayerId);
   if(!payer || !receiver || payer.openBalanceCents>=0 || receiver.openBalanceCents<=0)

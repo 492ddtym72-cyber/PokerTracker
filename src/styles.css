@@ -4250,3 +4250,8 @@ select:focus {
   .open-table-community-card.is-river { animation: none; opacity: 1; transform: none; }
   .open-table-card { transition: none; }
 }
+
+/* Keep the original settlement route visible after payment confirmation. */
+.settlement-payment-card.is-paid { opacity: .66; }
+.settlement-transfer-state { font-size: .77rem; color: var(--text-muted, #b0c7bb); white-space: nowrap; }
+.settlement-network-transfer.is-paid { opacity: .35; }

@@ -308,23 +308,18 @@ export function SettlementScreen({
     [data, currentPlayerId],
   );
 
-  const suggestions = useMemo(() => {
+  // Keep the original list in view, including completed transfers. Only the
+  // selected transfer's remaining amount changes; nobody is reassigned.
+  const plannedTransfers = useMemo(() => {
     if (!data) return [];
-    if (!currentPlayerId) return data.suggestions;
-
-    return data.suggestions
-      .map((suggestion, index) => ({ suggestion, index }))
-      .sort((a, b) => {
-        const aMine =
-          a.suggestion.fromPlayerId === currentPlayerId ||
-          a.suggestion.toPlayerId === currentPlayerId;
-        const bMine =
-          b.suggestion.fromPlayerId === currentPlayerId ||
-          b.suggestion.toPlayerId === currentPlayerId;
-
-        return Number(bMine) - Number(aMine) || a.index - b.index;
-      })
-      .map(({ suggestion }) => suggestion);
+    const plan = data.plan ?? data.suggestions.map(s => ({ ...s, paidCents: 0, remainingCents: s.amountCents }));
+    if (!currentPlayerId) return plan;
+    return plan.map((transfer, index) => ({ transfer, index }))
+      .sort((a, b) =>
+        Number(b.transfer.fromPlayerId === currentPlayerId || b.transfer.toPlayerId === currentPlayerId) -
+        Number(a.transfer.fromPlayerId === currentPlayerId || a.transfer.toPlayerId === currentPlayerId) ||
+        a.index - b.index
+      ).map(({ transfer }) => transfer);
   }, [data, currentPlayerId]);
 
   function changeView(next: SettlementView) {
@@ -662,20 +657,26 @@ export function SettlementScreen({
               </div>
             </div>
 
-            {data.suggestions.length === 0 ? (
+            {plannedTransfers.length === 0 ? (
               <div className="settlement-empty-inline">
                 <strong>{t("Keine Zahlungen nötig.")}</strong>
               </div>
             ) : view === "flow" ? (
               <SettlementFlow
-                suggestions={suggestions}
+                suggestions={plannedTransfers}
                 currentPlayerId={currentPlayerId}
                 profilePhotoFor={profilePhotoFor}
-                onSelect={openSuggestedPayment}
+                onSelect={(transfer) => {
+                  const remaining = "remainingCents" in transfer
+                    ? Number(transfer.remainingCents) : transfer.amountCents;
+                  if (remaining > 0) openSuggestedPayment({ ...transfer, amountCents: remaining });
+                }}
               />
             ) : (
               <div className="settlement-suggestion-list">
-                {suggestions.map((suggestion, index) => {
+                {plannedTransfers.map((suggestion, index) => {
+                  const isPaid = suggestion.remainingCents === 0;
+                  const openTransfer = { ...suggestion, amountCents: suggestion.remainingCents };
                   const paypalAvailable =
                     !currentPlayerId || suggestion.fromPlayerId === currentPlayerId;
                   const paypalKey = suggestion.fromPlayerId + ":" + suggestion.toPlayerId;
@@ -684,6 +685,7 @@ export function SettlementScreen({
                     <article
                       className={
                         "settlement-payment-card" +
+                        (isPaid ? " is-paid" : "") +
                         (
                           currentPlayerId &&
                           (
@@ -742,7 +744,7 @@ export function SettlementScreen({
 
                       <div className="settlement-payment-amount">
                         <strong>{formatMoney(suggestion.amountCents)}</strong>
-                        <button
+                        {!isPaid && <button
                           type="button"
                           className={
                             "settlement-copy-button" +
@@ -758,7 +760,7 @@ export function SettlementScreen({
                               : t("Betrag kopieren")
                           }
                           disabled={copyingTransferKey === paypalKey}
-                          onClick={() => copySuggestionAmount(suggestion)}
+                          onClick={() => copySuggestionAmount(openTransfer)}
                         >
                           {copiedTransferKey === paypalKey ? (
                             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -770,10 +772,15 @@ export function SettlementScreen({
                               <path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" />
                             </svg>
                           )}
-                        </button>
+                        </button>}
+                        {isPaid
+                          ? <small className="settlement-transfer-state">✓ {t("gezahlt")}</small>
+                          : suggestion.paidCents > 0
+                            ? <small className="settlement-transfer-state">{formatMoney(suggestion.remainingCents)} {t("zu zahlen")}</small>
+                            : null}
                       </div>
 
-                      <div className={
+                      {!isPaid && <div className={
                         "settlement-payment-actions" +
                         (paypalAvailable ? "" : " single-action")
                       }>
@@ -783,7 +790,7 @@ export function SettlementScreen({
                               className="paypal-payment-button"
                               type="button"
                               disabled={paymentAppOpeningKey === paypalKey + ":paypal"}
-                              onClick={() => openPaymentApp(suggestion, "paypal")}
+                              onClick={() => openPaymentApp(openTransfer, "paypal")}
                             >
                               <img src={PAYPAL_MARK_URL} alt="" aria-hidden="true" />
                               <span>
@@ -797,7 +804,7 @@ export function SettlementScreen({
                               className="revolut-payment-button"
                               type="button"
                               disabled={paymentAppOpeningKey === paypalKey + ":revolut"}
-                              onClick={() => openPaymentApp(suggestion, "revolut")}
+                              onClick={() => openPaymentApp(openTransfer, "revolut")}
                             >
                               <img src={REVOLUT_WORDMARK_URL} alt="Revolut" />
                             </button>
@@ -806,24 +813,20 @@ export function SettlementScreen({
 
                         {currentPlayerId === suggestion.toPlayerId && (
                           <button type="button" className="settlement-request-button"
-                            onClick={() => setRequestDraft(suggestion)}>
+                            onClick={() => setRequestDraft(openTransfer)}>
                             {t("Anfordern")}
                           </button>
                         )}
                         <button
                           type="button"
                           className="settlement-record-button"
-                          onClick={() => openSuggestedPayment(suggestion)}
+                          onClick={() => openSuggestedPayment(openTransfer)}
                         >
                           {t("Zahlung eintragen")}
                         </button>
-                      </div>
+                      </div>}
 
-                      {paypalAvailable && (
-                        <small className="paypal-live-note">
-                          {t("Der Betrag wird beim Öffnen frisch berechnet und in die Zwischenablage kopiert.")}
-                        </small>
-                      )}
+
                     </article>
                   );
                 })}

@@ -96,6 +96,8 @@ export function SettlementFlow({
         </defs>
 
         {suggestions.map((suggestion, index) => {
+          const completed = "remainingCents" in suggestion && suggestion.remainingCents === 0;
+          const selectable = Boolean(onSelect) && !completed;
           const fromY = payerY.get(suggestion.fromPlayerId) ?? height / 2;
           const toY = receiverY.get(suggestion.toPlayerId) ?? height / 2;
           const strokeWidth = 2.2 + (suggestion.amountCents / maxAmount) * 4.8;
@@ -112,14 +114,14 @@ export function SettlementFlow({
           return (
             <g
               key={suggestion.fromPlayerId + ":" + suggestion.toPlayerId + ":" + index}
-              className={onSelect ? "settlement-network-transfer" : "settlement-network-transfer is-static"}
-              onClick={onSelect ? () => onSelect(suggestion) : undefined}
-              role={onSelect ? "button" : undefined}
-              tabIndex={onSelect ? 0 : undefined}
-              onKeyDown={onSelect ? (event) => {
+              className={"settlement-network-transfer" + (completed ? " is-paid" : "") + (!selectable ? " is-static" : "")}
+              onClick={selectable ? () => onSelect?.(suggestion) : undefined}
+              role={selectable ? "button" : undefined}
+              tabIndex={selectable ? 0 : undefined}
+              onKeyDown={selectable ? (event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  onSelect(suggestion);
+                  onSelect?.(suggestion);
                 }
               } : undefined}
             >

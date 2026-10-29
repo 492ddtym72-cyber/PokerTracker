@@ -1,4 +1,5 @@
 import type { Env } from "../auth";
+import { reconcileFixedTransfers } from "./fixedTransfers";
 
 export interface SettlementPaymentInput {
   fromPlayerId: string;
@@ -278,7 +279,13 @@ export async function loadSettlementSnapshot(env: Env) {
      ORDER BY priority ASC, from_player_id ASC, to_player_id ASC`,
   ).bind(snapshotKey).all<RoutePriorityRow>();
 
-  const suggestions = buildSuggestions(players, routeQuery.results);
+  // Route against original poker results, never the balances left after payouts.
+  const { plan, suggestions, unmatchedPaymentCents } = reconcileFixedTransfers(
+    buildSuggestions(players.map(player => ({
+      ...player, openBalanceCents: player.pokerBalanceCents,
+    })), routeQuery.results),
+    paymentQuery.results,
+  );
   const groupDifferenceCents = players.reduce(
     (sum, player) => sum + player.openBalanceCents,
     0,
@@ -290,7 +297,9 @@ export async function loadSettlementSnapshot(env: Env) {
 
   return {
     players,
+    plan,
     suggestions,
+    unmatchedPaymentCents,
     payments: paymentQuery.results.map((payment) => ({
       id: payment.id,
       fromPlayerId: payment.from_player_id,
@@ -319,6 +328,13 @@ export async function writeSettlementPayment(env: Env, input: SettlementPaymentI
   }
 
   const snapshot = await loadSettlementSnapshot(env);
+  const remainingOnRoute = snapshot.suggestions
+    .filter(s => s.fromPlayerId === input.fromPlayerId && s.toPlayerId === input.toPlayerId)
+    .reduce((total, s) => total + s.amountCents, 0);
+  if (remainingOnRoute < input.amountCents) {
+    throw new Error("Diese Zahlung gehört nicht zum offenen Ausgleichsplan.");
+  }
+
   const payer = snapshot.players.find((player) => player.id === input.fromPlayerId);
   const receiver = snapshot.players.find((player) => player.id === input.toPlayerId);
 

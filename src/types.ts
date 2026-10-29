@@ -122,6 +122,11 @@ export interface SettlementSuggestion {
   amountCents: number;
 }
 
+export interface SettlementPlanTransfer extends SettlementSuggestion {
+  paidCents: number;
+  remainingCents: number;
+}
+
 export interface SettlementPayment {
   id: string;
   fromPlayerId: string;
@@ -153,7 +158,9 @@ export interface NamedSettlementResponse extends SettlementResponse {
 }
 export interface SettlementResponse {
   players: SettlementPlayer[];
+  plan: SettlementPlanTransfer[];
   suggestions: SettlementSuggestion[];
+  unmatchedPaymentCents: number;
   payments: SettlementPayment[];
   totalOutstandingCents: number;
   groupDifferenceCents: number;
