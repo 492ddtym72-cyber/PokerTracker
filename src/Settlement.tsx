@@ -221,6 +221,7 @@ export function SettlementScreen({
     try {
       await createSettlementList(name);
       setNewListVersion(v=>v+1);
+      window.dispatchEvent(new Event("pokertracker:lists-updated"));
     } catch(err) {
       setError(err instanceof Error ? err.message : t("Liste konnte nicht angelegt werden."));
     } finally { setCreatingList(false); }
