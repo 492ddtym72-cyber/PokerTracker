@@ -50,19 +50,12 @@
 .session-settlement-launcher .secondary-button { margin: 0; white-space: nowrap; }
 
 
-/* Isolated games in the Abrechnung screen */
-.separate-sessions {
-  margin-top: 34px;
-  padding-top: 23px;
-  border-top: 1px solid rgba(215, 190, 119, .19);
-}
-.separate-session-list { display: grid; gap: 9px; }
 .local-settlement-diagram { margin-bottom: 18px; }
 .local-settlement-diagram-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 10px; color: #e6d5b0; font-size: 13px; }
 .local-settlement-diagram-heading span { font-size: 11px; color: #a8ad9d; }
 .local-settlement-diagram .settlement-flow-card { border-color: rgba(215,190,119,.16); }
 .settlement-network-transfer.is-static { cursor: default; }
-/* Independent settlement lists: Riga's legacy payout stays in its own scope. */
+/* Shared card layout. Each card keeps its own underlying payment ledger. */
 .settlement-ledgers { margin-top: 22px; }
 .settlement-ledgers > .section-title-row { margin-bottom: 12px; }
 .settlement-ledgers > .settlement-ledger-item + .settlement-ledger-item { margin-top: 9px; }
