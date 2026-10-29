@@ -675,10 +675,14 @@ export function SettlementScreen({
               </div>
             ) : view === "flow" ? (
               <SettlementFlow
-                suggestions={suggestions}
+                suggestions={plannedTransfers}
                 currentPlayerId={currentPlayerId}
                 profilePhotoFor={profilePhotoFor}
-                onSelect={openSuggestedPayment}
+                onSelect={(transfer) => {
+                  const remaining = "remainingCents" in transfer
+                    ? Number(transfer.remainingCents) : transfer.amountCents;
+                  if (remaining > 0) openSuggestedPayment({ ...transfer, amountCents: remaining });
+                }}
               />
             ) : (
               <div className="settlement-suggestion-list">
@@ -834,11 +838,7 @@ export function SettlementScreen({
                         </button>
                       </div>}
 
-                      {!isPaid && paypalAvailable && (
-                        <small className="paypal-live-note">
-                          {t("Der Betrag wird beim Öffnen frisch berechnet und in die Zwischenablage kopiert.")}
-                        </small>
-                      )}
+
                     </article>
                   );
                 })}
