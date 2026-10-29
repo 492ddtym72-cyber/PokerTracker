@@ -525,9 +525,9 @@ export function SettlementScreen({
         <div className="empty-card">{t("Lädt …")}</div>
       ) : data ? (
         <>
-          <section className="settlement-ledgers" aria-label={t("Abrechnungslisten")}>
+          <section className="settlement-ledgers" aria-label={t("Abrechnungen")}>
             <div className="settlement-lists-topline">
-              <h2>{t("Abrechnungslisten")}</h2>
+              <h2>{t("Abrechnungen")}</h2>
               <button className="secondary-button" type="button" disabled={creatingList}
                 onClick={()=>void addNamedList()}>
                 + {t("Neue Liste")}
@@ -1055,13 +1055,12 @@ export function SettlementScreen({
               photoFor={profilePhotoFor}
               nightsVersion={newListVersion+":"+nights.map(n=>n.id+":"+n.updatedAt).join("|")}
             />
+            <SeparateSessions
+              nights={nights}
+              currentPlayerId={currentPlayerId}
+              photoFor={profilePhotoFor}
+            />
           </section>
-
-          <SeparateSessions
-            nights={nights}
-            currentPlayerId={currentPlayerId}
-            photoFor={profilePhotoFor}
-          />
         </>
       ) : null}
 

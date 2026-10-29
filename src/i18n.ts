@@ -31,6 +31,7 @@ const ENGLISH: Record<string, string> = {
   "Bitte einen anderen Namen mit 2–60 Zeichen wählen.": "Choose another name of 2–60 characters.",
   "Diese Abrechnung hat noch eine Differenz.": "This settlement still has a balance discrepancy.",
   "Abrechnungslisten": "Settlement lists",
+  "Abrechnungen": "Settlements",
   "Riga-Abrechnung": "Riga settlement",
   "Bestehende Abrechnung": "Existing settlement",
   "Auszahlung läuft": "Payout in progress",
