@@ -17,6 +17,7 @@ import { NamedSettlementLists } from "./NamedSettlementLists";
 import { getLocale, t } from "./i18n";
 import { PlayerAvatar } from "./PlayerAvatar";
 import { PaymentRequestDialog } from "./PaymentRequestDialog";
+import { SettlementTransferCard } from "./SettlementTransferCard";
 import type {
   PlayerProfile,
   PokerNight,
@@ -599,160 +600,21 @@ export function SettlementScreen({
             ) : (
               <div className="settlement-suggestion-list">
                 {plannedTransfers.map((suggestion, index) => {
-                  const isPaid = suggestion.remainingCents === 0;
-                  const openTransfer = { ...suggestion, amountCents: suggestion.remainingCents };
-                  const paypalAvailable =
-                    !currentPlayerId || suggestion.fromPlayerId === currentPlayerId;
-                  const paypalKey = suggestion.fromPlayerId + ":" + suggestion.toPlayerId;
-
-                  return (
-                    <article
-                      className={
-                        "settlement-payment-card" +
-                        (isPaid ? " is-paid" : "") +
-                        (
-                          currentPlayerId &&
-                          (
-                            suggestion.fromPlayerId === currentPlayerId ||
-                            suggestion.toPlayerId === currentPlayerId
-                          )
-                            ? " is-personal"
-                            : ""
-                        )
-                      }
-                      key={paypalKey + ":" + index}
-                    >
-                      <div className="settlement-payment-flow">
-                        <div className="settlement-flow-player">
-                          <PlayerAvatar
-                            className={
-                              "settlement-flow-avatar settlement-flow-avatar-payer" +
-                              (suggestion.fromPlayerId === currentPlayerId ? " is-me" : "")
-                            }
-                            name={suggestion.fromPlayerName}
-                            photo={profilePhotoFor(suggestion.fromPlayerId)}
-                          />
-                          <strong>
-                            {personLabel(
-                              suggestion.fromPlayerId,
-                              suggestion.fromPlayerName,
-                              currentPlayerId,
-                            )}
-                          </strong>
-                          <small>{t("Zahlt")}</small>
-                        </div>
-
-                        <div className="settlement-flow-direction" aria-hidden="true">
-                          <span className="settlement-flow-arrow">→</span>
-                        </div>
-
-                        <div className="settlement-flow-player">
-                          <PlayerAvatar
-                            className={
-                              "settlement-flow-avatar settlement-flow-avatar-receiver" +
-                              (suggestion.toPlayerId === currentPlayerId ? " is-me" : "")
-                            }
-                            name={suggestion.toPlayerName}
-                            photo={profilePhotoFor(suggestion.toPlayerId)}
-                          />
-                          <strong>
-                            {personLabel(
-                              suggestion.toPlayerId,
-                              suggestion.toPlayerName,
-                              currentPlayerId,
-                            )}
-                          </strong>
-                          <small>{t("Erhält")}</small>
-                        </div>
-                      </div>
-
-                      <div className="settlement-payment-amount">
-                        <strong>{formatMoney(suggestion.amountCents)}</strong>
-                        {!isPaid && <button
-                          type="button"
-                          className={
-                            "settlement-copy-button" +
-                            (
-                              copiedTransferKey === paypalKey
-                                ? " is-copied"
-                                : ""
-                            )
-                          }
-                          aria-label={
-                            copiedTransferKey === paypalKey
-                              ? t("Betrag kopiert")
-                              : t("Betrag kopieren")
-                          }
-                          disabled={copyingTransferKey === paypalKey}
-                          onClick={() => copySuggestionAmount(openTransfer)}
-                        >
-                          {copiedTransferKey === paypalKey ? (
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                              <path d="m5.5 12.5 4.1 4.1L18.7 7.5" />
-                            </svg>
-                          ) : (
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                              <rect x="8" y="8" width="10" height="10" rx="2" />
-                              <path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" />
-                            </svg>
-                          )}
-                        </button>}
-                        {isPaid
-                          ? <small className="settlement-transfer-state">✓ {t("gezahlt")}</small>
-                          : suggestion.paidCents > 0
-                            ? <small className="settlement-transfer-state">{formatMoney(suggestion.remainingCents)} {t("zu zahlen")}</small>
-                            : null}
-                      </div>
-
-                      {!isPaid && <div className={
-                        "settlement-payment-actions" +
-                        (paypalAvailable ? "" : " single-action")
-                      }>
-                        {paypalAvailable && (
-                          <div className="settlement-wallet-actions">
-                            <button
-                              className="paypal-payment-button"
-                              type="button"
-                              disabled={paymentAppOpeningKey === paypalKey + ":paypal"}
-                              onClick={() => openPaymentApp(openTransfer, "paypal")}
-                            >
-                              <img src={PAYPAL_MARK_URL} alt="" aria-hidden="true" />
-                              <span>
-                                {paymentAppOpeningKey === paypalKey + ":paypal"
-                                  ? "…"
-                                  : "PayPal"}
-                              </span>
-                            </button>
-
-                            <button
-                              className="revolut-payment-button"
-                              type="button"
-                              disabled={paymentAppOpeningKey === paypalKey + ":revolut"}
-                              onClick={() => openPaymentApp(openTransfer, "revolut")}
-                            >
-                              <img src={REVOLUT_WORDMARK_URL} alt="Revolut" />
-                            </button>
-                          </div>
-                        )}
-
-                        {currentPlayerId === suggestion.toPlayerId && (
-                          <button type="button" className="settlement-request-button"
-                            onClick={() => setRequestDraft(openTransfer)}>
-                            {t("Anfordern")}
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="settlement-record-button"
-                          onClick={() => openSuggestedPayment(openTransfer)}
-                        >
-                          {t("Zahlung eintragen")}
-                        </button>
-                      </div>}
-
-
-                    </article>
-                  );
+                  const key = suggestion.fromPlayerId + ":" + suggestion.toPlayerId;
+                  return <SettlementTransferCard
+                    key={key + ":" + index}
+                    transfer={suggestion}
+                    currentPlayerId={currentPlayerId}
+                    photoFor={profilePhotoFor}
+                    onCopy={(remaining) => { void copySuggestionAmount(remaining); }}
+                    onWallet={(remaining, app) => { void openPaymentApp(remaining, app); }}
+                    onRecord={openSuggestedPayment}
+                    onRequest={currentPlayerId ? setRequestDraft : undefined}
+                    copying={copyingTransferKey === key}
+                    copied={copiedTransferKey === key}
+                    openingApp={paymentAppOpeningKey === key + ":paypal" ? "paypal" :
+                      paymentAppOpeningKey === key + ":revolut" ? "revolut" : null}
+                  />;
                 })}
               </div>
             )}
