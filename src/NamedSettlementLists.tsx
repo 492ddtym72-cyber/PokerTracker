@@ -126,21 +126,27 @@ function NamedSettlement({
               {data.groupDifferenceCents!==0 && (
                 <p className="local-settlement-error">{t("Offene Session-Differenz")}: {formatMoney(data.groupDifferenceCents)}</p>
               )}
-              {data.suggestions.length>0 ? (
+              {data.plan.length>0 ? (
                 <>
                   <SettlementFlow
-                    suggestions={data.suggestions}
+                    suggestions={data.plan}
                     currentPlayerId={currentPlayerId}
                     profilePhotoFor={photoFor}
-                    onSelect={data.status==="closed"?undefined:selectTransfer}
+                    onSelect={data.status==="closed"?undefined:(transfer)=>{
+                      const remaining="remainingCents" in transfer ? Number(transfer.remainingCents) : transfer.amountCents;
+                      if(remaining>0) selectTransfer({...transfer,amountCents:remaining});
+                    }}
                   />
                   {data.status!=="closed" && (
                     <div className="named-ledger-transfers">
-                      {data.suggestions.map(s=>(
-                        <button type="button" key={s.fromPlayerId+":"+s.toPlayerId}
-                          onClick={()=>selectTransfer(s)}>
+                      {data.plan.map((s,index)=>(
+                        <button type="button" key={s.fromPlayerId+":"+s.toPlayerId+":"+index}
+                          disabled={s.remainingCents===0}
+                          onClick={()=>selectTransfer({...s,amountCents:s.remainingCents})}>
                           <span>{s.fromPlayerName} → {s.toPlayerName}</span>
                           <strong>{formatMoney(s.amountCents)}</strong>
+                          {s.remainingCents===0 && <small>✓ {t("gezahlt")}</small>}
+                          {s.paidCents>0 && s.remainingCents>0 && <small>{formatMoney(s.remainingCents)} {t("zu zahlen")}</small>}
                         </button>
                       ))}
                     </div>
