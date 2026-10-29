@@ -132,8 +132,10 @@ export async function recordSessionPayment(env: Env, nightId: string, raw: unkno
   if (snapshot.groupDifferenceCents !== 0) {
     throw new Error("Die Session ist noch nicht vollständig ausgeglichen.");
   }
-  const transfer = snapshot.suggestions.find(s => s.fromPlayerId === input.fromPlayerId && s.toPlayerId === input.toPlayerId);
-  if (!transfer || input.amountCents > transfer.amountCents) {
+  const remainingOnRoute = snapshot.suggestions
+    .filter(s => s.fromPlayerId === input.fromPlayerId && s.toPlayerId === input.toPlayerId)
+    .reduce((sum,s) => sum + s.amountCents,0);
+  if (input.amountCents > remainingOnRoute) {
     throw new Error("Diese Zahlung gehört nicht zum offenen Ausgleichsplan.");
   }
   const payer = snapshot.players.find(player => player.id === input.fromPlayerId);
