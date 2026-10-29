@@ -122,7 +122,10 @@ export function InboxLauncher({
       await paymentRequestAction(id,action,{actorPlayerId:me,...extra});
       setReportFor(null);
       const next=await refresh(me);
-      if(action==="confirm")window.dispatchEvent(new Event("pokertracker:settlement-updated"));
+      if(action==="confirm") {
+        window.dispatchEvent(new Event("pokertracker:settlement-updated"));
+        window.dispatchEvent(new Event("pokertracker:lists-updated"));
+      }
       // Do not show a success state before the server has confirmed the action.
       if(next) setError("");
     } catch(err) {
@@ -196,7 +199,7 @@ export function InboxLauncher({
                         <PlayerAvatar name={otherName} photo={photoById.get(otherId)??null}/>
                         <div className="inbox-request-person">
                           <strong>{otherName}{notRead&&<i className="inbox-dot"/>}</strong>
-                          <small>{requestDate(request.createdAt)} · {incoming?t("Zahlung angefordert"):t("Anforderung gesendet")}</small>
+                          <small>{request.ledgerTitle} · {requestDate(request.createdAt)} · {incoming?t("Zahlung angefordert"):t("Anforderung gesendet")}</small>
                         </div>
                         <span className="inbox-request-amount">{formatMoney(request.remainingCents)}</span>
                       </div>

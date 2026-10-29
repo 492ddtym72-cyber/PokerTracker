@@ -2362,7 +2362,7 @@ export default function App() {
             </section>
           )}
           {detailNight.status === "completed" && detailNight.settlementMode === "separate" && sessionSettlementOpen && (
-            <SessionSettlement nightId={detailNight.id} currentPlayerId={currentPlayerId} photoFor={profilePhotoFor} />
+            <SessionSettlement nightId={detailNight.id} currentPlayerId={currentPlayerId} photoFor={profilePhotoFor} playerProfiles={playerProfiles} />
           )}
 
           {(detailNight.settlementMode === "separate" ||

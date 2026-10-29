@@ -5,6 +5,7 @@ import type {
   PlayerProfile,
   PokerNight,
   PreparedPaymentApp,
+  PaymentLedgerScope,
   SettlementPaymentInput,
   SettlementResponse,
   SettlementListSummary,
@@ -162,8 +163,9 @@ export function voidSettlementPayment(id: string) {
 
 
 
-export function preparePaymentApp(fromPlayerId: string, toPlayerId: string) {
-  const params = new URLSearchParams({ fromPlayerId, toPlayerId });
+export function preparePaymentApp(fromPlayerId: string, toPlayerId: string, scope: PaymentLedgerScope = {kind:"legacy"}) {
+  const params = new URLSearchParams({ fromPlayerId, toPlayerId, ledgerKind: scope.kind });
+  if (scope.kind !== "legacy") params.set("ledgerId", scope.id);
   return api<PreparedPaymentApp>("/api/settlements/payment-app?" + params.toString());
 }
 
@@ -180,6 +182,8 @@ export function sendPaymentRequest(input: {
   message: string;
   paymentUrl: string;
   clientToken: string;
+  ledgerKind?: "legacy" | "session" | "list";
+  ledgerId?: string;
 }) {
   return api<{id:string}>("/api/payment-requests", {
     method: "POST", body: JSON.stringify(input),
