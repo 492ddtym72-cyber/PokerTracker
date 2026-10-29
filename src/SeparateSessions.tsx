@@ -1,8 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getLocale, t } from "./i18n";
+import { loadSessionSettlement } from "./lib/api";
+import { formatMoney } from "./lib/money";
 import { getSeparateSessions } from "./lib/separateSessions";
 import { SessionSettlement } from "./SessionSettlement";
-import type { PokerNight } from "./types";
+import { SettlementCard } from "./SettlementCard";
+import type { PokerNight, SettlementResponse } from "./types";
+
+type SessionAmount =
+  | { status: "ready"; outstandingCents: number; differenceCents: number }
+  | { status: "error" };
 
 function sessionDate(playedAt: string) {
   return new Date(playedAt + "T12:00:00").toLocaleDateString(getLocale(), {
@@ -23,6 +30,48 @@ export function SeparateSessions({
 }) {
   const sessions = useMemo(() => getSeparateSessions(nights), [nights]);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [amounts, setAmounts] = useState<Record<string, SessionAmount>>({});
+  const versions = useRef<Record<string, number>>({});
+
+  function updateAmount(id: string, snapshot: SettlementResponse) {
+    versions.current[id] = (versions.current[id] ?? 0) + 1;
+    setAmounts((current) => ({
+      ...current,
+      [id]: {
+        status: "ready",
+        outstandingCents: snapshot.totalOutstandingCents,
+        differenceCents: snapshot.groupDifferenceCents,
+      },
+    }));
+  }
+
+  useEffect(() => {
+    let active = true;
+    for (const night of sessions) {
+      if (night.status !== "completed") continue;
+      const version = (versions.current[night.id] ?? 0) + 1;
+      versions.current[night.id] = version;
+      loadSessionSettlement(night.id)
+        .then((snapshot) => {
+          if (active && versions.current[night.id] === version) {
+            setAmounts((current) => ({
+              ...current,
+              [night.id]: {
+                status: "ready",
+                outstandingCents: snapshot.totalOutstandingCents,
+                differenceCents: snapshot.groupDifferenceCents,
+              },
+            }));
+          }
+        })
+        .catch(() => {
+          if (active && versions.current[night.id] === version) {
+            setAmounts((current) => ({ ...current, [night.id]: { status: "error" } }));
+          }
+        });
+    }
+    return () => { active = false; };
+  }, [sessions]);
 
   return (
     <section className="settlement-section separate-sessions" aria-label={t("Separate Sessions")}>
@@ -30,9 +79,6 @@ export function SeparateSessions({
         <h2>{t("Separate Sessions")}</h2>
         <span>{sessions.length}</span>
       </div>
-      <p className="separate-sessions-intro">
-        {t("Diese Sessions werden unabhängig von der Gesamtbilanz abgerechnet.")}
-      </p>
 
       {sessions.length === 0 ? (
         <div className="settlement-empty-inline">{t("Noch keine separaten Sessions.")}</div>
@@ -41,41 +87,30 @@ export function SeparateSessions({
           {sessions.map((night) => {
             const completed = night.status === "completed";
             const expanded = completed && openId === night.id;
-            const panelId = "separate-session-" + night.id;
+            const summary = amounts[night.id];
+            const amount = !completed
+              ? t("Läuft")
+              : summary?.status === "ready" && summary.differenceCents === 0
+                ? formatMoney(summary.outstandingCents)
+                : "—";
             return (
-              <article className={"separate-session-item" + (expanded ? " is-expanded" : "")} key={night.id}>
-                <button
-                  type="button"
-                  className="separate-session-trigger"
-                  disabled={!completed}
-                  aria-expanded={completed ? expanded : undefined}
-                  aria-controls={completed ? panelId : undefined}
-                  onClick={() => setOpenId(expanded ? null : night.id)}
-                >
-                  <span className="separate-session-symbol" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
-                      <rect x="4" y="5" width="13" height="16" rx="2" />
-                      <path d="M8 9h5M8 12h5M18 3l3 4-3 4-3-4 3-4Z" />
-                    </svg>
-                  </span>
-                  <span className="separate-session-label">
-                    <strong>{night.title}</strong>
-                    <small>{sessionDate(night.playedAt)} · {night.players.length} {t("Spieler")}</small>
-                  </span>
-                  {!completed && <span className="separate-session-state">{t("Läuft")}</span>}
-                  {completed && <span className={"separate-session-chevron" + (expanded ? " is-open" : "")} aria-hidden="true">⌄</span>}
-                </button>
-                {expanded && (
-                  <div className="separate-session-detail" id={panelId}>
-                    <SessionSettlement
-                      key={night.id}
-                      nightId={night.id}
-                      currentPlayerId={currentPlayerId}
-                      photoFor={photoFor}
-                    />
-                  </div>
-                )}
-              </article>
+              <SettlementCard
+                key={night.id}
+                title={night.title}
+                meta={sessionDate(night.playedAt) + " · " + night.players.length + " " + t("Spieler")}
+                amount={amount}
+                expanded={expanded}
+                panelId={"separate-session-" + night.id}
+                disabled={!completed}
+                onToggle={() => setOpenId(expanded ? null : night.id)}
+              >
+                <SessionSettlement
+                  nightId={night.id}
+                  currentPlayerId={currentPlayerId}
+                  photoFor={photoFor}
+                  onDataChange={(snapshot) => updateAmount(night.id, snapshot)}
+                />
+              </SettlementCard>
             );
           })}
         </div>
