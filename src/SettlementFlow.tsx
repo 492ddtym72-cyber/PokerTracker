@@ -121,7 +121,7 @@ export function SettlementFlow({
               onKeyDown={selectable ? (event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  onSelect(suggestion);
+                  onSelect?.(suggestion);
                 }
               } : undefined}
             >
