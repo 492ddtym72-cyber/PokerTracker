@@ -4,7 +4,8 @@ import { formatMoney } from "./lib/money";
 import { SettlementFlow } from "./SettlementFlow";
 import { SettlementBalanceHero } from "./SettlementBalanceHero";
 import { SettlementViewToggle, type SettlementView } from "./SettlementViewToggle";
-import { personalSettlementBalance } from "./lib/settlementPresentation";
+import { personalSettlementPlayer } from "./lib/settlementPresentation";
+import { SettlementPlayerResults } from "./SettlementPlayerResults";
 import { t } from "./i18n";
 import { PlayerAvatar } from "./PlayerAvatar";
 import type { SettlementResponse, SettlementSuggestion } from "./types";
@@ -98,15 +99,15 @@ export function SessionSettlement({
   // Payment plans remain frozen; the view switch never recalculates transfers.
   const pending = data?.suggestions ?? [];
   const diagramTransfers = data?.plan ?? [];
-  const personalBalance = data
-    ? personalSettlementBalance(data.players, currentPlayerId)
+  const personalPlayer = data
+    ? personalSettlementPlayer(data.players, currentPlayerId)
     : null;
 
   if (loading) return <section className="local-settlement"><p className="local-settlement-muted">{t("Lädt …")}</p></section>;
 
   return (
     <section className="local-settlement" aria-label={t("Session-Abrechnung")}>
-      {personalBalance !== null && <SettlementBalanceHero balanceCents={personalBalance} />}
+      {personalPlayer && <SettlementBalanceHero player={personalPlayer} />}
 
       {data && data.groupDifferenceCents !== 0 && (
         <p className="local-settlement-error">{t("Die Session hat eine offene Differenz.")}</p>
@@ -184,6 +185,8 @@ export function SessionSettlement({
         })}
       </div>
       )}
+
+      {data && <SettlementPlayerResults players={data.players} currentPlayerId={currentPlayerId} photoFor={photoFor} />}
 
       {data && data.payments.length > 0 && (
         <div className="local-settlement-history">
