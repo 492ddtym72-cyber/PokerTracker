@@ -257,6 +257,13 @@ export async function decidePayment(env:Env,id:string,reportId:string,value:unkn
   if (report.status!=="reported") throw new Error("Diese Zahlung wurde bereits bearbeitet.");
   const at=now(),paymentId=crypto.randomUUID();
   if (confirm) {
+    // Confirmation is a payment too: it cannot bypass the fixed route plan.
+    const ledger=await loadSettlementSnapshot(env);
+    const remainingOnRoute=ledger.suggestions
+      .filter(s=>s.fromPlayerId===request.from_player_id && s.toPlayerId===request.to_player_id)
+      .reduce((sum,s)=>sum+s.amountCents,0);
+    if(report.amount_cents>remainingOnRoute)
+      throw new Error("Diese Zahlung gehört nicht mehr zum offenen Ausgleichsplan.");
     const results=await env.DB.batch([
       env.DB.prepare(`INSERT INTO settlement_payments
        (id,from_player_id,to_player_id,amount_cents,paid_at,note,client_token,created_at,voided_at,payment_report_id)
