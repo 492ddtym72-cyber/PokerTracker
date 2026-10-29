@@ -5,7 +5,7 @@ import { formatMoney } from "./lib/money";
 import { getSeparateSessions } from "./lib/separateSessions";
 import { SessionSettlement } from "./SessionSettlement";
 import { SettlementCard } from "./SettlementCard";
-import type { PokerNight, SettlementResponse } from "./types";
+import type { PokerNight, SettlementResponse, PlayerProfile } from "./types";
 
 type SessionAmount =
   | { status: "ready"; outstandingCents: number; differenceCents: number }
@@ -23,10 +23,12 @@ export function SeparateSessions({
   nights,
   currentPlayerId,
   photoFor,
+  playerProfiles,
 }: {
   nights: PokerNight[];
   currentPlayerId: string | null;
   photoFor: (playerId: string) => string | null;
+  playerProfiles: PlayerProfile[];
 }) {
   const sessions = useMemo(() => getSeparateSessions(nights), [nights]);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -101,6 +103,7 @@ export function SeparateSessions({
               nightId={night.id}
               currentPlayerId={currentPlayerId}
               photoFor={photoFor}
+              playerProfiles={playerProfiles}
               onDataChange={(snapshot) => updateAmount(night.id, snapshot)}
             />
           </SettlementCard>
