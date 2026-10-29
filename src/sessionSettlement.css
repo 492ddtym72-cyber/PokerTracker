@@ -114,3 +114,20 @@
 .settlement-lists-topline h2 { margin: 0; font-size: 19px; }
 .settlement-lists-topline .secondary-button { margin: 0; padding: 9px 12px; font-size: 12px; white-space: nowrap; }
 @media (max-width: 460px) { .settlement-lists-topline h2 { font-size: 17px; } .settlement-lists-topline .secondary-button { padding: 9px 10px; font-size: 11px; } }
+
+/* Expanded settlements share the Riga balance hero and list/flow switch. */
+.local-settlement-view-head,
+.named-ledger-view-head {
+  margin-top: 22px;
+  margin-bottom: 16px;
+}
+.local-settlement-view-head .settlement-view-toggle,
+.named-ledger-view-head .settlement-view-toggle {
+  width: min(100%, 390px);
+}
+.settlement-ledger-detail > .settlement-overview-card + .named-ledger-view-head {
+  margin-top: 22px;
+}
+.local-settlement .local-settlement-empty {
+  margin-top: 10px;
+}
