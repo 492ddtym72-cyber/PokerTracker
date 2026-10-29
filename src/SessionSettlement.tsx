@@ -91,19 +91,9 @@ export function SessionSettlement({
     }
   }
 
-  // Render outstanding transfers; when settled, retain a read-only diagram of
-  // completed payments instead of showing an empty graph.
+  // Always display the original session routes, including paid transfers.
   const pending = data?.suggestions ?? [];
-  const recorded: SettlementSuggestion[] = data?.payments
-    .filter(payment => !payment.voidedAt)
-    .map(payment => ({
-      fromPlayerId: payment.fromPlayerId,
-      fromPlayerName: payment.fromPlayerName,
-      toPlayerId: payment.toPlayerId,
-      toPlayerName: payment.toPlayerName,
-      amountCents: payment.amountCents,
-    })) ?? [];
-  const diagramTransfers = pending.length > 0 ? pending : recorded;
+  const diagramTransfers = data?.plan ?? [];
   const diagramIsHistory = pending.length === 0;
 
   if (loading) return <section className="local-settlement"><p className="local-settlement-muted">{t("Lädt …")}</p></section>;
@@ -142,8 +132,10 @@ export function SessionSettlement({
       )}
 
       <div className="local-settlement-transfers">
-        {data?.suggestions.map(entry => {
+        {data?.plan.map(entry => {
           const key = keyFor(entry);
+          const isPaid = entry.remainingCents === 0;
+          const openTransfer = { ...entry, amountCents: entry.remainingCents };
           const isConfirming = confirmKey === key;
           return (
             <article className="local-settlement-transfer" key={key}>
@@ -160,13 +152,14 @@ export function SessionSettlement({
                 <strong className="local-settlement-amount">{formatMoney(entry.amountCents)}</strong>
               </div>
               <div className="local-settlement-actions">
-                <button type="button" onClick={() => void copyAmount(entry)} disabled={busy}>
+                {isPaid ? <small className="settlement-transfer-state">✓ {t("gezahlt")}</small> : <>
+                <button type="button" onClick={() => void copyAmount(openTransfer)} disabled={busy}>
                   {copiedKey === key ? t("Betrag kopiert") : t("Betrag kopieren")}
                 </button>
                 {isConfirming ? (
                   <>
                     <button type="button" onClick={() => setConfirmKey(null)} disabled={busy}>{t("Abbrechen")}</button>
-                    <button type="button" className="local-settlement-primary" onClick={() => void markPaid(entry)} disabled={busy}>
+                    <button type="button" className="local-settlement-primary" onClick={() => void markPaid(openTransfer)} disabled={busy}>
                       {busy ? t("Speichert …") : t("Zahlung bestätigen")}
                     </button>
                   </>
@@ -175,6 +168,7 @@ export function SessionSettlement({
                     {t("Als bezahlt markieren")}
                   </button>
                 )}
+                </>}
               </div>
             </article>
           );
